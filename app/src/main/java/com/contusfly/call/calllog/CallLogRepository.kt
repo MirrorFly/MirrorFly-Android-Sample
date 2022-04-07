@@ -1,11 +1,11 @@
 package com.contusfly.call.calllog
 
+import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.CallState
 import com.contus.flycommons.Constants
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallLogManager
-import com.contus.webrtc.database.NewCallLogDatabaseManager
-import com.contus.webrtc.database.model.CallLog
+import com.contus.call.database.model.CallLog
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.model.CallLogs
@@ -25,14 +25,14 @@ class CallLogRepository @Inject constructor() {
     private val tag = this::class.java.simpleName
 
     fun getCallLogs(): MutableList<CallLog> {
-        LogMessage.v(tag, "getCallLogs() is working in thread ${Thread.currentThread().name}")
+        LogMessage.v(tag, "$CALL_UI getCallLogs() is working in thread ${Thread.currentThread().name}")
         return CallLogManager.getCallLogs() as MutableList<CallLog>
     }
 
     suspend fun filteredCallLogs(searchKey: String): MutableList<CallLog> = withContext(Dispatchers.IO) {
-        LogMessage.v(tag, "filteredCallLogs() is working in thread ${Thread.currentThread().name}")
+        LogMessage.v(tag, "$CALL_UI filteredCallLogs() is working in thread ${Thread.currentThread().name}")
         val callLogs = mutableListOf<CallLog>()
-        val callLogsList = NewCallLogDatabaseManager.getAllCallLogs()
+        val callLogsList = CallLogManager.getCallLogs()
         if (callLogsList != null) {
             callLogs.addAll(callLogsList)
             val callLogsWithNickName = ArrayList<CallLog>()
@@ -118,8 +118,8 @@ class CallLogRepository @Inject constructor() {
     }
 
     suspend fun getCallLog(roomId: String): CallLog? = withContext(Dispatchers.IO) {
-        LogMessage.v(tag, "getCallLogs() is working in thread ${Thread.currentThread().name}")
-        NewCallLogDatabaseManager.getCallLog(roomId)
+        LogMessage.v(tag, "$CALL_UI getCallLogs() is working in thread ${Thread.currentThread().name}")
+        CallLogManager.getCallLog(roomId)
     }
 
 

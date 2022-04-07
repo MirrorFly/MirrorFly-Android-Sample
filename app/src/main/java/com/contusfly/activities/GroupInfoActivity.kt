@@ -489,10 +489,6 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         actionBar?.setDisplayHomeAsUpEnabled(true)
         mAppBarLayout = binding.appBarLayout
         mCoordinatorLayout = binding.coordinatorLayout
-        mAppBarLayout.post {
-            val heightPx = collapsingToolbar.height
-            setAppBarOffset(heightPx / 3)
-        }
         toolbar.setNavigationIcon(R.drawable.ic_back)
         toolbar.navigationIcon!!.applyMultiplyColorFilter(
             ContextCompat.getColor(

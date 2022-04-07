@@ -18,7 +18,7 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager.widget.ViewPager
 import com.contus.flycommons.ChatType
 import com.contus.webrtc.api.CallLogManager
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.*
 import com.contusfly.activities.parent.DashboardParent
 import com.contusfly.adapters.ViewPagerAdapter
@@ -108,12 +108,12 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     private fun setUpTabColors(position: Int) {
         when (position) {
             0 -> {
-                chatTitleTextView.setTextColor(ContextCompat.getColor(this, R.color.color_tab_text_indicator))
+                chatTitleTextView.setTextColor(ContextCompat.getColor(this, R.color.colorSecondary))
                 callTitleTextView.setTextColor(ContextCompat.getColor(this, R.color.dashboard_toolbar_text_color))
             }
             1 -> {
                 chatTitleTextView.setTextColor(ContextCompat.getColor(this, R.color.dashboard_toolbar_text_color))
-                callTitleTextView.setTextColor(ContextCompat.getColor(this, R.color.color_tab_text_indicator))
+                callTitleTextView.setTextColor(ContextCompat.getColor(this, R.color.colorSecondary))
             }
         }
     }

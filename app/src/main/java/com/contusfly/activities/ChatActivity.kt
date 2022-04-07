@@ -31,8 +31,8 @@ import com.contus.flycommons.TAG
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.CallManager.isOnTelephonyCall
-import com.contus.webrtc.utils.CallConstants
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.CallConstants
+import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
 import com.contusfly.activities.parent.ChatParent

@@ -147,17 +147,9 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
      */
     private fun displayArchiveSettingsPreference() {
         fragmentChatsBinding.switchArchivedSettings.isChecked = FlyCore.isArchivedSettingsEnabled()
-        fragmentChatsBinding.switchArchivedSettings.setOnCheckedChangeListener { _, isChecked ->
-            FlyCore.enableDisableArchivedSettings(isChecked, FlyCallback { isSuccess, _, data ->
-                if (!isSuccess) {
-                    fragmentChatsBinding.switchArchivedSettings.isChecked = !isChecked
-                    CustomToast.show(requireContext(), data.getMessage())
-                }
-            })
-        }
-        fragmentChatsBinding.layoutArchivedSettings.setOnClickListener {
-            fragmentChatsBinding.switchArchivedSettings.isChecked = !FlyCore.isArchivedSettingsEnabled()
-            FlyCore.enableDisableArchivedSettings(fragmentChatsBinding.switchArchivedSettings.isChecked, FlyCallback { isSuccess, _, data ->
+        fragmentChatsBinding.switchArchivedSettings.setOnClickListener {
+            FlyCore.enableDisableArchivedSettings(!FlyCore.isArchivedSettingsEnabled(), FlyCallback { isSuccess, _, data ->
+                fragmentChatsBinding.switchArchivedSettings.isChecked = FlyCore.isArchivedSettingsEnabled()
                 if (!isSuccess) CustomToast.show(requireContext(), data.getMessage())
             })
         }

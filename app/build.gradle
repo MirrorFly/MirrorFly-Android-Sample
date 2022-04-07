@@ -43,11 +43,11 @@ android {
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        resValue("string", "google_maps_key", "AIzaSyCe4m08a3eMvInU8LBxAjAyEIyG-Kj_Ayw")
+        resValue("string", "google_maps_key", "Please enter your google maps key")
     }
 
     buildTypes {
-
+        
         release {
             initWith debug
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
@@ -56,7 +56,7 @@ android {
             buildConfigField 'String', 'XMPP_DOMAIN', '"xmpp-preprod-sandbox.mirrorfly.com"'
             buildConfigField 'String', 'XMPP_HOST', '"xmpp-preprod-sandbox.mirrorfly.com"'
             buildConfigField 'String', 'IV_KEY', '"ddc0f15cc2c90fca"'
-            buildConfigField 'String', 'LICENSE', '"Please enter your License Key"'
+            buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
             buildConfigField 'String', 'SIGNAL_SERVER', '"https://signal-preprod-sandbox.mirrorfly.com"'
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'

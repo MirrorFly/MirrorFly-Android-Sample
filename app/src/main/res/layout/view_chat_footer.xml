@@ -72,7 +72,7 @@
             android:fontFamily="@font/sf_ui_display_regular"
             android:includeFontPadding="false"
             android:padding="@dimen/padding_5"
-            android:textColor="@color/color_blue"
+            android:textColor="@color/colorAccent"
             android:textSize="@dimen/text_size_14"
             android:visibility="gone"
             tools:text="00:00" />

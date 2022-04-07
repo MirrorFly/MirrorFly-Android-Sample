@@ -88,7 +88,7 @@ class QrResultActivity : BaseActivity(), View.OnClickListener, CommonDialogClose
         super.onCreate(savedInstanceState)
         qrResultBinding = ActivityQrResultBinding.inflate(layoutInflater)
         setContentView(qrResultBinding.root)
-        mUpDateWebPassword = UpDateWebPassword(this)
+        mUpDateWebPassword = UpDateWebPassword()
         imageViewAddButton = qrResultBinding.scannerToolBar.buttonAdd
         imageViewBackButton = qrResultBinding.scannerToolBar.buttonBack
         btnLogOutAll = qrResultBinding.btnLogoutAllWebchat

@@ -10,13 +10,14 @@ import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
+import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.CallMode
 import com.contus.webrtc.CallState
 import com.contus.webrtc.CallType
-import com.contus.webrtc.database.model.CallLog
-import com.contus.webrtc.utils.CallTimeFormatter
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.database.model.CallLog
+import com.contus.call.utils.CallTimeFormatter
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.gone
 import com.contusfly.setOnClickListener
@@ -26,7 +27,6 @@ import com.contusfly.views.CircularImageView
 import com.contusfly.views.CustomTextView
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
-import com.contusflysdk.api.utils.ChatTimeFormatter
 import java.util.*
 
 class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallLog>, val selectedCallLogs: ArrayList<String>, private var listener: OnItemClickListener)
@@ -87,7 +87,7 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
                     updateSelectedItem(holder.itemView, bundle.getBoolean(AppConstants.NOTIFY_IS_SELECTED))
                 }
                 else -> {
-                    LogMessage.e("ContactAdapter", "Do Nothing")
+                    LogMessage.e("ContactAdapter", "$CALL_UI Do Nothing")
                 }
             }
         }

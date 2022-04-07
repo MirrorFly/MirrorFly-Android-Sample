@@ -19,7 +19,6 @@ import com.contus.flycommons.ChatType
 import com.contus.flycommons.emptyStringFE
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
-import com.contus.webrtc.utils.CallConstants
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
 import com.contusfly.adapters.ContactsAdapter
@@ -118,7 +117,7 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
             }
             isMakeCall -> {
                 actionItem.hide()
-                settingsItem.show()
+                settingsItem.hide()
             }
             else -> {
                 actionItem.hide()
@@ -176,7 +175,7 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
     private fun showMenuOption(menu: Menu): Boolean {
         with(menu) {
             get(R.id.action_done).isVisible = addParticipants
-            get(R.id.action_settings).isVisible = !addParticipants
+            get(R.id.action_settings).isVisible = !addParticipants && !isMakeCall
         }
         super.onPrepareOptionsMenu(menu)
         return true
@@ -245,7 +244,7 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
             adapter = mAdapter
         }
         if (isMakeCall && !callType.isNullOrEmpty()) {
-            newContactsBinding.buttonMakeCall.show()
+            newContactsBinding.buttonMakeCall.gone()
             newContactsBinding.buttonMakeCall.text = String.format(getString(R.string.action_call_now), selectedUsersJid.size)
             if (callType.equals(CallType.VIDEO_CALL)) {
                 newContactsBinding.buttonMakeCall.icon = ContextCompat.getDrawable(this, R.drawable.ic_fab_video_call)
@@ -316,6 +315,7 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
             selectedUsersJid.add(profile.jid)
         }
         if (isMakeCall) {
+            newContactsBinding.buttonMakeCall.show()
             newContactsBinding.buttonMakeCall.isEnabled = selectedUsersJid.size > 0
             if ((selectedUsersJid.size + 1) > CallManager.getMaxCallUsersCount()) {
                 selectedUsersJid.remove(profile.jid)
@@ -328,10 +328,10 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
                 )
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             } else {
-                newContactsBinding.buttonMakeCall.text =
-                    String.format(getString(R.string.action_call_now), selectedUsersJid.size)
+                if (selectedUsersJid.size == 0) newContactsBinding.buttonMakeCall.gone() else newContactsBinding.buttonMakeCall.show()
+                newContactsBinding.buttonMakeCall.text = String.format(getString(R.string.action_call_now), selectedUsersJid.size)
             }
-        }
+        } else newContactsBinding.buttonMakeCall.gone()
     }
 
 

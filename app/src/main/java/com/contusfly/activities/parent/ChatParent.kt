@@ -48,7 +48,7 @@ import com.contus.flycommons.ChatType
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.flycommons.models.MessageType
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
 import com.contusfly.activities.*
@@ -898,7 +898,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
             val newlyCreatedJid = SharedPreferenceManager.getString(Constants.NEW_GROUP_JID)
             val imageBitmap = SharedPreferenceManager.getString(Constants.NEW_GROUP_IMAGE)
-            if (isNewlyCreated != null && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && profileDetails.jid.equals(newlyCreatedJid)) {
+            if (profileDetails.image.isNotEmpty() && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && profileDetails.jid.equals(newlyCreatedJid)) {
                 toUserImageView.setImageDrawable(
                     context?.let {
                         ContextCompat.getDrawable(
@@ -1311,9 +1311,6 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     }
 
     protected fun getUserNickname(): String {
-//        if (profileDetails.isUnknownContact())
-//            return ChatUtils.getUserFromJid(Utils.getFormattedPhoneNumber(profileDetails.jid))
-        //  else
         return Utils.returnEmptyStringIfNull(profileDetails.name)
     }
 

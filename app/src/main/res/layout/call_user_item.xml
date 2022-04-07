@@ -2,90 +2,130 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root_layout"
-    android:layout_width="match_parent"
-    android:layout_height="150dp">
+    android:layout_width="@dimen/margin_90"
+    android:layout_height="@dimen/margin_150"
+    android:padding="@dimen/padding_5">
 
-    <org.webrtc.SurfaceViewRenderer
-        android:id="@+id/view_video_surface"
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_alignWithParentIfMissing="true" />
+        app:cardBackgroundColor="@color/caller_tile_background">
 
-    <View
-        android:id="@+id/view_overlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/background_group_call_audio" />
-
-    <ImageView
-        android:id="@+id/img_profile_image"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_centerInParent="true"
-        android:gravity="center"
-        android:scaleType="centerCrop"
-        android:contentDescription="@string/title_image" />
-
-    <LinearLayout
-        android:id="@+id/caller_name_bg_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:gravity="bottom"
-        android:orientation="vertical"
-        android:weightSum="8">
-
-        <View
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="6"
-            android:background="@drawable/ic_group_user_info_layout" />
+            android:layout_height="match_parent">
 
-    </LinearLayout>
+            <org.webrtc.SurfaceViewRenderer
+                android:id="@+id/view_video_surface"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_alignWithParentIfMissing="true" />
 
-    <ImageView
-        android:id="@+id/image_audio_muted"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"
-        android:layout_gravity="center_horizontal"
-        android:layout_margin="7dp"
-        android:contentDescription="@null"
-        app:srcCompat="@drawable/ic_mic_off" />
+            <com.contusfly.views.CircularImageView
+                android:id="@+id/img_profile_image"
+                android:layout_width="@dimen/margin_48"
+                android:layout_height="@dimen/margin_48"
+                android:contentDescription="@string/title_image"
+                android:scaleType="centerCrop"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/text_user_name"
-        style="@style/TextMediumStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
-        android:layout_margin="7dp"
-        android:layout_toEndOf="@+id/image_audio_muted"
-        android:ellipsize="end"
-        android:fontFamily="@font/sf_ui_display_regular"
-        android:maxLines="1"
-        android:textAlignment="textEnd"
-        android:textColor="@color/color_white"
-        android:textSize="14sp" />
+            <LinearLayout
+                android:id="@+id/caller_name_bg_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="bottom"
+                android:orientation="vertical"
+                android:weightSum="8"
+                app:layout_constraintBottom_toBottomOf="parent">
 
-    <RelativeLayout
-        android:id="@+id/caller_status_layout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/ic_caller_status_bg"
-        android:visibility="gone">
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="6"
+                    android:background="@drawable/ic_group_user_info_layout" />
 
-        <TextView
-            android:id="@+id/caller_status_text_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:fontFamily="@font/sf_ui_display_light"
-            android:textColor="@color/color_white"
-            android:textSize="14sp" />
+            </LinearLayout>
 
-    </RelativeLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:animateLayoutChanges="true"
+                android:orientation="horizontal"
+                android:paddingBottom="@dimen/margin_5"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:id="@+id/image_list_pinned"
+                    android:layout_width="@dimen/margin_30"
+                    android:layout_height="@dimen/margin_30"
+                    android:contentDescription="@null"
+                    android:padding="@dimen/margin_5"
+                    app:srcCompat="@drawable/ic_pin_tile" />
+
+                <com.contus.call.SpeakingIndicatorView
+                    android:id="@+id/view_speaking_indicator"
+                    android:layout_width="@dimen/margin_25"
+                    android:layout_height="@dimen/margin_30"
+                    android:contentDescription="@null"
+                    android:paddingStart="@dimen/margin_0"
+                    android:paddingTop="@dimen/margin_5"
+                    android:paddingEnd="@dimen/margin_2"
+                    android:paddingBottom="@dimen/margin_5"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/image_audio_muted"
+                    android:layout_width="@dimen/margin_25"
+                    android:layout_height="@dimen/margin_30"
+                    android:contentDescription="@null"
+                    android:paddingStart="@dimen/margin_0"
+                    android:paddingTop="@dimen/margin_5"
+                    android:paddingEnd="@dimen/padding_5"
+                    android:paddingBottom="@dimen/margin_5"
+                    app:srcCompat="@drawable/ic_mic_off" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/text_user_name"
+                style="@style/TextMediumStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/margin_9"
+                android:ellipsize="end"
+                android:fontFamily="@font/sf_ui_display_regular"
+                android:maxLines="1"
+                android:textAlignment="textStart"
+                android:textColor="@color/color_white"
+                android:textSize="@dimen/text_size_14"
+                app:layout_constraintBottom_toBottomOf="parent"/>
+
+            <RelativeLayout
+                android:id="@+id/caller_status_layout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="@drawable/ic_caller_status_bg"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/caller_status_text_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:fontFamily="@font/sf_ui_display_light"
+                    android:textColor="@color/color_white"
+                    android:textSize="@dimen/text_size_14" />
+
+            </RelativeLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.cardview.widget.CardView>
 
 </RelativeLayout>

@@ -100,6 +100,14 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Accepts URIs that begin with "BuildConfig.WEB_CHAT_LOGIN” -->
+                <data android:scheme="https"
+                    android:host="webreact-qa19.mirrorfly.com" />
+            </intent-filter>
         </activity>
         <activity
             android:name=".activities.ProfileStartStatusActivity"
@@ -216,6 +224,10 @@
         <activity
             android:name=".activities.PreviewSendContactActivity"
             android:screenOrientation="portrait" />
+        <activity
+            android:name=".call.groupcall.OnGoingCallPreviewActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"/>
 
         <service
             android:name=".MyFirebaseMessagingService"

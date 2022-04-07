@@ -5,7 +5,7 @@
         android:start="@dimen/padding_18">
         <shape android:shape="rectangle">
             <corners android:radius="5dp" />
-            <solid android:color="@color/color_blue" />
+            <solid android:color="@color/colorAccent" />
         </shape>
     </item>
 </layer-list>

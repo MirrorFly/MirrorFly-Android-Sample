@@ -72,18 +72,26 @@ class DataUsageSettingsFragment : Fragment(), ExpandableListView.OnChildClickLis
         settingsActivity = activity as SettingsActivity?
         settingsActivity!!.setActionBarTitle(resources.getString(R.string.data_usage_settings))
         settingsUtil = SettingsUtil()
-        mobileDataSettingsModel = settingsUtil!!.getMediaSetting(SharedPreferenceManager.CONNECTION_TYPE_MOBILE)
-        wifiDataSettingsModel = settingsUtil!!.getMediaSetting(SharedPreferenceManager.CONNECTION_TYPE_WIFI)
+        mobileDataSettingsModel =
+            settingsUtil!!.getMediaSetting(SharedPreferenceManager.CONNECTION_TYPE_MOBILE)
+        wifiDataSettingsModel =
+            settingsUtil!!.getMediaSetting(SharedPreferenceManager.CONNECTION_TYPE_WIFI)
 
         // Request to start the non sticky service which helps to identify, when the app is erased
         // from the recent apps screen in order to save the user preferred data usage settings
         // if any, in the app preferences.
-        nonStickyServiceIntent = Intent(settingsActivity!!.applicationContext, NonStickyService::class.java)
+        nonStickyServiceIntent =
+            Intent(settingsActivity!!.applicationContext, NonStickyService::class.java)
         settingsActivity!!.startService(nonStickyServiceIntent)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        fragmentDataUsageSettingsBinding = FragmentDataUsageSettingsBinding.inflate(inflater, container, false)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        fragmentDataUsageSettingsBinding =
+            FragmentDataUsageSettingsBinding.inflate(inflater, container, false)
         return fragmentDataUsageSettingsBinding.root
     }
 
@@ -108,10 +116,20 @@ class DataUsageSettingsFragment : Fragment(), ExpandableListView.OnChildClickLis
 
     override fun onPause() {
         super.onPause()
-        if (mobileDataSettingsModel != null) settingsUtil!!.saveMediaSettings(
-            mobileDataSettingsModel
-        )
-        if (wifiDataSettingsModel != null) settingsUtil!!.saveMediaSettings(wifiDataSettingsModel)
+        updateDataSettings()
+    }
+
+    private fun updateDataSettings() {
+        // Save the user preferred data usage settings in the app preferences for both the type
+        // of data connection network.
+        if (mobileDataSettingsModel != null) {
+            mobileDataSettingsModel!!.dataConnectionNetworkType = ConnectivityManager.TYPE_MOBILE
+            settingsUtil!!.saveMediaSettings(mobileDataSettingsModel)
+        }
+        if (wifiDataSettingsModel != null) {
+            wifiDataSettingsModel!!.dataConnectionNetworkType = ConnectivityManager.TYPE_WIFI
+            settingsUtil!!.saveMediaSettings(wifiDataSettingsModel)
+        }
         // Request to stop the non-sticky service which is started when creating the instance
         // of this fragment object.
         settingsActivity!!.stopService(nonStickyServiceIntent)
@@ -119,19 +137,16 @@ class DataUsageSettingsFragment : Fragment(), ExpandableListView.OnChildClickLis
 
     override fun onDestroy() {
         super.onDestroy()
-        // Save the user preferred data usage settings in the app preferences for both the type
-        // of data connection network.
-        if (mobileDataSettingsModel != null) settingsUtil!!.saveMediaSettings(
-            mobileDataSettingsModel
-        )
-        if (wifiDataSettingsModel != null) settingsUtil!!.saveMediaSettings(wifiDataSettingsModel)
-
-        // Request to stop the non-sticky service which is started when creating the instance
-        // of this fragment object.
-        settingsActivity!!.stopService(nonStickyServiceIntent)
+        updateDataSettings()
     }
 
-    override fun onChildClick(parent: ExpandableListView, v: View, groupPosition: Int, childPosition: Int, id: Long): Boolean {
+    override fun onChildClick(
+        parent: ExpandableListView,
+        v: View,
+        groupPosition: Int,
+        childPosition: Int,
+        id: Long
+    ): Boolean {
         if (groupPosition == 0) {
             processMobileDataSettings(childPosition)
         } else if (groupPosition == 1) {
@@ -153,24 +168,38 @@ class DataUsageSettingsFragment : Fragment(), ExpandableListView.OnChildClickLis
     private fun processMobileDataSettings(childPosition: Int) {
         if (mobileDataSettingsModel == null) {
             mobileDataSettingsModel = MediaDownloadSettingsModel()
-            if (childPosition == 0) {
-                mobileDataSettingsModel!!.isShouldAutoDownloadPhotos = true
-            } else if (childPosition == 1) {
-                mobileDataSettingsModel!!.isShouldAutoDownloadVideos = true
-            }else if (childPosition == 2) {
-                mobileDataSettingsModel!!.isShouldAutoDownloadAudios = true
-            } else {
-                mobileDataSettingsModel!!.isShouldAutoDownloadDocuments = true
+            when (childPosition) {
+                0 -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadPhotos = true
+                }
+                1 -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadVideos = true
+                }
+                2 -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadAudios = true
+                }
+                else -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadDocuments = true
+                }
             }
         } else {
-            if (childPosition == 0) {
-                mobileDataSettingsModel!!.isShouldAutoDownloadPhotos = !mobileDataSettingsModel!!.isShouldAutoDownloadPhotos
-            } else if (childPosition == 1) {
-                mobileDataSettingsModel!!.isShouldAutoDownloadVideos = !mobileDataSettingsModel!!.isShouldAutoDownloadVideos
-            }else if (childPosition == 2) {
-                mobileDataSettingsModel!!.isShouldAutoDownloadAudios = !mobileDataSettingsModel!!.isShouldAutoDownloadAudios
-            } else {
-                mobileDataSettingsModel!!.isShouldAutoDownloadDocuments = !mobileDataSettingsModel!!.isShouldAutoDownloadDocuments
+            when (childPosition) {
+                0 -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadPhotos =
+                        !mobileDataSettingsModel!!.isShouldAutoDownloadPhotos
+                }
+                1 -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadVideos =
+                        !mobileDataSettingsModel!!.isShouldAutoDownloadVideos
+                }
+                2 -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadAudios =
+                        !mobileDataSettingsModel!!.isShouldAutoDownloadAudios
+                }
+                else -> {
+                    mobileDataSettingsModel!!.isShouldAutoDownloadDocuments =
+                        !mobileDataSettingsModel!!.isShouldAutoDownloadDocuments
+                }
             }
         }
         mobileDataSettingsModel!!.dataConnectionNetworkType = ConnectivityManager.TYPE_MOBILE
@@ -185,25 +214,38 @@ class DataUsageSettingsFragment : Fragment(), ExpandableListView.OnChildClickLis
     private fun processWifiDataSettings(childPosition: Int) {
         if (wifiDataSettingsModel == null) {
             wifiDataSettingsModel = MediaDownloadSettingsModel()
-            if (childPosition == 0) {
-                wifiDataSettingsModel!!.isShouldAutoDownloadPhotos = true
-            } else if (childPosition == 1) {
-                wifiDataSettingsModel!!.isShouldAutoDownloadVideos = true
-            } else if (childPosition == 2) {
-                wifiDataSettingsModel!!.isShouldAutoDownloadAudios = true
-            } else {
-                wifiDataSettingsModel!!.isShouldAutoDownloadDocuments = true
+            when (childPosition) {
+                0 -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadPhotos = true
+                }
+                1 -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadVideos = true
+                }
+                2 -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadAudios = true
+                }
+                else -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadDocuments = true
+                }
             }
         } else {
-            if (childPosition == 0) {
-                wifiDataSettingsModel!!.isShouldAutoDownloadPhotos = !wifiDataSettingsModel!!.isShouldAutoDownloadPhotos
-            } else if (childPosition == 1) {
-                wifiDataSettingsModel!!.isShouldAutoDownloadVideos = !wifiDataSettingsModel!!.isShouldAutoDownloadVideos
-            }
-            else if (childPosition == 2) {
-                wifiDataSettingsModel!!.isShouldAutoDownloadAudios = !wifiDataSettingsModel!!.isShouldAutoDownloadAudios
-            }else {
-                wifiDataSettingsModel!!.isShouldAutoDownloadDocuments = !wifiDataSettingsModel!!.isShouldAutoDownloadDocuments
+            when (childPosition) {
+                0 -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadPhotos =
+                        !wifiDataSettingsModel!!.isShouldAutoDownloadPhotos
+                }
+                1 -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadVideos =
+                        !wifiDataSettingsModel!!.isShouldAutoDownloadVideos
+                }
+                2 -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadAudios =
+                        !wifiDataSettingsModel!!.isShouldAutoDownloadAudios
+                }
+                else -> {
+                    wifiDataSettingsModel!!.isShouldAutoDownloadDocuments =
+                        !wifiDataSettingsModel!!.isShouldAutoDownloadDocuments
+                }
             }
         }
         wifiDataSettingsModel!!.dataConnectionNetworkType = ConnectivityManager.TYPE_WIFI

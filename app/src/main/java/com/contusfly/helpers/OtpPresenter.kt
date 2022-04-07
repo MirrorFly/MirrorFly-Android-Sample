@@ -158,7 +158,7 @@ class OtpPresenter(private var otpBinding: ActivityOtpBinding) : IOtpPresenter {
         otpBinding.txtCountry.isEnabled = true
         val getOtpView: CustomTextView = otpBinding.viewGetOtp
         getOtpView.isEnabled = true
-        getOtpView.background.colorFilter = PorterDuffColorFilter(ContextCompat.getColor(iOtpView.activityContext, R.color.color_blue), PorterDuff.Mode.SRC_IN)
+        getOtpView.background.colorFilter = PorterDuffColorFilter(ContextCompat.getColor(iOtpView.activityContext, R.color.colorAccent), PorterDuff.Mode.SRC_IN)
     }
 
     override fun verifyOtp() {

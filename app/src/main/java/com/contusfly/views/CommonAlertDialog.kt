@@ -3,14 +3,18 @@ package com.contusfly.views
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.view.View
 import android.widget.CheckBox
 import android.widget.CompoundButton
+import com.contus.call.CallConstants
+import com.contus.flycommons.runOnUiThread
+import com.contus.webrtc.api.CallActionListener
 import com.contus.webrtc.api.CallManager
 import com.contusfly.R
+import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
 import com.contusfly.utils.Constants
 import com.contusfly.utils.SharedPreferenceManager
-import java.util.concurrent.CancellationException
 
 /**
  *
@@ -215,6 +219,54 @@ class CommonAlertDialog(context: Context?) {
         builder.setNeutralButton(neutralString) { dialog: DialogInterface, which: Int ->
             dialog.dismiss()
             if (listener != null) commonTripleDialogClosedListener!!.onTripleOptionDialogClosed(dialogType, 2)
+        }
+        builder.create().show()
+    }
+
+    fun showCallSwitchAlertDialog(callLink: String, positiveString: String?, negativeString: String?,
+                                  dialogType: DIALOGTYPE, isCheckBoxShown: Boolean = false) {
+        val builder = AlertDialog.Builder(context, R.style.AlertDialogStyle)
+        builder.setTitle(context!!.getString(R.string.already_in_call))
+        builder.setMessage(context!!.getString(R.string.already_in_call_msg))
+        if (isCheckBoxShown) builder.setView(createAndSetCheckBox())
+        if (dialogType == DIALOGTYPE.DIALOG_DUAL) {
+            builder.setNegativeButton(negativeString) { dialog: DialogInterface, _: Int ->
+                dialog.dismiss()
+                listener?.onDialogClosed(dialogType, false)
+            }
+        }
+        builder.setPositiveButton(positiveString) { dialog: DialogInterface, _: Int ->
+            dialog.dismiss()
+            listener?.onDialogClosed(dialogType, true)
+        }
+        builder.create().show()
+    }
+
+    fun showCallSwitchDialog(callLink: String, positiveString: String?, negativeString: String?,
+                             dialogType: DIALOGTYPE, isCheckBoxShown: Boolean = false) {
+        val builder = AlertDialog.Builder(context, R.style.AlertDialogStyle)
+        builder.setTitle(context!!.getString(R.string.already_in_call))
+        builder.setMessage(context!!.getString(R.string.already_in_call_msg))
+        if (isCheckBoxShown) builder.setView(createAndSetCheckBox())
+        if (dialogType == DIALOGTYPE.DIALOG_DUAL) {
+            builder.setNegativeButton(negativeString) { dialog: DialogInterface, _: Int ->
+                dialog.dismiss()
+            }
+        }
+        builder.setPositiveButton(positiveString) { dialog: DialogInterface, _: Int ->
+            //Current call disconnect
+            CallManager.disconnectCall(object : CallActionListener {
+                override fun onResponse(isSuccess: Boolean, message: String) {
+                    runOnUiThread {
+                        //New Call preview page
+                        context!!.startActivity(
+                            Intent(context, OnGoingCallPreviewActivity::class.java).putExtra(
+                                CallConstants.CALL_LINK, callLink)
+                        )
+                        dialog.dismiss()
+                    }
+                }
+            })
         }
         builder.create().show()
     }

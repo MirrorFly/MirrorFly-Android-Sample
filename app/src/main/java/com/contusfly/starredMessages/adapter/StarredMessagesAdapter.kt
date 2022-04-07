@@ -1,7 +1,6 @@
 package com.contusfly.starredMessages.adapter
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -16,11 +15,11 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.content.ContextCompat
-import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.*
 import com.contus.flycommons.models.MessageType
 import com.contusfly.*
+import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.adapters.ChatAdapter.Companion.TYPE_AUDIO_RECEIVER
@@ -326,22 +325,37 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             replyViewUtils!!.showSenderReplyWindow(starredTxtSenderViewHolder, item, context!!)
             setSelectedChatItem(starredTxtSenderViewHolder.itemView, item, starredMessageMessages, context)
             with(starredTxtSenderViewHolder.txtChatSender) {
-                setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
+                setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
                 setTextKeepState(getSpannedText(msg))
-                movementMethod = ModifiedlinkMovementMethod(context)
+                if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
+                    setJoinLinkView(starredTxtSenderViewHolder.txtChatSender, starredTxtSenderViewHolder.joinLinkView,
+                        starredTxtSenderViewHolder.joinLinkLogo)
                 isClickable = false
                 isLongClickable = false
             }
             setSearchTextHighlight(starredTxtSenderViewHolder.txtChatSender, getSpannedText(msg))
             if (position == starredMessageData!!.size - 1) {
-                starredTxtSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredTxtSenderViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredTxtSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredTxtSenderViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
         }
     }
+
+    private fun setJoinLinkView(txtChat: EmojiconTextView, joinLinkView: LinearLayout, joinLinkLogo: ImageView) {
+        txtChat.autoLinkMask = Linkify.ALL
+        txtChat.linksClickable = false
+        txtChat.setTextColor(ContextCompat.getColor(context!!, R.color.light_blue))
+        txtChat.setLinkTextColor(ContextCompat.getColor(context!!, R.color.light_blue))
+        val screenWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
+        joinLinkView.show()
+        val lp = LinearLayout.LayoutParams((screenWidth + 20), LinearLayout.LayoutParams.WRAP_CONTENT) //20 is nothing but text message margin Start and End value in XML
+        joinLinkView.layoutParams = lp
+        joinLinkLogo.setImageDrawable(ContextCompat.getDrawable(context!!, R.mipmap.ic_launcher)!!)
+    }
+
     /**
      * starred textview for receiver side
      *
@@ -367,17 +381,19 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
         receiverItemClick(starredTxtReceiverViewHolder.viewRowItem, item, position)
         setSelectedChatItem(starredTxtReceiverViewHolder.itemView, item, starredMessageMessages, context)
         with(starredTxtReceiverViewHolder.txtChatReceiver) {
-            setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
+            setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
             setTextKeepState(getSpannedText(msg))
-            movementMethod = ModifiedlinkMovementMethod(context)
+            if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
+                setJoinLinkView(starredTxtReceiverViewHolder.txtChatReceiver, starredTxtReceiverViewHolder.receiverJoinLinkView,
+                    starredTxtReceiverViewHolder.receiverJoinLinkLogo)
             isClickable = false
             isLongClickable = false
         }
         setSearchTextHighlight(starredTxtReceiverViewHolder.txtChatReceiver, getSpannedText(msg))
         if (position == starredMessageData!!.size - 1) {
-            starredTxtReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+            starredTxtReceiverViewHolder.viewDiver?.visibility = View.GONE
         }else{
-            starredTxtReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            starredTxtReceiverViewHolder.viewDiver?.visibility = View.VISIBLE
         }
     }
 
@@ -421,9 +437,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
                 messageItem, starredImgSenderViewHolder.viewSentCarbonDownload)
         setSelectedChatItem(starredImgSenderViewHolder.itemView, messageItem, starredMessageMessages, context)
         if (position == starredMessageData!!.size - 1) {
-            starredImgSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+            starredImgSenderViewHolder.viewDiver?.visibility = View.GONE
         }else{
-            starredImgSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            starredImgSenderViewHolder.viewDiver?.visibility = View.VISIBLE
         }
     }
 
@@ -452,9 +468,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             setSelectedChatItem(starredImgReceiverViewHolder.itemView,
                     messageItem, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredImgReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredImgReceiverViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredImgReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredImgReceiverViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(Constants.TAG, e)
@@ -486,9 +502,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             setSelectedChatItem(starredVideoSenderViewHolder.itemView,
                     messageItem, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredVideoSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredVideoSenderViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredVideoSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredVideoSenderViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(Constants.TAG, e)
@@ -520,9 +536,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             setSelectedChatItem(starredVideoReceiverViewHolder.itemView,
                     messageItem, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredVideoReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredVideoReceiverViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredVideoReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredVideoReceiverViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(Constants.TAG, e)
@@ -555,9 +571,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             senderItemClick(starredLocationSenderViewHolder.viewRowItem, item, position)
             setSelectedChatItem(starredLocationSenderViewHolder.itemView, item, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredLocationSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredLocationSenderViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredLocationSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredLocationSenderViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(Constants.TAG, e)
@@ -587,9 +603,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             receiverItemClick(starredLocationReceiverViewHolder.viewRowItem, item, position)
             setSelectedChatItem(starredLocationReceiverViewHolder.itemView, item, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredLocationReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredLocationReceiverViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredLocationReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredLocationReceiverViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(Constants.TAG, e)
@@ -624,9 +640,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             uploadClick(starredAudioSenderViewHolder.viewRetry, starredAudioSenderViewHolder.viewCarbonRetry, starredAudioSenderViewHolder.progressUploadDownloadLayout, item)
             setSelectedChatItem(starredAudioSenderViewHolder.itemView, item, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredAudioSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredAudioSenderViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredAudioSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredAudioSenderViewHolder.viewDiver?.visibility = View.VISIBLE
             }
             if (item.mediaChatMessage.isAudioRecorded){
                 starredAudioSenderViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_recorded_icon)
@@ -671,9 +687,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
                 starredAudioReceiverViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_music_icon)
             }
             if (position == starredMessageData!!.size - 1) {
-                starredAudioReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredAudioReceiverViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredAudioReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredAudioReceiverViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(Constants.TAG, e)
@@ -701,9 +717,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             setSelectedChatItem(starredFileSentViewHolder.itemView, item, starredMessageMessages, context)
             setSearchHighlightAppCompatTextView(starredFileSentViewHolder.fileNameText,  SpannableStringBuilder(item.mediaChatMessage.mediaFileName))
             if (position == starredMessageData!!.size - 1) {
-                starredFileSentViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredFileSentViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredFileSentViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredFileSentViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
@@ -739,9 +755,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
                     item, starredMessageMessages, context)
             setSearchHighlightAppCompatTextView(starredFileReceivedViewHolder.fileNameText,  SpannableStringBuilder(item.mediaChatMessage.mediaFileName))
             if (position == starredMessageData!!.size - 1) {
-                starredFileReceivedViewHolder.viewDiver?.setVisibility(View.GONE);
+                starredFileReceivedViewHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredFileReceivedViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredFileReceivedViewHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
@@ -778,9 +794,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             senderItemClick(starredContactSentHolder.viewRowItem, item, position)
             setSelectedChatItem(starredContactSentHolder.itemView, item, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredContactSentHolder.viewDiver?.setVisibility(View.GONE);
+                starredContactSentHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredContactSentHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredContactSentHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
@@ -826,9 +842,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             receiverItemClick(starredContactReceivedHolder.viewRowItem, item, position)
             setSelectedChatItem(starredContactReceivedHolder.itemView, item, starredMessageMessages, context)
             if (position == starredMessageData!!.size - 1) {
-                starredContactReceivedHolder.viewDiver?.setVisibility(View.GONE);
+                starredContactReceivedHolder.viewDiver?.visibility = View.GONE
             }else{
-                starredContactReceivedHolder.viewDiver?.setVisibility(View.VISIBLE);
+                starredContactReceivedHolder.viewDiver?.visibility = View.VISIBLE
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)

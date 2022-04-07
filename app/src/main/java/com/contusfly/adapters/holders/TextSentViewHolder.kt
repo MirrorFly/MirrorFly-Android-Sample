@@ -61,6 +61,14 @@ class TextSentViewHolder(mainView: View) : SenderNameHolder(mainView) {
      */
     val sentRecallImage: ImageView = mainView.findViewById(R.id.image_sent_recall)
 
+    /*
+     * Join Link Meeting View */
+    val joinLinkView: LinearLayout = mainView.findViewById(R.id.row_join_link_view)
+
+    /*
+     * Join Link Meeting Logo */
+    val joinLinkLogo: ImageView = mainView.findViewById(R.id.join_link_logo)
+
     /**
      * Space to add when the previous message is different
      */

@@ -16,9 +16,9 @@ import com.contus.webrtc.CallState
 import com.contus.webrtc.CallType
 import com.contus.webrtc.Logger
 import com.contus.webrtc.api.CallLogManager
-import com.contus.webrtc.database.model.CallLog
-import com.contus.webrtc.utils.CallConstants
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.database.model.CallLog
+import com.contus.call.utils.CallConstants
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.activities.BaseActivity
 import com.contusfly.applySrcInColorFilter

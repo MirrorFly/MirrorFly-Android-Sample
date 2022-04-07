@@ -34,6 +34,14 @@ class TextReceivedViewHolder(mainView: View) : SenderNameHolder(mainView) {
      */
     val viewDiver: View? = mainView.findViewById(R.id.view_divider)
 
+    /*
+     * Join Link Meeting View */
+    val receiverJoinLinkView: LinearLayout = mainView.findViewById(R.id.row_join_link_view)
+
+    /*
+     * Join Link Meeting Logo */
+    val receiverJoinLinkLogo: ImageView = mainView.findViewById(R.id.join_link_logo)
+
     /**
      * returns the receiver view row item
      */

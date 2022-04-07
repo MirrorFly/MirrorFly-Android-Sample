@@ -10,6 +10,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.*
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallActionListener
@@ -19,9 +20,9 @@ import com.contus.webrtc.api.CallManager.makeGroupVideoCall
 import com.contus.webrtc.api.CallManager.makeGroupVoiceCall
 import com.contus.webrtc.api.CallManager.makeVideoCall
 import com.contus.webrtc.api.CallManager.makeVoiceCall
-import com.contus.webrtc.utils.GroupCallUtils
-import com.contus.webrtc.utils.GroupCallUtils.isOnGoingAudioCall
-import com.contus.webrtc.utils.GroupCallUtils.isOnGoingVideoCall
+import com.contus.call.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils.isOnGoingAudioCall
+import com.contus.call.utils.GroupCallUtils.isOnGoingVideoCall
 import com.contusfly.R
 import com.contusfly.showToast
 import com.contusfly.utils.MediaPermissions
@@ -171,21 +172,21 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
                 if (groupId != null && groupId.isNotEmpty()) {
                     makeGroupVoiceCall(jidList, groupId, object : CallActionListener {
                         override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "makeVoiceCall: $message")
+                            LogMessage.i(TAG, "$CALL_UI makeVoiceCall: $message")
                         }
                     })
                     closeScreen()
                 } else if (jidList.size > 1) {
                     makeGroupVoiceCall(jidList, "", object : CallActionListener {
                         override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "makeGroupVoiceCall: $message")
+                            LogMessage.i(TAG, "$CALL_UI makeGroupVoiceCall: $message")
                         }
                     })
                     closeScreen()
                 } else {
                     makeVoiceCall(jidList[0], object : CallActionListener {
                         override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "makeVoiceCall: $message")
+                            LogMessage.i(TAG, "$CALL_UI makeVoiceCall: $message")
                         }
                     })
                 }
@@ -206,21 +207,21 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
                 if (groupId != null && groupId.isNotEmpty()) {
                     makeGroupVideoCall(jidList, groupId, object : CallActionListener {
                         override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "makeVideoCall: $message")
+                            LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
                         }
                     })
                     closeScreen()
                 } else if (jidList.size > 1) {
                     makeGroupVideoCall(jidList, "", object : CallActionListener {
                         override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "makeVideoCall: $message")
+                            LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
                         }
                     })
                     closeScreen()
                 } else {
                     makeVideoCall(jidList[0], object : CallActionListener {
                         override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "makeVideoCall: $message")
+                            LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
                         }
                     })
                 }
@@ -257,10 +258,10 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
         if (isSuccess) {
             SharedPreferenceManager.instance.storeString("CALL_JID", jidList[0])
             unBlock()
-            LogMessage.v("onDialogClosed", " success")
+            LogMessage.v("onDialogClosed", " $CALL_UI success")
             if (doProgressDialog != null) doProgressDialog!!.dismiss()
         } else {
-            LogMessage.v("onDialogClosed", " success")
+            LogMessage.v("onDialogClosed", " $CALL_UI success")
         }
     }
 

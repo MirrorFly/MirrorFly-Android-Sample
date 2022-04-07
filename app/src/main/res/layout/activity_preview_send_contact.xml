@@ -19,6 +19,8 @@
         android:cacheColorHint="@android:color/transparent"
         android:divider="@android:color/transparent"
         android:footerDividersEnabled="true"
+        android:paddingBottom="70dp"
+        android:clipToPadding="false"
         android:listSelector="@drawable/selector_settings_opt"
         android:orientation="vertical"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />

@@ -18,10 +18,11 @@ import com.contus.flycommons.getData
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.CallManager.isOnTelephonyCall
-import com.contus.webrtc.utils.CallConstants
+import com.contus.call.utils.CallConstants
 import com.contusfly.R
 import com.contusfly.activities.BaseActivity
 import com.contusfly.call.CallPermissionUtils
+import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
 import com.contusfly.isOnAnyCall
 import com.contusfly.showAlertDialog
 import com.contusfly.utils.FirebaseUtils.Companion.setAnalytics
@@ -30,10 +31,10 @@ import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomRecyclerView
 import com.contusflysdk.AppUtils
+import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
-import com.contusflysdk.api.FlyCore
 import com.contusflysdk.views.CustomToast
 
 /**
@@ -128,7 +129,7 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
     }
 
     private fun updateGroupMembersList() {
-        GroupManager.getGroupMembersList(false, groupJid) { isSuccess, throwable, data ->
+        GroupManager.getGroupMembersList(false, groupJid) { isSuccess, _, data ->
             if (isSuccess) {
                 val groupMembers: MutableList<ProfileDetails> =
                     data.getData() as ArrayList<ProfileDetails>
@@ -136,14 +137,12 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
                     groupMembers.filter { it.jid != SharedPreferenceManager.getCurrentUserJid() }
                         .toMutableList()
 
-                if (contusProfilesWithBlockedMe != null) {
-                    profileDetailsList!!.addAll(contusProfilesWithBlockedMe!!)
-                }
+                if (contusProfilesWithBlockedMe != null) profileDetailsList!!.addAll(contusProfilesWithBlockedMe!!)
+
                 profileDetailsList!!.sortWith { o1: ProfileDetails, o2: ProfileDetails ->
                     o1.name.compareTo(o2.name)
                 }
                 adapterUsers = UserSelectionAdapter(this, false)
-
                 adapterUsers!!.setProfileDetails(profileDetailsList!!)
                 adapterUsers!!.setRecyclerViewUsersItemOnClick(this)
                 /*

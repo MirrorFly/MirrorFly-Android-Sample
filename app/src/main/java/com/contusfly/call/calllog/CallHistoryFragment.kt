@@ -31,10 +31,10 @@ import com.contus.webrtc.CallType
 import com.contus.webrtc.Logger
 import com.contus.webrtc.api.CallLogManager
 import com.contus.webrtc.api.CallManager
-import com.contus.webrtc.database.NewCallLogUtils
-import com.contus.webrtc.database.model.CallLog
-import com.contus.webrtc.utils.CallConstants
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.database.CallLogUtils
+import com.contus.call.database.model.CallLog
+import com.contus.call.utils.CallConstants
+import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.R
 import com.contusfly.activities.ChatActivity
@@ -114,17 +114,6 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
     }
 
-    /**
-     * This broadcast receiver will be called , when there is a update in Call Logs DB.
-     */
-    private val callLogsUpdateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            viewModel.getCallLogsList(false)
-            Log.e(TAG, "onReceive: ")
-            (activity as DashboardActivity).validateMissedCallsCount()
-        }
-    }
-
     // Request multiple permissions contract
     private val requestCallPermissions: ActivityResultLauncher<Array<String>> =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -168,7 +157,13 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     }
 
     private fun initView() {
-        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(callLogsUpdateReceiver, IntentFilter(NewCallLogUtils.REFRESH_CALL_LOGS))
+        CallLogManager.setCallLogsListener(object : CallLogManager.CallLogsListener {
+            override fun onCallLogsUpdated() {
+                viewModel.getCallLogsList(false)
+                Log.d(TAG, "Call Logs Updated")
+                (activity as DashboardActivity).validateMissedCallsCount()
+            }
+        })
         callHistoryBinding.listCallHistory.apply {
             layoutManager = LinearLayoutManager(context)
             setItemViewCacheSize(20)
@@ -589,7 +584,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
 
     override fun onDestroyView() {
         super.onDestroyView()
-        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(callLogsUpdateReceiver)
+        CallLogManager.setCallLogsListener(null)
     }
 
     override val coroutineContext: CoroutineContext

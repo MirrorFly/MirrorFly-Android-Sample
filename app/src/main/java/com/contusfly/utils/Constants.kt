@@ -292,6 +292,7 @@ class Constants {
 
         const val SEEKER_POS = "seeker_pos_in_sec"
         const val FROM_GROUP_INFO = "from_group_info"
+        const val FROM_SPLASH_SCREEN = "fromSplashScreen"
 
         val NOTIFICATION_SOUND: String = PACKAGE_NAME + "notification_sound"
         val NOTIFICATION_POPUP: String = PACKAGE_NAME + "notification_popup"

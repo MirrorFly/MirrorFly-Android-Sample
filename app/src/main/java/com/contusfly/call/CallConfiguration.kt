@@ -1,5 +1,6 @@
 package com.contusfly.call
 
+import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 
@@ -14,12 +15,12 @@ object CallConfiguration {
     private var isGroupCallEnabled = false
 
     fun isGroupCallEnabled(): Boolean {
-        LogMessage.d(TAG, "isGroupCallEnabled: $isGroupCallEnabled")
+        LogMessage.d(TAG, "$CALL_UI isGroupCallEnabled: $isGroupCallEnabled")
         return isGroupCallEnabled
     }
 
     fun setIsGroupCallEnabled(enabled: Boolean) {
-        LogMessage.d(TAG, "setIsGroupCallEnabled: $enabled")
+        LogMessage.d(TAG, "$CALL_UI setIsGroupCallEnabled: $enabled")
         isGroupCallEnabled = enabled
     }
 }

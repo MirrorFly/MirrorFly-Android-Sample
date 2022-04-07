@@ -16,14 +16,15 @@ class CustomDrawable : Drawable {
     private var intrinsicSize: Int
     private var drawable: Drawable? = null
 
-    constructor(context: Context) {
+    constructor(context: Context, color:Int = Color.WHITE) {
         this.context = context
         paint = Paint()
-        paint.color = Color.WHITE
+        paint.color = color
         paint.textSize = DEFAULT_TEXT_SIZE.toFloat()
         paint.isAntiAlias = true
         paint.isFakeBoldText = true
-        paint.setShadowLayer(20f, 0f, 0f, Color.GRAY)
+        if (color == Color.WHITE)
+            paint.setShadowLayer(20f, 0f, 0f, Color.GRAY)
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.CENTER
         intrinsicSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, DRAWABLE_SIZE.toFloat(), context.resources.displayMetrics).toInt()

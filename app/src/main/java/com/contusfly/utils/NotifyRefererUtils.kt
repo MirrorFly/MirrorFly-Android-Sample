@@ -12,7 +12,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.contus.flycommons.ChatTypeEnum
 import com.contusfly.R
-import com.contusflysdk.api.FlyMessenger.getUnreadMessages
+import com.contusfly.TAG
+import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import java.util.*
@@ -179,26 +180,25 @@ object NotifyRefererUtils {
      */
     @TargetApi(Build.VERSION_CODES.O)
     fun deleteNotificationChannels(mNotificationManager: NotificationManager?) {
-        val notificationChannelList: List<NotificationChannel>
-        if (mNotificationManager != null) {
-            notificationChannelList = mNotificationManager.notificationChannels
-            for (notificationChannel in notificationChannelList)
-                if(!notificationChannel.name.equals("com.contusflysdk.MediaDownload_NotificationChannel")
-                    && !notificationChannel.name.equals("Email Contacts operations")
-                    && !notificationChannel.name.equals("Contact operations")
-                    && !notificationChannel.id.equals("calling")
-                    && !notificationChannel.id.equals("Mark read"))
-                    mNotificationManager.deleteNotificationChannel(notificationChannel.id)
+        try {
+            val notificationChannelList: List<NotificationChannel>
+            if (mNotificationManager != null) {
+                notificationChannelList = mNotificationManager.notificationChannels
+                for (notificationChannel in notificationChannelList)
+                    if(!notificationChannel.name.equals("com.contusflysdk.MediaDownload_NotificationChannel")
+                        && !notificationChannel.name.equals("Email Contacts operations")
+                        && !notificationChannel.name.equals("Contact operations")
+                        && !notificationChannel.id.equals("calling")
+                        && !notificationChannel.id.equals("Mark read"))
+                        mNotificationManager.deleteNotificationChannel(notificationChannel.id)
+            }
+        } catch (e: Exception) {
+            LogMessage.e(TAG, e.message)
         }
     }
 
     private val isLastMessageRecalled: Boolean
         get() {
-            val messages = getUnreadMessages()
-            if (!messages.isEmpty()) {
-                val lastReceivedMessage = messages[messages.size - 1]
-                return lastReceivedMessage.isMessageRecalled()
-            }
-            return false
+            return FlyMessenger.getLastUnreadMessage()?.isMessageRecalled() ?: false
         }
 }

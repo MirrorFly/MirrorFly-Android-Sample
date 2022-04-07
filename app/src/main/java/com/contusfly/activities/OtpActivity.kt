@@ -595,9 +595,10 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
                     renderUserRegistrationResponseData(data.getData() as JSONObject)
                 } else {
                     showToast(data.getMessage())
+                    dismissProgress()
                 }
-                dismissProgress()
             }
+
         } else {
             dismissProgress()
             CustomToast.show(this, getString(R.string.error_check_internet))
@@ -608,22 +609,16 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     * Register API Success Response */
     private fun renderUserRegistrationResponseData(decodedResponseObject: JSONObject) {
         try {
+            LogMessage.d(TAG, decodedResponseObject.toString())
             val password: String = decodedResponseObject.getString(Constants.SECRET_KEY)
             val username: String = decodedResponseObject.getString(Constants.USERNAME)
 
             SharedPreferenceManager.setString(Constants.USERNAME, username)
             SharedPreferenceManager.setBoolean(Constants.IS_LOGGED_IN, true)
             SharedPreferenceManager.setBoolean(Constants.IS_MESSAGE_MIGRATION_DONE, true)
-            SharedPreferenceManager.setString(Constants.SECRET_KEY, password)
-            SharedPreferenceManager.setString(Constants.WEB_SECRET_KEY, password)
-            SharedPreferenceManager.setString(Constants.XMPP_DOMAIN, BuildConfig.XMPP_DOMAIN)
-            SharedPreferenceManager.setString(Constants.XMPP_PORT, BuildConfig.XMPP_PORT)
-            SharedPreferenceManager.setString(Constants.XMPP_HOST, BuildConfig.XMPP_HOST)
 
             checkCurrentUser()
-            ChatConnectionManager.initialize(SharedPreferenceManager.getString(Constants.USERNAME),
-                SharedPreferenceManager.getString(Constants.SECRET_KEY), SharedPreferenceManager.getString(Constants.XMPP_DOMAIN),
-                SharedPreferenceManager.getString(Constants.XMPP_HOST), SharedPreferenceManager.getString(Constants.XMPP_PORT).toInt())
+            ChatConnectionManager.initialize(username, password, BuildConfig.XMPP_DOMAIN, BuildConfig.XMPP_HOST, BuildConfig.XMPP_PORT.toInt())
             CallManager.setCurrentUserId(FlyUtils.getJid(username))
             SharedPreferenceManager.setString(Constants.SENDER_USER_JID, FlyUtils.getJid(username))
             SharedPreferenceManager.setString(Constants.USER_JID, FlyUtils.getJid(username))

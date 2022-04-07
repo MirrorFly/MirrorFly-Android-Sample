@@ -10,7 +10,7 @@ import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.ChatType
 import com.contus.flycommons.LogMessage
-import com.contus.webrtc.utils.ThreadUtils
+import com.contus.flycommons.runOnUiThread
 import com.contusfly.*
 import com.contusfly.databinding.RowShareItemBinding
 import com.contusfly.interfaces.GetGroupUsersNameCallback
@@ -93,7 +93,7 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
             val index = mTempData!!.indexOfFirst { it.profileDetails.jid == profileDetails.jid }
             if (index.isValidIndex()) {
                 mTempData!![index].profileDetails = profileDetails
-                ThreadUtils.runOnUiThread(Runnable {
+                runOnUiThread(Runnable {
                     notifyItemChanged(index)
                 })
             }
@@ -211,7 +211,7 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
     private fun setRosterImage(holder: ShareViewHolder, profileDetails: ProfileDetails) {
         if(searchKey != null && searchKey?.length!! > 0){
             var startIndex = profileDetails.name.toString().checkIndexes(searchKey!!)
-            if (startIndex < 0) startIndex = profileDetails.nickName.toString().toLowerCase().indexOf(searchKey!!, 2)
+            if (startIndex < 0) startIndex = profileDetails.name.toString().toLowerCase().indexOf(searchKey!!, 2)
             val stopIndex = startIndex + searchKey?.length!!
             EmojiUtils.setEmojiTextAndHighLightSearchContact(context, holder.viewBinding.textChatName, profileDetails.name, startIndex, stopIndex)
         }else {

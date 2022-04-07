@@ -10,13 +10,14 @@ import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
+import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.webrtc.CallMode
 import com.contus.webrtc.CallState
 import com.contus.webrtc.CallType
-import com.contus.webrtc.database.model.CallLog
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.database.model.CallLog
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.gone
 import com.contusfly.setOnClickListener
@@ -87,7 +88,7 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
                     updateSelectedItem(holder.itemView, bundle.getBoolean(AppConstants.NOTIFY_IS_SELECTED))
                 }
                 else -> {
-                    LogMessage.e("ContactAdapter", "Do Nothing")
+                    LogMessage.e("ContactAdapter", "$CALL_UI Do Nothing")
                 }
             }
         }
@@ -122,10 +123,11 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
                 endUserJids = CommonUtils.getJidFromUser(endUserJids)
             val profileDetails = ContactManager.getProfileDetails(endUserJids!!)
             if (profileDetails != null) {
-                profileIcon(holder, profileDetails)} else {
+                profileIcon(holder, profileDetails)
+            } else {
                 val number = Utils.getFormattedPhoneNumber(endUserJids)
                 holder.txtChatPersonName.text = number
-                holder.imgRoster.addImage(arrayListOf(endUserJids!!))
+                holder.imgRoster.addImage(arrayListOf(endUserJids))
             }
         } else {
             profileIconForManyUsers(holder, position)

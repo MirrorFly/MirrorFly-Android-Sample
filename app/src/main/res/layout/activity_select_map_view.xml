@@ -54,7 +54,7 @@
                 android:fontFamily="@font/sf_ui_display_regular"
                 android:includeFontPadding="false"
                 android:textSize="@dimen/text_size_14"
-                android:textColor="@color/light_blue" />
+                android:textColor="@color/colorSecondary" />
 
             <TextView
                 android:id="@+id/address_line_1"

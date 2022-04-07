@@ -1,11 +1,11 @@
 package com.contusfly.call
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.app.Notification
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
@@ -14,9 +14,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
+import com.contus.call.utils.CallConstants
 import com.contus.webrtc.api.CallLogManager
-import com.contus.webrtc.utils.CallConstants
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.activities.DashboardActivity
 import com.contusfly.utils.Constants
@@ -51,6 +51,7 @@ object CallNotificationUtils {
         val channelImportance = getChannelImportance(isRing, isVibrate)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Create the channel for the notification
+
             when {
                 isRing -> {
                     val mChannel = NotificationChannel(channelId, channelId, channelImportance)
@@ -65,7 +66,7 @@ object CallNotificationUtils {
                         } else {
                             mChannel.vibrationPattern = longArrayOf(0L, 0L, 0L, 0L, 0L)
                         }
-                    } else {
+                    }else{
                         mChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), audioAttributes)
                     }
                     createdChannel = mChannel
@@ -105,7 +106,6 @@ object CallNotificationUtils {
         setUnreadBadgeCount(context, CallLogManager.getUnreadMissedCallCount(), notification)
         if (!SharedPreferenceManager.getBoolean(Constants.MUTE_NOTIFICATION))
             notificationManager.notify(CallConstants.CALL_NOTIFICATION_ID, notification)
-
     }
 
     private fun getChannelImportance(isRing: Boolean, isVibrate: Boolean): Int {
@@ -115,22 +115,18 @@ object CallNotificationUtils {
             NotificationManager.IMPORTANCE_LOW
     }
 
-    private fun getNotificationIcon(): Int {
-        LogMessage.i(TAG, "getNotificationIcon()")
-        return R.mipmap.ic_launcher
-    }
-
-    fun setUnreadBadgeCount(
-        context: Context,
-        unreadCount: Int,
-        notification: Notification?
-    ) {
-        LogMessage.i(TAG, "Inside setUnreadBadgeCount ==> unreadCount = $unreadCount")
+    fun setUnreadBadgeCount(context: Context, unreadCount: Int, notification: Notification?) {
+        LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} Inside setUnreadBadgeCount ==> unreadCount = $unreadCount")
         if (!Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true)) {
             ShortcutBadger.applyCount(context, unreadCount)
         } else {
             ShortcutBadger.applyNotification(context, notification, unreadCount)
         }
+    }
+
+    private fun getNotificationIcon(): Int {
+        LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} getNotificationIcon()")
+        return R.mipmap.ic_launcher
     }
 
 }

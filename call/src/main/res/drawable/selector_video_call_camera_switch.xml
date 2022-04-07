@@ -1,4 +1,4 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@drawable/ic_camera_switch_active" android:state_activated="true" />
-    <item android:drawable="@drawable/ic_camera_switch_inactive" />
+    <item android:drawable="@drawable/ic_camera_switch_inactive" android:state_activated="true" />
+    <item android:drawable="@drawable/ic_camera_switch_active" />
 </selector>

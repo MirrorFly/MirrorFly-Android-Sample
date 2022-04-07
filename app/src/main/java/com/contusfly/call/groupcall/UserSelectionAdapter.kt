@@ -12,10 +12,10 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.TAG
 import com.contus.webrtc.api.CallManager
-import com.contus.webrtc.utils.CallConstants
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.adapters.BaseViewHolder
+import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
 import com.contusfly.isValidIndex
 import com.contusfly.loadUserProfileImage
 import com.contusfly.utils.EmojiUtils
@@ -37,7 +37,7 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
     /**
      * The ProfileDetails list to display in the recycler view.
      */
-    private var profileDetailsList: ArrayList<ProfileDetails>? = null
+    var profileDetailsList: ArrayList<ProfileDetails>? = null
 
     /**
      * Selected rosters from the search list.
@@ -134,8 +134,7 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
             if (!selectedList.contains(item.jid)) {
                 if (selectedList.size >= if (isAddUserInCall) (CallManager.getMaxCallUsersCount() -
                             (GroupCallUtils.getAvailableCallUsersList().size + 1))
-                    else CallManager.getMaxCallUsersCount() - 1
-                ) {
+                    else CallManager.getMaxCallUsersCount() - 1) {
                     onItemClickListener!!.onUserSelectRestriction()
                     holder.checkBox.isChecked = false
                 } else {
@@ -157,13 +156,12 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
      * Set the user info of the user from the Roster
      *
      * @param holder View holder of recycler view
-     * @param item   Roster of the user
+     * @param profileDetails   Roster of the user
      */
-    private fun setUserInfo(holder: UserSelectionAdapter.UserViewHolder, item: ProfileDetails) {
-        val profileDetails = ContactManager.getProfileDetails(item.jid)
-        holder.txtName.text = profileDetails?.name
+    private fun setUserInfo(holder: UserSelectionAdapter.UserViewHolder, profileDetails: ProfileDetails) {
+        holder.txtName.text = profileDetails.name
         holder.txtStatus.visibility = View.GONE
-        holder.contactLayout.alpha = if (profileDetails!!.isBlocked) 0.5f else 1.0f
+        holder.contactLayout.alpha = if (profileDetails.isBlocked) 0.5f else 1.0f
         holder.imgRoster.loadUserProfileImage(context, profileDetails)
         val status = Utils.returnEmptyStringIfNull(profileDetails.status)
 

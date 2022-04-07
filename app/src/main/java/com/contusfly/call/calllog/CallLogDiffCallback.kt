@@ -1,7 +1,7 @@
 package com.contusfly.dashboard.calllog
 
 import androidx.recyclerview.widget.DiffUtil
-import com.contus.webrtc.database.model.CallLog
+import com.contus.call.database.model.CallLog
 
 class CallLogDiffCallback(private val oldList: List<CallLog>, private val newList: List<CallLog>) : DiffUtil.Callback() {
 

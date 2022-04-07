@@ -18,7 +18,7 @@ import com.contus.webrtc.WebRtcCallService
 import com.contus.webrtc.api.CallHelper
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.MissedCallListener
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.AppLifecycleListener
 import com.contusfly.BuildConfig
 import com.contusfly.R

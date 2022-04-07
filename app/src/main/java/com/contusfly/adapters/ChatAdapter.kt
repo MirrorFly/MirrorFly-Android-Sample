@@ -801,6 +801,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     senderItemClick(viewSender, item, position)
                     imgChatStatus.show()
                     sentRecallImage.gone()
+                    joinLinkView.gone()
                     setStatus(item, imgChatStatus)
                     replyViewUtils.showSenderReplyWindow(this, item, context)
                     /*textReplyViewUtils.showSenderReplyWindow(txtSenderViewHolder, item, context);*/
@@ -808,6 +809,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                         setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
                         setTextKeepState(getSpannedText(msg))
                         handleSenderTextSearch(getSpannedText(msg), holder)
+                        if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
+                            setJoinLinkView(txtChatSender, joinLinkView, joinLinkLogo)
                         movementMethod = ModifiedlinkMovementMethod(context)
                         isClickable = false
                         isLongClickable = false
@@ -821,6 +824,20 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 LogMessage.e(e)
             }
         }
+    }
+
+    private fun setJoinLinkView(txtChat: EmojiconTextView, joinLinkView: LinearLayout, joinLinkLogo: ImageView) {
+        val screenWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
+        txtChat.setTextColor(ContextCompat.getColor(context, R.color.light_blue))
+        txtChat.setLinkTextColor(ContextCompat.getColor(context, R.color.light_blue))
+        joinLinkView.show()
+        joinLinkView.setOnClickListener {
+            ChatUtils.navigateToOnGoingCallPreviewScreen(context, txtChat.text.toString().trim())
+            com.contusfly.utils.LogMessage.d(TAG, "Join Call via Link Clicked")
+        }
+        val lp = LinearLayout.LayoutParams((screenWidth + 20), LinearLayout.LayoutParams.WRAP_CONTENT) //20 is nothing but text message margin Start and End value in XML
+        joinLinkView.layoutParams = lp
+        joinLinkLogo.setImageDrawable(ContextCompat.getDrawable(context, R.mipmap.ic_launcher)!!)
     }
 
     private fun handleSenderTextSearch(htmlText: CharSequence, holder: TextSentViewHolder) {
@@ -923,12 +940,15 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 textViewHolder.isRecallMessage = false
                 receiverItemClick(viewReceiver, item, position)
                 receivedRecallImage.gone()
+                receiverJoinLinkView.gone()
                 replyViewUtils.showReceiverReplyWindow(this, item, context)
                 with(txtChatReceiver) {
                     setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
                     val msg = item.getMessageTextContent()
                     setTextKeepState(getSpannedText(msg))
                     handleReceiverTextSearch(getSpannedText(msg), textViewHolder)
+                    if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
+                        setJoinLinkView(txtChatReceiver, receiverJoinLinkView, receiverJoinLinkLogo)
                     movementMethod = ModifiedlinkMovementMethod(context)
                     isClickable = false
                     isLongClickable = false
@@ -977,6 +997,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
         with(txtReceiverViewHolder) {
             replyMessageReceivedView?.gone()
             receivedRecallImage.show()
+            receiverJoinLinkView.gone()
             txtChatReceiver.setTextColor(ContextCompat.getColor(context, R.color.color_dark_gray))
             txtChatReceiver.setTypeface(Typeface.SANS_SERIF, Typeface.ITALIC)
             txtChatReceiver.setTextKeepState(Html.fromHtml(getHtmlChatMessageText(context.getString(R.string.single_chat_receiver_recall))))
@@ -993,6 +1014,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
             imgChatStatus.gone()
             replyMessageSentView?.gone()
             sentRecallImage.show()
+            joinLinkView.gone()
             txtChatSender.setTextColor(ContextCompat.getColor(context, R.color.color_black))
             txtChatSender.setTypeface(Typeface.SANS_SERIF, Typeface.ITALIC)
             txtChatSender.setTextKeepState(Html.fromHtml(getHtmlChatMessageText(context.getString(R.string.single_chat_sender_recall))))

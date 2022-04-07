@@ -18,7 +18,7 @@ import com.contus.flycommons.ContactType
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.webrtc.CallType
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.R
 import com.contusfly.TAG
@@ -102,7 +102,8 @@ class ProfileDialogFragment : DialogFragment() {
                 val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
                 val newlyCreatedJid = SharedPreferenceManager.getString(Constants.NEW_GROUP_JID)
                 val imageBitmap = SharedPreferenceManager.getString(Constants.NEW_GROUP_IMAGE)
-                if (isNewlyCreated != null && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && it.jid.equals(newlyCreatedJid)){
+                if (it.image.isNotEmpty() && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated &&
+                    it.jid.equals(newlyCreatedJid)){
                     profileDialogBinding.userProfileImageViewer.setImageDrawable(
                         ContextCompat.getDrawable(
                             requireContext(),

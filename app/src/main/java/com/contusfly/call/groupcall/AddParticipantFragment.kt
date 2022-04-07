@@ -1,17 +1,15 @@
 package com.contusfly.call.groupcall
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.*
-import android.widget.RelativeLayout
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.SearchView
-import androidx.appcompat.widget.Toolbar
+import android.widget.*
+import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,14 +18,10 @@ import com.contus.flycommons.LogMessage
 import com.contus.flycommons.SharedPreferenceManager
 import com.contus.flynetwork.ApiCalls
 import com.contus.webrtc.api.CallManager
-import com.contus.webrtc.utils.CallConstants
-import com.contus.webrtc.utils.CallConstants.Companion.CONNECTED_USER_LIST
-import com.contus.webrtc.utils.GroupCallUtils
-import com.contusfly.R
-import com.contusfly.TAG
+import com.contus.call.utils.GroupCallUtils
+import com.contusfly.*
+import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
 import com.contusfly.di.factory.AppViewModelFactory
-import com.contusfly.emptyString
-import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomRecyclerView
 import com.contusflysdk.AppUtils
@@ -72,6 +66,14 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
 
     private lateinit var emptyView: TextView
 
+    private lateinit var onGoingCallLink: String
+
+    private lateinit var callLinkView: LinearLayout
+
+    private lateinit var callLink: AppCompatTextView
+
+    private lateinit var callLinkCopyIcon: ImageView
+
     private lateinit var groupId: String
 
     private lateinit var blockedUserJid: String
@@ -95,15 +97,12 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
     }
 
     /**
-     * Search view of the list  of contacts.
-     */
-    private var searchKey: SearchView? = null
-    /**
      * Get Selected users count in CallNow button
      */
     private val selectedUserCount: String
         get() {
             return if (mAdapter.selectedList.isEmpty()) {
+                addParticipantsLayout.visibility = View.GONE
                 addParticipantsLayout.isEnabled = false
                 getString(R.string.msg_add_participant)
             } else {
@@ -118,7 +117,7 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
         setHasOptionsMenu(true)
         arguments?.let {
             groupId = it.getString(Constants.GROUP_ID, "")
-            isAddUsersToOneToOneCall = it.getBoolean(CallConstants.ADD_USERS_TO_ONE_TO_ONE_CALL, false)
+            isAddUsersToOneToOneCall = it.getBoolean(ADD_USERS_TO_ONE_TO_ONE_CALL, false)
             callConnectedUserList = it.getStringArrayList(CONNECTED_USER_LIST)
             callConnectedUserList?.let { list ->
                 if (list.contains(SharedPreferenceManager.instance.currentUserJid))
@@ -152,25 +151,6 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
             viewModel.getInviteUserListForGroup(groupId, callConnectedUserList)
     }
 
-    override fun onPrepareOptionsMenu(menu: Menu) {
-        searchKey = menu.findItem(R.id.action_search).actionView as SearchView
-        searchKey!!.setOnSearchClickListener {
-            searchKey!!.maxWidth = Int.MAX_VALUE
-        }
-        searchKey!!.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(s: String): Boolean {
-                return false
-            }
-
-            override fun onQueryTextChange(searchValue: String): Boolean {
-                mAdapter.filter(searchValue.trim())
-                mAdapter.notifyDataSetChanged()
-                return false
-            }
-        })
-        super.onPrepareOptionsMenu(menu)
-    }
-
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         // Inflate the layout for this fragment
@@ -181,11 +161,6 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
         return view
     }
 
-    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        inflater.inflate(R.menu.menu_search_group_call, menu)
-        super.onCreateOptionsMenu(menu, inflater)
-    }
-
     private fun setObservers() {
         requireActivity().let {
             viewModel.profileUpdatedLiveData.observe(viewLifecycleOwner, { userJid ->
@@ -193,6 +168,11 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
             })
 
             viewModel.inviteUserList.observe(viewLifecycleOwner, {
+                if (it.isEmpty()) {
+                    val message = if (isAddUsersToOneToOneCall) requireContext().getString(R.string.all_members_already_in_call) else requireContext().getString(R.string.all_members_already_in_group_call)
+                    emptyView.text = message
+                    emptyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14F)
+                }
                 mAdapter.setProfileDetails(it)
                 mAdapter.notifyDataSetChanged()
             })
@@ -200,17 +180,28 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
     }
 
     private fun initView(view: View) {
-        val toolbar = view.findViewById<Toolbar>(R.id.toolbar)
-        (activity as AppCompatActivity?)!!.setSupportActionBar(toolbar)
-        UserInterfaceUtils.setUpToolBar(requireActivity(), toolbar, (activity as AppCompatActivity?)!!.supportActionBar, getString(R.string.add_participants))
-        toolbar.setNavigationOnClickListener { requireActivity().supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE) }
+        onGoingCallLink = CallManager.getCallLink()
 
+        callLinkView = view.findViewById(R.id.call_link_view)
+        callLink = view.findViewById(R.id.call_link)
+        callLinkCopyIcon = view.findViewById(R.id.call_link_copy)
         emptyView = view.findViewById(R.id.text_empty_view)
         emptyView.text = getString(R.string.msg_no_results)
         emptyView.setTextColor(ResourcesCompat.getColor(resources, R.color.color_text_grey, null))
-        listContact = view.findViewById(R.id.view_contact_list)
         mAdapter.setHasStableIds(true)
+        listContact = view.findViewById(R.id.view_contact_list)
         setContactAdapter()
+
+        if (onGoingCallLink.isNotEmpty()) {
+            callLinkView.visibility = View.VISIBLE
+            callLink.text = onGoingCallLink
+            callLinkCopyIcon.setOnClickListener {
+                val clipboardManager  = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipData  = ClipData.newPlainText("text", BuildConfig.WEB_CHAT_LOGIN + onGoingCallLink)
+                clipboardManager .setPrimaryClip(clipData )
+                CustomToast.show(context, getString(R.string.link_copied_clipboard))
+            }
+        }
 
         addParticipantsLayout = view.findViewById(R.id.add_participants_layout)
         addParticipantsTextView = view.findViewById(R.id.add_participants_text_view)
@@ -261,10 +252,7 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
         else
             Toast.makeText(
                 requireContext(),
-                String.format(
-                    requireContext().getString(R.string.msg_user_call_limit),
-                    availableCount
-                ),
+                String.format(getString(R.string.max_members_in_call), CallManager.getMaxCallUsersCount()),
                 Toast.LENGTH_SHORT
             ).show()
     }
@@ -277,7 +265,7 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
     }
 
     fun refreshUsersList() {
-        LogMessage.i(TAG, "refreshUsersList")
+        LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} refreshUsersList")
         lifecycleScope.launchWhenStarted {
             if (isAddUsersToOneToOneCall)
                 viewModel.getInviteUserList(callConnectedUserList)
@@ -286,7 +274,28 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
         }
     }
 
+    fun refreshUser(jid: String) {
+        LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} refreshUser")
+        val index = mAdapter.profileDetailsList?.indexOfFirst { it.jid == jid }
+        if (index != null && index.isValidIndex()) {
+            updateProfileDetails(jid)
+        }
+    }
+
+    fun filterResult(searchKey: String) {
+        mAdapter.filter(searchKey)
+        mAdapter.notifyDataSetChanged()
+    }
+
     companion object {
+
+        /**
+         * key constant for add user for existing call action
+         */
+        const val ADD_USERS_TO_ONE_TO_ONE_CALL = "add_users_to_one_to_one_call"
+
+        const val CONNECTED_USER_LIST = "connected_user_list"
+
         /**
          * The constructor used to create and initialize a new instance of this class object, with the
          * specified initialization parameters.
@@ -301,7 +310,7 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
         ) = AddParticipantFragment().apply {
             arguments = Bundle().apply {
                 putString(Constants.GROUP_ID, groupId)
-                putBoolean(CallConstants.ADD_USERS_TO_ONE_TO_ONE_CALL, isOneToOneCall)
+                putBoolean(ADD_USERS_TO_ONE_TO_ONE_CALL, isOneToOneCall)
                 putStringArrayList(CONNECTED_USER_LIST, callUsersList)
             }
         }

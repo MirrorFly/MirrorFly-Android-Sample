@@ -1,17 +1,28 @@
 package com.contusfly.utils
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.view.View
 import androidx.core.content.ContextCompat
+import com.contus.call.CallConstants
+import com.contus.call.utils.GroupCallUtils
 import com.contus.flycommons.LogMessage
+import com.contus.webrtc.api.CallManager
+import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.activities.MediaPreviewActivity
+import com.contusfly.call.CallPermissionUtils
+import com.contusfly.call.groupcall.GroupCallActivity
+import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
+import com.contusfly.views.CommonAlertDialog
+import com.contusflysdk.AppUtils
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.utils.Utils
+import com.contusflysdk.views.CustomToast
 import io.michaelrocks.libphonenumber.android.NumberParseException
 import io.michaelrocks.libphonenumber.android.PhoneNumberUtil
 import java.io.*
@@ -167,5 +178,43 @@ object ChatUtils {
                 null
             }
         }
+    }
+
+    fun navigateToOnGoingCallPreviewScreen(context: Context, url: String): Boolean {
+        val callLink = url.replace(BuildConfig.WEB_CHAT_LOGIN, "")
+        if (AppUtils.isNetConnected(context)) {
+            return if (GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall()) {
+                val onGngCallLink = CallManager.getCallLink()
+                if (onGngCallLink == callLink) {
+                    context.startActivity(Intent(context, GroupCallActivity::class.java))
+                    true
+                } else {
+                    askCallSwitchPopup(context, callLink)
+                    false
+                }
+            } else if (CallManager.isOnTelephonyCall(context)) {
+                CallPermissionUtils.showTelephonyCallAlert(context)
+                false
+            } else {
+                context.startActivity(
+                    Intent(context, OnGoingCallPreviewActivity::class.java).putExtra(
+                        CallConstants.CALL_LINK,
+                        callLink
+                    )
+                )
+                true
+            }
+        } else {
+            CustomToast.show(context, context.getString(R.string.error_check_internet))
+            return true
+        }
+    }
+
+    private fun askCallSwitchPopup(context: Context, url: String) {
+        val commonAlertDialog = CommonAlertDialog(context)
+        commonAlertDialog.showCallSwitchDialog(url,
+            context.getString(R.string.action_ok),
+            context.getString(R.string.action_cancel),
+            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL)
     }
 }

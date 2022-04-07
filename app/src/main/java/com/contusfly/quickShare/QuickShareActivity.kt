@@ -194,7 +194,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         super.onCreate(savedInstanceState)
         if (!SharedPreferenceManager.getBoolean(Constants.IS_LOGGED_IN)) {
             startActivity(Intent(this, StartActivity::class.java))
-            Toast.makeText(context, "You need to login to Mirror Fly app to continue", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, getString(R.string.need_to_login), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -596,7 +596,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
             "No user selected"
         } else {
             for (model in mContactsAdapter.selectedList) {
-                stringBuilder.append(model.profileDetails.nickName)
+                stringBuilder.append(model.profileDetails.name)
                 stringBuilder.append(", ")
             }
             val selectedNames = stringBuilder.toString()

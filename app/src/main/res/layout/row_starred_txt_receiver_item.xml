@@ -67,86 +67,142 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:gravity="bottom"
+                    android:orientation="vertical">
+
+                    <include
+                        layout="@layout/list_chat_reply_received_item"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:gravity="bottom"
-                        android:orientation="vertical">
+                        android:layout_margin="@dimen/margin_3" />
 
-                        <include
-                            layout="@layout/list_chat_reply_received_item"
-                            android:layout_width="match_parent"
+                    <LinearLayout
+                        style="@style/chatTextMessageLayoutStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/image_received_recall"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_margin="@dimen/margin_3" />
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="5dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_recall"
+                            android:visibility="gone" />
 
-                        <LinearLayout
-                            style="@style/chatTextMessageLayoutStyle"
-                            android:layout_width="match_parent"
+                        <io.github.rockerhieu.emojicon.EmojiconTextView
+                            android:id="@+id/text_rev_chat"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal">
-
-                            <ImageView
-                                android:id="@+id/image_received_recall"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
-                                android:layout_marginEnd="5dp"
-                                android:contentDescription="@null"
-                                android:src="@drawable/ic_recall"
-                                android:visibility="gone" />
-
-                            <io.github.rockerhieu.emojicon.EmojiconTextView
-                                android:id="@+id/text_rev_chat"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:breakStrategy="simple"
-                                android:fontFamily="@font/sf_ui_display_regular"
-                                android:gravity="center_vertical"
-                                android:includeFontPadding="false"
-                                android:lineSpacingExtra="3dp"
-                                android:textColor="@color/color_selected_status"
-                                android:textColorLink="@color/color_selected_status"
-                                app:emojiconSize="19sp"
-                                android:textSize="@dimen/text_size_14"
-                                app:fontFamily="@font/sf_ui_display_regular"
-                                tools:targetApi="M"
-                                tools:text="Testt" />
-
-                        </LinearLayout>
+                            android:breakStrategy="simple"
+                            android:fontFamily="@font/sf_ui_display_regular"
+                            android:gravity="center_vertical"
+                            android:includeFontPadding="false"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="@color/color_selected_status"
+                            android:textColorLink="@color/color_selected_status"
+                            app:emojiconSize="19sp"
+                            android:textSize="@dimen/text_size_14"
+                            app:fontFamily="@font/sf_ui_display_regular"
+                            tools:targetApi="M"
+                            tools:text="Test" />
 
                     </LinearLayout>
 
-                    <androidx.constraintlayout.widget.ConstraintLayout
-                        style="@style/ChatTimeLayoutStyle"
+                    <LinearLayout
+                        android:id="@+id/row_join_link_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <RelativeLayout
+                            style="@style/chatJoinLinkMessageLayoutStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@color/color_join_link_receiver_bg"
+                            android:layout_gravity="center_horizontal">
+
+                            <ImageView
+                                android:id="@+id/join_link_logo"
+                                android:layout_width="@dimen/margin_25"
+                                android:layout_height="@dimen/margin_25"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_notification_small"
+                                android:layout_gravity="center_vertical"/>
+
+                            <androidx.appcompat.widget.AppCompatTextView
+                                style="@style/ReceiverTextRegularLight"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_centerVertical="true"
+                                android:layout_marginStart="@dimen/margin_10"
+                                android:layout_toEndOf="@+id/join_link_logo"
+                                android:text="@string/join_video_meeting_lable"
+                                android:textSize="@dimen/text_size_13" />
+
+                            <ImageView
+                                android:layout_width="@dimen/margin_20"
+                                android:layout_height="@dimen/margin_20"
+                                android:contentDescription="@null"
+                                android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
+                                android:src="@drawable/ic_video" />
+
+                        </RelativeLayout>
+
+                        <RelativeLayout
+                            style="@style/chatTextMessageLayoutStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_horizontal">
+
+                            <View
+                                android:layout_width="wrap_content"
+                                android:layout_height="@dimen/margin_10"/>
+
+                        </RelativeLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    style="@style/ChatTimeLayoutStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|bottom"
+                    android:layout_marginBottom="@dimen/margin_5">
+
+                    <ImageView
+                        android:id="@+id/ic_star_received"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="end|bottom"
-                        android:layout_marginBottom="@dimen/margin_5">
+                        android:layout_marginEnd="@dimen/margin_4"
+                        android:contentDescription="@null"
+                        app:srcCompat="@drawable/ic_star_receiver"
+                        app:layout_constraintEnd_toStartOf="@+id/text_rev_text_time"
+                        app:layout_constraintTop_toTopOf="@+id/text_rev_text_time"
+                        app:layout_constraintBottom_toBottomOf="@+id/text_rev_text_time"/>
 
-                        <ImageView
-                            android:id="@+id/ic_star_received"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="@dimen/margin_4"
-                            android:contentDescription="@null"
-                            app:srcCompat="@drawable/ic_star_receiver"
-                            app:layout_constraintEnd_toStartOf="@+id/text_rev_text_time"
-                            app:layout_constraintTop_toTopOf="@+id/text_rev_text_time"
-                            app:layout_constraintBottom_toBottomOf="@+id/text_rev_text_time"/>
+                    <androidx.appcompat.widget.AppCompatTextView
+                        android:id="@+id/text_rev_text_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/color_chat_list_time"
+                        android:includeFontPadding="false"
+                        android:fontFamily="@font/sf_ui_display_light"
+                        android:textSize="@dimen/text_size_11"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
 
-                        <androidx.appcompat.widget.AppCompatTextView
-                            android:id="@+id/text_rev_text_time"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/color_chat_list_time"
-                            android:includeFontPadding="false"
-                            android:fontFamily="@font/sf_ui_display_light"
-                            android:textSize="@dimen/text_size_11"
-                            app:layout_constraintEnd_toEndOf="parent"
-                            app:layout_constraintBottom_toBottomOf="parent" />
-
-                    </androidx.constraintlayout.widget.ConstraintLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
             </FrameLayout>
 

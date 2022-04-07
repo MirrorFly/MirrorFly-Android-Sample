@@ -5,10 +5,12 @@ import android.text.Selection
 import android.text.Spannable
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
+import android.text.style.URLSpan
 import android.util.Log
 import android.view.MotionEvent
 import android.widget.TextView
 import com.contus.flycommons.LogMessage
+import com.contusfly.BuildConfig
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -32,7 +34,11 @@ class ModifiedlinkMovementMethod(var context: Context) : LinkMovementMethod() {
             val off = layout.getOffsetForHorizontal(line, x.toFloat())
             val link = buffer.getSpans(off, off + 1, ClickableSpan::class.java)
             if (link.isNotEmpty()) {
-                if (action == MotionEvent.ACTION_UP) link[0].onClick(widget)
+                if (action == MotionEvent.ACTION_UP) {
+                    if ((link[0] as URLSpan).url.contains(BuildConfig.WEB_CHAT_LOGIN))
+                        return ChatUtils.navigateToOnGoingCallPreviewScreen(context, (link[0] as URLSpan).url)
+                    else link[0].onClick(widget)
+                }
                 return true
             } else {
                 Selection.removeSelection(buffer)

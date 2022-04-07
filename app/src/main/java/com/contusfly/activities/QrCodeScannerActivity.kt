@@ -61,7 +61,7 @@ class QrCodeScannerActivity : BaseActivity(), BarcodeCallback {
         }
         connectSocket()
 
-        updateWebPassword = UpDateWebPassword(this)
+        updateWebPassword = UpDateWebPassword()
 
         val toolbar: Toolbar = qrCodeScannerBinding.toolbar
         setSupportActionBar(toolbar)

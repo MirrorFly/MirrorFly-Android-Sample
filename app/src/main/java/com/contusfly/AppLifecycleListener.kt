@@ -11,7 +11,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import com.contus.flycommons.Prefs
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager

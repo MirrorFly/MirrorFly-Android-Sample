@@ -2,7 +2,9 @@ package com.contusfly.call
 
 import android.content.Context
 import android.graphics.drawable.Drawable
+import androidx.core.content.ContextCompat
 import com.contus.flycommons.ChatType
+import com.contusfly.R
 import com.contusfly.getChatType
 import com.contusfly.getColourCode
 import com.contusfly.views.CustomDrawable
@@ -29,6 +31,80 @@ class SetDrawable {
     constructor(context: Context, profileDetails: ProfileDetails?) {
         this.context = context
         this.profileDetails = profileDetails
+    }
+
+    @Synchronized
+    fun setDrawable(name: String): Drawable? {
+        var nameValue = name
+        nameValue = nameValue.trim { it <= ' ' }.replace("\\s+".toRegex(), " ")
+        context.let { context ->
+            profileDetails?.let { profileDetails ->
+                val icon = CustomDrawable(context)
+                return if (profileDetails.name.isNullOrBlank())
+                    ContextCompat.getDrawable(context, R.drawable.ic_profile)
+                else {
+                    val initialName = nameValue.split(" ".toRegex()).toTypedArray()
+                    if (initialName.size == 1) {
+                        val charLength = initialName[0].toCharArray().size
+                        when {
+                            charLength <= 0 -> {
+                                icon.setDrawableColour(nameValue.getColourCode())
+                                icon.setText("")
+                                icon
+                            }
+                            charLength <= 1 -> {
+                                val firstLetter = String(Character.toChars(initialName[0].codePointAt(0)))
+                                icon.setDrawableColour(nameValue.getColourCode())
+                                icon.setText(firstLetter.toUpperCase())
+                                icon
+                            }
+                            else -> {
+                                val firstLetter = String(Character.toChars(initialName[0].codePointAt(0)))
+                                val secondLetter = String(Character.toChars(initialName[0].codePointAt(1)))
+                                icon.setDrawableColour(nameValue.getColourCode())
+                                icon.setText(firstLetter.toUpperCase() + secondLetter.toUpperCase())
+                                icon
+                            }
+                        }
+                    } else {
+                        val firstLetter = String(Character.toChars(initialName[0].codePointAt(0)))
+                        val secondLetter = String(Character.toChars(initialName[1].codePointAt(0)))
+                        icon.setText(firstLetter.toUpperCase() + secondLetter.toUpperCase())
+                        icon.setDrawableColour(nameValue.getColourCode())
+                        icon
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    fun setDrawableForProfile(name: String): Drawable {
+        var name = name
+        val icon = CustomDrawable(context)
+        name = name.trim { it <= ' ' }.replace("\\s+".toRegex(), " ")
+        val initialname = name.split(" ".toRegex()).toTypedArray()
+        return if (initialname.size == 1) {
+            val username = initialname[0]
+            if (username.length == 1) {
+                val firstletter = initialname[0][0].toString()
+                icon.setText(firstletter.toUpperCase())
+                icon.setDrawableProfileColour(com.contus.call.R.color.light_blue)
+                icon
+            } else {
+                val firstletter = initialname[0][0].toString()
+                val secondletter = initialname[0][1].toString()
+                icon.setText(firstletter.toUpperCase() + secondletter.toUpperCase())
+                icon.setDrawableProfileColour(com.contus.call.R.color.light_blue)
+                icon
+            }
+        } else {
+            val firstletter = initialname[0][0].toString()
+            val secondletter = initialname[1][0].toString()
+            icon.setText(firstletter.toUpperCase() + secondletter.toUpperCase())
+            icon.setDrawableProfileColour(com.contus.call.R.color.light_blue)
+            icon
+        }
     }
 
     @Synchronized
@@ -81,7 +157,7 @@ class SetDrawable {
     }
 
     private fun setDrawableProfileColour(icon: CustomDrawable, isProfile: Boolean) {
-        if (isProfile) icon.setDrawableProfileColour(com.contus.call.R.color.light_blue) else icon.setDrawableColour(profileDetails?.name!!.getColourCode())
+        if (isProfile) icon.setDrawableProfileColour(com.contus.call.R.color.colorSecondary) else icon.setDrawableColour(profileDetails?.name!!.getColourCode())
     }
 
     private fun isEmojiOnly(string: String): Boolean {

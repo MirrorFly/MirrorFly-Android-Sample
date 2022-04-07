@@ -5,19 +5,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import android.widget.ImageView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
 import com.an.biometric.BiometricCallback
 import com.an.biometric.BiometricManager
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.AppLifecycleListener
 import com.contusfly.R
@@ -27,7 +24,11 @@ import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
-import com.bumptech.glide.Glide
+import com.contus.call.CallConstants
+import com.contus.webrtc.api.CallManager
+import com.contusfly.BuildConfig
+import com.contusfly.call.groupcall.GroupCallActivity
+import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
 
 
 class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
@@ -48,13 +49,17 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
     private fun userView() {
         clearNotification()
         SharedPreferenceManager.setBoolean(Constants.PIN_SCREEN,false)
+        val callLink = if (!intent.dataString.isNullOrEmpty()) intent.dataString!!.replace(
+            BuildConfig.WEB_CHAT_LOGIN, "") else ""
         if (intent.hasExtra(GroupCallUtils.IS_CALL_NOTIFICATION)) {
             val showCallsTab = intent.getBooleanExtra(GroupCallUtils.IS_CALL_NOTIFICATION, false)
             GroupCallUtils.setCallsTabToBeShown(showCallsTab)
         }
         if (SharedPreferenceManager.getBoolean(Constants.IS_LOGGED_IN)) {
             if (SharedPreferenceManager.getBoolean(Constants.IS_PROFILE_LOGGED)) {
-                checkNotificationIntent(intent)
+                if (callLink.isNotEmpty())
+                    validateCallLinkAndNavigateToRespectivePage(callLink)
+                else checkNotificationIntent(intent)
             } else {
                 startActivity(Intent(this, ProfileStartActivity::class.java).putExtra(Constants.IS_FIRST_LOGIN, true)
                         .putExtra(Constants.FROM_SPLASH, true))
@@ -66,6 +71,19 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
             AppShortCuts.dynamicAppShortcuts(this@StartActivity)
         }
         finish()
+    }
+
+    private fun validateCallLinkAndNavigateToRespectivePage(callLink: String) {
+        val onGngCallLink = CallManager.getCallLink()
+        if (onGngCallLink == callLink) {
+            startActivity(Intent(this, GroupCallActivity::class.java))
+        } else {
+            startActivity(
+                Intent(context, OnGoingCallPreviewActivity::class.java)
+                    .putExtra(CallConstants.CALL_LINK, callLink)
+                    .putExtra(Constants.FROM_SPLASH_SCREEN, true)
+            )
+        }
     }
 
     private fun checkEnableSafeChat() {

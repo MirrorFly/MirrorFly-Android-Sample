@@ -237,8 +237,10 @@ object MediaPermissions {
                         }.show()
                 }
 
-                SharedPreferenceManager.getBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED) ||
-                        SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED) -> {
+                ((SharedPreferenceManager.getBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED) &&
+                        isPermissionAllowed(activity, Manifest.permission.RECORD_AUDIO)) ||
+                        (SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED) &&
+                                isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE))) -> {
                     openSettingsForPermission(
                         activity,
                         activity.getString(R.string.record_permission_label)

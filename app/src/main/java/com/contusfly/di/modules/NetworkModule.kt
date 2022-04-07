@@ -27,7 +27,7 @@ class NetworkModule {
 
     @Provides
     @Named("baseUrl")
-    fun providesBaseUrl(context: Context): String = Constants.getBaseUrl(context)
+    fun providesBaseUrl(context: Context): String = Constants.getBaseUrl()
 
     @Provides
     @Named("backup")

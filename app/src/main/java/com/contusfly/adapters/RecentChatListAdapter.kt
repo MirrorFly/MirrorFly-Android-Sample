@@ -128,7 +128,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
             val unSeenCount = recent.unreadMessageCount
             /* Check unseen messages for single user/group to show/hide unseen message count. */
             if (unSeenCount != 0) {
-                holder.textChatTime.setTextColor(ContextCompat.getColor(context, R.color.color_unread_count))
+                holder.textChatTime.setTextColor(ContextCompat.getColor(context, R.color.colorSecondary))
                 holder.textUnseenCount.show()
 
                 //changes text size
@@ -419,7 +419,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
             val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
             val newlyCreatedJid = SharedPreferenceManager.getString(Constants.NEW_GROUP_JID)
             val imageBitmap = SharedPreferenceManager.getString(Constants.NEW_GROUP_IMAGE)
-            if (isNewlyCreated != null && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && recent.jid.equals(newlyCreatedJid)) {
+            if (recent.profileImage.isNotEmpty() && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && recent.jid.equals(newlyCreatedJid)) {
                 holder.imageChatPicture.setImageDrawable(
                     ContextCompat.getDrawable(
                         context,

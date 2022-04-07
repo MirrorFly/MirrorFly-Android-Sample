@@ -6,11 +6,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DiffUtil
+import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.flynetwork.ApiCalls
 import com.contus.webrtc.api.CallLogManager
-import com.contus.webrtc.database.model.CallLog
+import com.contus.call.database.model.CallLog
 import com.contusfly.dashboard.calllog.CallLogDiffCallback
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager
@@ -59,7 +60,7 @@ constructor(private val repository: CallLogRepository, private val apiCalls: Api
 
 
     fun getCallLogsList(isLoadDataOnMainThread: Boolean) {
-        LogMessage.d(TAG, "getCallLogsList loadOnMain: $isLoadDataOnMainThread")
+        LogMessage.d(TAG, "$CALL_UI getCallLogsList loadOnMain: $isLoadDataOnMainThread")
         if (isLoadDataOnMainThread) {
             viewModelScope.launch(Dispatchers.Main.immediate) {
                 callLogList = repository.getCallLogs()
@@ -86,7 +87,7 @@ constructor(private val repository: CallLogRepository, private val apiCalls: Api
 
     fun uploadUnSyncedCallLogs() {
         if (AppUtils.isNetConnected(ChatManager.applicationContext)) {
-            LogMessage.v(this@CallLogViewModel.TAG, "uploadUnSyncedCallLogs working in thread: ${Thread.currentThread().name}")
+            LogMessage.v(this@CallLogViewModel.TAG, "$CALL_UI uploadUnSyncedCallLogs working in thread: ${Thread.currentThread().name}")
             viewModelScope.launch(exceptionHandler) {
                 CallLogManager.uploadUnSyncedCallLogs(apiCalls)
             }

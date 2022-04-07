@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallManager
-import com.contus.webrtc.utils.CallConstants
+import com.contus.call.utils.CallConstants
 import com.contusfly.R
 import com.contusfly.*
 import com.contusfly.databinding.RowContactItemBinding

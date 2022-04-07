@@ -3,7 +3,9 @@
 
     <color name="colorPrimary">#F2F2F2</color>
     <color name="colorPrimaryDark">#E5E5E5</color>
+
     <color name="colorAccent">#3276e2</color>
+    <color name="colorSecondary">#4879f9</color>
 
     <color name="dashboard_toolbar_text_color">#181818</color>
     <color name="color_white">#FFFFFF</color>
@@ -102,6 +104,8 @@
     <color name="color_notification_text">#565656</color>
     <color name="color_reply_sent_message">#D0D8EB</color>
     <color name="color_reply_file_message">#C6C6C6</color>
+    <color name="color_join_link_sender_bg">#D0D8EB</color>
+    <color name="color_join_link_receiver_bg">#EFEFEF</color>
 
     <!--Media Send Recieve-->
     <color name="file_send_message_background">#D0D8EB</color>

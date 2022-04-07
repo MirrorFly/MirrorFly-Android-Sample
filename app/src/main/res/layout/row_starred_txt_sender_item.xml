@@ -56,98 +56,154 @@
             android:background="@drawable/bg_chat_shape_sender"
             android:orientation="vertical">
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom"
-                    android:gravity="bottom"
-                    android:orientation="vertical">
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:gravity="bottom"
+                android:orientation="vertical">
 
-                    <include
-                        android:id="@+id/view_text_sent_reply"
-                        layout="@layout/list_chat_reply_sent_item"
+                <include
+                    android:id="@+id/view_text_sent_reply"
+                    layout="@layout/list_chat_reply_sent_item"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="@dimen/margin_3" />
+
+                <LinearLayout
+                    style="@style/chatTextMessageLayoutStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/image_sent_recall"
+                        android:layout_width="@dimen/margin_14"
+                        android:layout_height="@dimen/margin_14"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginEnd="5dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_recall"
+                        android:visibility="gone" />
+
+                    <io.github.rockerhieu.emojicon.EmojiconTextView
+                        android:id="@+id/text_send_chat"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:breakStrategy="simple"
+                        android:fontFamily="@font/sf_ui_display_regular"
+                        android:gravity="center_vertical"
+                        android:includeFontPadding="false"
+                        android:lineSpacingExtra="3dp"
+                        android:layout_marginEnd="@dimen/margin_5"
+                        android:linksClickable="true"
+                        android:textColor="@color/color_black"
+                        android:textColorLink="@color/color_black"
+                        android:textSize="@dimen/text_size_14"
+                        app:emojiconSize="19sp"
+                        app:fontFamily="@font/sf_ui_display_regular"
+                        app:font_name="@string/font_roboto_regular"
+                        tools:targetApi="M"
+                        tools:text="testtt" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/row_join_link_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <RelativeLayout
+                        style="@style/chatJoinLinkMessageLayoutStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="@dimen/margin_3" />
+                        android:background="@color/color_join_link_sender_bg"
+                        android:layout_gravity="center_horizontal">
 
-                    <LinearLayout
+                        <ImageView
+                            android:id="@+id/join_link_logo"
+                            android:layout_width="@dimen/margin_25"
+                            android:layout_height="@dimen/margin_25"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_notification_small"
+                            android:layout_gravity="center_vertical"/>
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            style="@style/TextRegularLight"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/join_video_meeting_lable"
+                            android:textSize="@dimen/text_size_13"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="@dimen/margin_10"
+                            android:layout_toEndOf="@+id/join_link_logo"/>
+
+                        <ImageView
+                            android:layout_width="@dimen/margin_20"
+                            android:layout_height="@dimen/margin_20"
+                            android:contentDescription="@null"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:src="@drawable/ic_video" />
+
+                    </RelativeLayout>
+
+                    <RelativeLayout
                         style="@style/chatTextMessageLayoutStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:layout_gravity="center_horizontal">
 
-                        <ImageView
-                            android:id="@+id/image_sent_recall"
-                            android:layout_width="@dimen/margin_14"
-                            android:layout_height="@dimen/margin_14"
-                            android:layout_gravity="center_vertical"
-                            android:layout_marginEnd="5dp"
-                            android:contentDescription="@null"
-                            android:src="@drawable/ic_recall"
-                            android:visibility="gone" />
-
-                        <io.github.rockerhieu.emojicon.EmojiconTextView
-                            android:id="@+id/text_send_chat"
+                        <View
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center_vertical"
-                            android:breakStrategy="simple"
-                            android:fontFamily="@font/sf_ui_display_regular"
-                            android:gravity="center_vertical"
-                            android:includeFontPadding="false"
-                            android:lineSpacingExtra="3dp"
-                            android:layout_marginEnd="@dimen/margin_5"
-                            android:linksClickable="true"
-                            android:textColor="@color/color_black"
-                            android:textColorLink="@color/color_black"
-                            android:textSize="@dimen/text_size_14"
-                            app:emojiconSize="19sp"
-                            app:fontFamily="@font/sf_ui_display_regular"
-                            app:font_name="@string/font_roboto_regular"
-                            tools:targetApi="M"
-                            tools:text="testtt" />
+                            android:layout_height="@dimen/margin_10"/>
 
-                    </LinearLayout>
+                    </RelativeLayout>
 
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/view_text_sender"
-                    style="@style/ChatTimeLayoutStyle"
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/view_text_sender"
+                style="@style/ChatTimeLayoutStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|bottom"
+                android:layout_marginBottom="@dimen/margin_5">
+
+                <ImageView
+                    android:id="@+id/ic_star"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="end|bottom"
-                    android:layout_marginBottom="@dimen/margin_5">
+                    android:layout_marginStart="4dp"
+                    android:layout_marginBottom="4dp"
+                    android:contentDescription="@null"
+                    app:srcCompat="@drawable/ic_star" />
 
-                    <ImageView
-                        android:id="@+id/ic_star"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginBottom="4dp"
-                        android:contentDescription="@null"
-                        app:srcCompat="@drawable/ic_star" />
+                <ImageView
+                    android:id="@+id/image_message_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginBottom="4dp"
+                    android:contentDescription="@string/NotAcknowledge_content_description"
+                    app:srcCompat="@drawable/ic_message_unsent" />
 
-                    <ImageView
-                        android:id="@+id/image_message_status"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:layout_marginBottom="4dp"
-                        android:contentDescription="@string/NotAcknowledge_content_description"
-                        app:srcCompat="@drawable/ic_message_unsent" />
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/text_message_sent_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/color_sent_message_time"
+                    android:textSize="@dimen/text_size_11"
+                    app:fontFamily="@font/sf_ui_display_regular"
+                    app:font_name="@font/sf_ui_display_regular" />
 
-                    <androidx.appcompat.widget.AppCompatTextView
-                        android:id="@+id/text_message_sent_time"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:textColor="@color/color_sent_message_time"
-                        android:textSize="@dimen/text_size_11"
-                        app:fontFamily="@font/sf_ui_display_regular"
-                        app:font_name="@font/sf_ui_display_regular" />
-
-                </LinearLayout>
+            </LinearLayout>
 
         </FrameLayout>
 

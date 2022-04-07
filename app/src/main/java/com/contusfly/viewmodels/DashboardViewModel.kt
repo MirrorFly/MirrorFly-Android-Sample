@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.DiffUtil
 import com.contus.flycommons.Constants
 import com.contus.flycommons.FlyCallback
 import com.contus.flycommons.LogMessage
-import com.contus.webrtc.database.model.CallLog
+import com.contus.call.database.model.CallLog
 import com.contusfly.TAG
 import com.contusfly.diffCallBacks.ProfileDiffCallback
 import com.contusfly.diffCallBacks.RecentChatDiffCallback

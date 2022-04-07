@@ -16,7 +16,7 @@ import com.contus.flycommons.LogMessage
 import com.contus.flycommons.models.MessageType
 import com.contusfly.R
 import com.contusflysdk.api.ChatManager.startActivity
-import com.contusflysdk.api.FlyMessenger.getUnreadMessages
+import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.models.ChatMessage
@@ -101,21 +101,24 @@ object NotificationUtils {
      */
     private fun addUnseenMessagesToNotification(context: Context,
                                                 notBuilder: NotificationCompat.Builder): String {
-        val unseenMessages = getUnreadMessages()
-        return if (unseenMessages.size > 1) {
-            mutecheckJid = unseenMessages[unseenMessages.size - 1].getChatUserJid()
-            GetMsgNotificationUtils.getMessagesInboxNotification(context, notBuilder,
-                    unseenMessages)
-        } else {
-            val message = unseenMessages[0]
-            var messageContent = getMessageContent(message)
-            messageContent = getGroupUserAppendedText(message, messageContent, ":")
-            notBuilder.setContentText(messageContent)
-            val toUser = message.getChatUserJid()
-            val profileDetails = getProfileDetails(toUser)
-            if (profileDetails != null && !profileDetails.isMuted) notBuilder.setDefaults(Notification.DEFAULT_SOUND)
-            notBuilder.setContentTitle(profileDetails?.name)
-            message.getChatUserJid()
+        val unseenMessage = FlyMessenger.getLastUnreadMessage()
+        return when {
+            unseenMessage == null -> Constants.EMPTY_STRING
+            FlyMessenger.getUnreadMessagesCount() > 1 -> {
+                mutecheckJid = unseenMessage.getChatUserJid()
+                GetMsgNotificationUtils.getMessagesInboxNotification(context, notBuilder,
+                    FlyMessenger.getLastNUnreadMessages(1000))
+            }
+            else -> {
+                var messageContent = getMessageContent(unseenMessage)
+                messageContent = getGroupUserAppendedText(unseenMessage, messageContent, ":")
+                notBuilder.setContentText(messageContent)
+                val toUser = unseenMessage.getChatUserJid()
+                val profileDetails = getProfileDetails(toUser)
+                if (profileDetails != null && !profileDetails.isMuted) notBuilder.setDefaults(Notification.DEFAULT_SOUND)
+                notBuilder.setContentTitle(profileDetails?.name)
+                unseenMessage.getChatUserJid()
+            }
         }
     }
 

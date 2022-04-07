@@ -1,6 +1,5 @@
 package com.contusfly.activities
 
-import android.Manifest
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -13,7 +12,6 @@ import android.view.MenuItem
 import android.view.WindowManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.contus.flycommons.FlyCallback
 import com.contus.flycommons.LogMessage
 import com.contusfly.R
 import com.contusfly.chat.AndroidUtils
@@ -140,8 +138,8 @@ open class BaseActivity : FlyBaseActivity() {
         super.onBackPressed()
     }
 
-    override fun showOrUpdateOrCancelNotification() {
-        super.showOrUpdateOrCancelNotification()
+    override fun showOrUpdateOrCancelNotification(jid: String) {
+        super.showOrUpdateOrCancelNotification(jid)
         if (FlyMessenger.getUnreadMessagesCount() <= 0) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -152,8 +150,7 @@ open class BaseActivity : FlyBaseActivity() {
             } else
                 NotificationManagerCompat.from(applicationContext).cancel(Constants.NOTIFICATION_ID)
         } else {
-            val chatMessages = FlyMessenger.getUnreadMessages()
-            if (!chatMessages.isNullOrEmpty() && !(ContactManager.getProfileDetails(chatMessages.last().chatUserJid)?.isMuted)!!)
+            if (ContactManager.getProfileDetails(jid)?.isMuted != true)
                 NotificationUtils.createNotification(MobileApplication.getContext())
         }
     }

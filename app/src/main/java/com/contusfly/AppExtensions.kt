@@ -29,7 +29,7 @@ import com.contusfly.utils.MediaPermissions
 import com.contus.flycommons.ChatType
 import com.contus.flycommons.ChatTypeEnum
 import com.contus.flycommons.Constants
-import com.contus.webrtc.utils.GroupCallUtils
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.call.CallConfiguration
 import com.contusfly.chat.AndroidUtils
 import com.contusfly.utils.DebounceOnClickListener

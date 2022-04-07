@@ -87,12 +87,11 @@ class DataUsageSettingsAdapter(fragment: Fragment) : BaseExpandableListAdapter()
 
     override fun getChildView(groupPosition: Int, childPosition: Int, isLastChild: Boolean, convertView: View?, parent: ViewGroup): View {
         var view: View? = convertView
-        val childViewText: CustomTextView
         if (view == null) {
             val layoutInflater = (dataUsageSettingsFragment.context?.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater)
             view = layoutInflater.inflate(R.layout.list_data_usage_settings_child_item, null)
         }
-        childViewText = view!!.findViewById(R.id.text_child_view)
+        val childViewText: CustomTextView = view!!.findViewById(R.id.text_child_view)
         childViewText.text = childItemList[groupItemList[groupPosition]]?.get(childPosition)
         if (groupPosition == 0)
             setUpMobileDataSettingsChildView(childViewText, childPosition)
@@ -117,7 +116,7 @@ class DataUsageSettingsAdapter(fragment: Fragment) : BaseExpandableListAdapter()
                 photoAutoDownloadCheckViaData(childViewText)
             } else if (childPosition == 1) {
                 videoAutoDownloadCheckViaData(childViewText)
-            }else if (childPosition == 2) {
+            } else if (childPosition == 2) {
                 audioAutoDownloadCheckViaData(childViewText)
             } else {
                 if (dataUsageSettingsFragment.mobileDataSettingsModel!!.isShouldAutoDownloadDocuments) {
@@ -130,7 +129,7 @@ class DataUsageSettingsAdapter(fragment: Fragment) : BaseExpandableListAdapter()
     }
 
     private fun photoAutoDownloadCheckViaData(childViewText: CustomTextView) {
-        if (dataUsageSettingsFragment.mobileDataSettingsModel!!.isShouldAutoDownloadPhotos()) {
+        if (dataUsageSettingsFragment.mobileDataSettingsModel!!.isShouldAutoDownloadPhotos) {
             childViewText.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_selected_tick, 0)
         } else {
             childViewText.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_unselected_tick, 0)
@@ -178,7 +177,7 @@ class DataUsageSettingsAdapter(fragment: Fragment) : BaseExpandableListAdapter()
     }
 
     private fun photoAutoDownloadCheckViaWifi(childViewText: CustomTextView) {
-        if (dataUsageSettingsFragment.wifiDataSettingsModel!!.isShouldAutoDownloadPhotos()) {
+        if (dataUsageSettingsFragment.wifiDataSettingsModel!!.isShouldAutoDownloadPhotos) {
             childViewText.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_selected_tick, 0)
         } else {
             childViewText.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_unselected_tick, 0)
@@ -207,10 +206,10 @@ class DataUsageSettingsAdapter(fragment: Fragment) : BaseExpandableListAdapter()
      * @paramfragment The Fragment to which this adapter is currently associated with.
      */
     init {
-        groupItemList = ArrayList(Arrays.asList(*fragment.getResources().getStringArray(R.array.array_data_usage_settings)))
+        groupItemList = ArrayList(listOf(*fragment.resources.getStringArray(R.array.array_data_usage_settings)))
         childItemList = HashMap()
         for (groupItem in groupItemList) {
-            childItemList[groupItem] = ArrayList(Arrays.asList(*fragment.getResources().getStringArray(R.array.array_media_types)))
+            childItemList[groupItem] = ArrayList(listOf(*fragment.resources.getStringArray(R.array.array_media_types)))
         }
     }
 }

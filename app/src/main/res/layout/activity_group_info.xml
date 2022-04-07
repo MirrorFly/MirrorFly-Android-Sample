@@ -48,7 +48,7 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/ic_grp_bg"
                     android:contentDescription="@string/cd_user_profile_image"
-                    android:minHeight="400dp"
+                    android:minHeight="250dp"
                     android:scaleType="centerCrop"
                     app:layout_collapseMode="parallax" />
             </FrameLayout>
@@ -57,6 +57,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
+
                 android:layout_marginStart="@dimen/margin_20"
                 android:layout_marginEnd="@dimen/margin_20"
                 android:orientation="horizontal"
@@ -81,6 +82,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_alignParentBottom="true"
                     android:layout_gravity="end|bottom"
+
                     android:layout_marginBottom="@dimen/margin_3"
                     android:contentDescription="@string/cd_edit_group_name_image"
                     app:srcCompat="@drawable/ic_edit"

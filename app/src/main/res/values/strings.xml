@@ -283,6 +283,10 @@
     <string name="file_emoji" translatable="false">📄</string>
     <string name="location_emoji" translatable="false">📌</string>
     <string name="unseen_message">%1$d unread messages</string>
+    <string name="call_ended_text">Call Ended!</string>
+    <string name="call_ended_text_message">No one else is here</string>
+    <string name="invalid_call_link">Invalid call link</string>
+    <string name="return_to_chat">Return to chat</string>
 
 
     //Title
@@ -495,6 +499,7 @@
     <string name="title_faq_msg">Kindly checkout FAQ section for doubts regarding Mirror fly. We might have
         already answered your question.</string>
     <string name="title_contus_fly"><u>Mirror Fly</u></string>
+    <string name="quick_share_toast">You need to login to Mirror Fly app to continue</string>
     <string name="message_call_cofirm">Are you sure you want to make a call?</string>
     <string name="app_email">bdm@contus.in</string>
     <string name="website_mirrorfly">https://www.mirrorfly.com/</string>
@@ -730,6 +735,7 @@
     <string name="user_no_longer_error_message">You\'\re no longer a participant in this group</string>
 
     <!-- Share -->
+    <string name="need_to_login">You need to login to MirrorFly app to continue</string>
     <string name="quick_share_title">Send to&#8230;</string>
     <string name="remove_all">Remove all</string>
     <string name="unsuppoted_files">Warning</string>
