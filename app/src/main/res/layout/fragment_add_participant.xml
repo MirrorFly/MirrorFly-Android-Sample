@@ -1,0 +1,57 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context=".call.groupcall.AddParticipantFragment">
+
+    <include
+        android:id="@+id/tool_bar"
+        layout="@layout/common_toolbar" />
+
+    <com.contusfly.views.CustomRecyclerView
+        android:id="@+id/view_contact_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/add_participants_layout"
+        android:layout_below="@+id/tool_bar"
+        android:cacheColorHint="@android:color/transparent"
+        android:divider="@android:color/transparent"
+        android:footerDividersEnabled="true"
+        android:listSelector="@drawable/selector_settings_opt" />
+
+    <include layout="@layout/view_empty_data" />
+
+    <RelativeLayout
+        android:id="@+id/add_participants_layout"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_alignParentBottom="true"
+        android:background="@color/blue"
+        android:visibility="gone"
+        android:foreground="?android:attr/selectableItemBackground">
+
+        <ImageView
+            android:id="@+id/add_participants_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:paddingEnd="@dimen/padding_10"
+            android:layout_toStartOf="@+id/add_participants_text_view"
+            android:contentDescription="@string/title_image"
+            app:srcCompat="@drawable/ic_add_user_in_call" />
+
+        <TextView
+            android:id="@+id/add_participants_text_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:fontFamily="@font/sf_ui_display_semi_bold"
+            android:includeFontPadding="false"
+            android:textSize="@dimen/text_size_14"
+            android:text="@string/msg_add_participant"
+            android:textColor="@color/color_white"
+            tools:ignore="RelativeOverlap" />
+    </RelativeLayout>
+</RelativeLayout>

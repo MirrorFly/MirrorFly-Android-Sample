@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/ChatView"
+    android:orientation="vertical">
+
+    <include layout="@layout/view_chat_space" />
+
+    <LinearLayout
+        android:id="@+id/row_chat_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/padding_18"
+        android:paddingTop="@dimen/margin_2"
+        android:paddingEnd="@dimen/padding_8"
+        android:paddingBottom="@dimen/margin_2">
+
+        <RelativeLayout
+            android:id="@+id/rl_header_receiver"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="5dp"
+            android:layout_marginTop="5dp"
+            android:visibility="gone">
+
+            <include
+                android:id="@+id/header_starred_message_sender"
+                layout="@layout/row_starred_message_header_receiver"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_gravity="start|center_vertical"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/text_chat_date"
+                style="@style/StarredMessageDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_marginStart="0dp"
+                android:layout_marginTop="@dimen/margin_5"
+                android:layout_centerVertical="true"
+                android:maxWidth="250dp"/>
+
+        </RelativeLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_chat_txt_received_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="3dp"
+            android:background="@drawable/bg_chat_shape_receiver"
+            android:orientation="vertical">
+
+            <ViewStub
+                android:id="@+id/sender_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout="@layout/row_chat_sender_name"
+                android:maxWidth="250dp" />
+
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:gravity="bottom"
+                        android:orientation="vertical">
+
+                        <include
+                            layout="@layout/list_chat_reply_received_item"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_margin="@dimen/margin_3" />
+
+                        <LinearLayout
+                            style="@style/chatTextMessageLayoutStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/image_received_recall"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center_vertical"
+                                android:layout_marginEnd="5dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_recall"
+                                android:visibility="gone" />
+
+                            <io.github.rockerhieu.emojicon.EmojiconTextView
+                                android:id="@+id/text_rev_chat"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:breakStrategy="simple"
+                                android:fontFamily="@font/sf_ui_display_regular"
+                                android:gravity="center_vertical"
+                                android:includeFontPadding="false"
+                                android:lineSpacingExtra="3dp"
+                                android:textColor="@color/color_selected_status"
+                                android:textColorLink="@color/color_selected_status"
+                                app:emojiconSize="19sp"
+                                android:textSize="@dimen/text_size_14"
+                                app:fontFamily="@font/sf_ui_display_regular"
+                                tools:targetApi="M"
+                                tools:text="Testt" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        style="@style/ChatTimeLayoutStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end|bottom"
+                        android:layout_marginBottom="@dimen/margin_5">
+
+                        <ImageView
+                            android:id="@+id/ic_star_received"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="@dimen/margin_4"
+                            android:contentDescription="@null"
+                            app:srcCompat="@drawable/ic_star_receiver"
+                            app:layout_constraintEnd_toStartOf="@+id/text_rev_text_time"
+                            app:layout_constraintTop_toTopOf="@+id/text_rev_text_time"
+                            app:layout_constraintBottom_toBottomOf="@+id/text_rev_text_time"/>
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:id="@+id/text_rev_text_time"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/color_chat_list_time"
+                            android:includeFontPadding="false"
+                            android:fontFamily="@font/sf_ui_display_light"
+                            android:textSize="@dimen/text_size_11"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </FrameLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <View
+        style="@style/divider_starred_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/margin_0.5" />
+
+</LinearLayout>

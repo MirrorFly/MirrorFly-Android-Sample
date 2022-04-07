@@ -1,0 +1,1437 @@
+package com.contusfly.starredMessages.adapter
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.graphics.Typeface
+import android.graphics.drawable.Drawable
+import android.os.Build
+import android.text.Html
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.util.Linkify
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
+import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.content.ContextCompat
+import androidx.emoji.widget.EmojiAppCompatTextView
+import androidx.recyclerview.widget.RecyclerView
+import com.contus.flycommons.*
+import com.contus.flycommons.models.MessageType
+import com.contusfly.*
+import com.contusfly.R
+import com.contusfly.TAG
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_AUDIO_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_AUDIO_SENDER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_CONTACT_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_CONTACT_SENDER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_FILE_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_FILE_SENDER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_IMAGE_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_IMAGE_SENDER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_LOCATION_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_LOCATION_SENDER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_TEXT_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_TEXT_SENDER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_VIDEO_RECEIVER
+import com.contusfly.adapters.ChatAdapter.Companion.TYPE_VIDEO_SENDER
+import com.contusfly.adapters.ChatAdapterHelper
+import com.contusfly.adapters.holders.*
+import com.contusfly.adapters.viewhelpers.AudioItemView
+import com.contusfly.adapters.viewhelpers.FileItemView
+import com.contusfly.adapters.viewhelpers.ImageItemViewHelper
+import com.contusfly.adapters.viewhelpers.VideoItemViewHelper
+import com.contusfly.chat.MapUtils
+import com.contusfly.chat.MediaController
+import com.contusfly.chat.reply.ReplyMessageUtils
+import com.contusfly.chat.reply.ReplyViewUtils
+import com.contusfly.interfaces.MessageItemListener
+import com.contusfly.interfaces.OnChatItemClickListener
+import com.contusfly.models.MediaStatus
+import com.contusfly.utils.*
+import com.contusfly.utils.ChatUtils.getUserFromJid
+import com.contusfly.utils.ChatUtils.setSelectedChatItem
+import com.contusfly.utils.Constants
+import com.contusfly.utils.LogMessage
+import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
+import com.contusfly.utils.SharedPreferenceManager
+import com.contusfly.views.SetDrawable
+import com.contusflysdk.api.ChatManager.getUserProfileName
+import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
+import com.contusflysdk.api.MessageStatus
+import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
+import com.contusflysdk.api.contacts.ProfileDetails
+import com.contusflysdk.api.models.ChatMessage
+import com.contusflysdk.api.models.ContactChatMessage
+import com.contusflysdk.api.utils.ImageUtils.loadMapWithGlide
+import com.contusflysdk.utils.Utils
+import io.github.rockerhieu.emojicon.EmojiconTextView
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.*
+
+/**
+ *
+ * @author ContusTeam <developers@contus.in>
+ * @version 1.0
+ */
+class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>(), MessageItemListener {
+
+    private val SENDER_HEADER = 1
+
+    private val RECEIVER_HEADER = 2
+
+    /**
+     * Text reply view utils
+     */
+    private var replyViewUtils: ReplyViewUtils? = null
+
+    /**
+     * object holds file view item details
+     */
+    private var fileItemView: FileItemView? = null
+
+    /**
+     * The listener instance of OnChatItemClickListener
+     */
+    private var listener: OnChatItemClickListener? = null
+
+    /**
+     * The list of chat data
+     */
+    private var starredMessageData: List<ChatMessage>? = null
+
+    /**
+     * The media controller which used to play the audio in the chat view
+     */
+    private var mMediaController: MediaController? = null
+
+    /**
+     * The startupActivityContext of the list view activity
+     */
+    private var context: Context? = null
+
+    /**
+     * Chat message common methods will be available here
+     */
+    private var chatStarredMessageUtils: ChatMessageUtils? = null
+
+    /**
+     * Store the selected messages in the long press
+     */
+    private var starredMessageMessages: List<String>? = null
+
+    /**
+     * Helper for the Adapter
+     */
+    private var starredMessagesAdapterHelper: StarredMessagesAdapterHelper? = null
+
+    private var chatAdapterHelper: ChatAdapterHelper? = null
+
+    /**
+     * Media details
+     */
+    private var mediaDetailUtils: MediaDetailUtils? = null
+
+    /**
+     * Image item view
+     */
+    private var starredImageItemViewHelper: ImageItemViewHelper? = null
+
+    /**
+     * Helper class for video item view
+     */
+    private var starredVideoItemViewHelper: VideoItemViewHelper? = null
+
+    /**
+     * Audio item view
+     */
+    private var starredAudioItemView: AudioItemView? = null
+
+    private var inflater: LayoutInflater? = null
+
+    /**
+     * Instantiates a new adapter chat data.
+     *
+     * @param context The startupActivityContext of the activity
+     */
+    fun setAdapterData(context: Context) {
+        this.context = context
+        mMediaController = MediaController(context)
+        inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        chatAdapterHelper = ChatAdapterHelper(null)
+        starredMessagesAdapterHelper = StarredMessagesAdapterHelper()
+        replyViewUtils = ReplyViewUtils()
+        mediaDetailUtils = MediaDetailUtils
+        fileItemView = FileItemView(this)
+        starredVideoItemViewHelper = VideoItemViewHelper(context, this)
+        starredImageItemViewHelper = ImageItemViewHelper(context, this)
+        chatStarredMessageUtils = ChatMessageUtils
+        starredAudioItemView = AudioItemView(this)
+    }
+
+    private var searchEnabled = false
+    private var searchKey = emptyString()
+
+    fun setSearch(isSearchEnabled: Boolean, searchKey: String) {
+        this.searchEnabled = isSearchEnabled
+        this.searchKey = searchKey
+    }
+
+    /**
+     * Sets the on download click listener.
+     *
+     * @param listener The listener when the chat item download clicked
+     */
+    fun setOnStarredMessageDownloadClickListener(listener: OnChatItemClickListener?) {
+        this.listener = listener
+    }
+
+    /**
+     * Sets the Chat Messages in the adapter.
+     *
+     * @param starredMessages List of chat messages
+     */
+    fun setStarredMessages(starredMessages: List<ChatMessage>) {
+        starredMessageData = starredMessages
+    }
+
+    /**
+     * Set the selected messages from the chat view for displaying the different color
+     *
+     * @param starredMessageMessages Selected message list
+     */
+    fun setStarredMessageMessages(starredMessageMessages: List<String>?) {
+        this.starredMessageMessages = starredMessageMessages
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return starredMessagesAdapterHelper!!.getItemViewHolder(parent, viewType, inflater)!!
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        try {
+            val item = starredMessageData!![position]
+            when (holder.itemViewType) {
+                TYPE_TEXT_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredTextViewSender(holder, item, position)
+                }
+                TYPE_TEXT_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredTextViewReceiver(holder, item, position)
+                }
+                TYPE_IMAGE_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredImageViewSender(holder, item, position)
+                }
+                TYPE_IMAGE_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredImageViewReceiver(holder, item, position)
+                }
+                TYPE_VIDEO_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredVideoViewSender(holder, item, position)
+                }
+                TYPE_VIDEO_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredVideoViewReceiver(holder, item, position)
+                }
+                TYPE_LOCATION_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredLocationViewSender(holder, item, position)
+                }
+                TYPE_LOCATION_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredLocationViewReceiver(holder, item, position)
+                }
+                TYPE_AUDIO_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredAudioViewSender(holder, item, position)
+                }
+                TYPE_AUDIO_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredAudioViewReceiver(holder, item, position)
+                }
+                TYPE_FILE_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredFileViewSender(holder, item, position)
+                }
+                TYPE_FILE_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredFileViewReceiver(holder, item, position)
+                }
+                TYPE_CONTACT_SENDER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredContactViewSender(holder, item, position)
+                }
+                TYPE_CONTACT_RECEIVER -> {
+                    showSenderNameIfGroupChat(holder, position)
+                    getStarredContactViewReceiver(holder, item, position)
+                }
+            }
+        } catch (e: Exception) {
+            LogMessage.e(TAG, e)
+        }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return starredMessagesAdapterHelper!!.getItemViewType(starredMessageData!![position])
+    }
+
+    override fun getItemId(position: Int): Long {
+        return 0
+    }
+
+    override fun getItemCount(): Int {
+        return starredMessageData!!.size
+    }
+
+    /**
+     * Show/Hides sender name if the chat is group chat
+     *
+     * @param holder   view holder of the item
+     * @param position position of the item
+     */
+    private fun showSenderNameIfGroupChat(holder: RecyclerView.ViewHolder, position: Int) {
+        showHideSenderName(holder, position)
+    }
+
+    /**
+     * Gets the text view.
+     *
+     * @param holder   Holder of the text view
+     * @param item     Instance of the Message
+     * @param position Position of the list item
+     */
+    private fun getStarredTextViewSender(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            val starredTxtSenderViewHolder: TextSentViewHolder = holder as TextSentViewHolder
+            setHeader(holder, SENDER_HEADER, item)
+            val time: String = getChatMsgTime(item)!!
+            starredTxtSenderViewHolder.txtChatTime.text = time
+            starredTxtSenderViewHolder.txtChatTime
+                    .setTextColor(ContextCompat.getColor(context!!, R.color.color_sent_message_time))
+            starredTxtSenderViewHolder.txtChatTime.visibility = View.VISIBLE
+            val msg = item.getMessageTextContent()
+            Linkify.addLinks(starredTxtSenderViewHolder.txtChatSender, Linkify.ALL)
+            starredTxtSenderViewHolder.txtChatSender.setTextColor(ContextCompat.getColor(context!!, R.color.color_black))
+            starredTxtSenderViewHolder.txtChatSender.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
+            setStatus(item, starredTxtSenderViewHolder.imgChatStatus)
+            starredItemClick(starredTxtSenderViewHolder.viewRowItem, item, position)
+            setListenersForSenderTextMessages(starredTxtSenderViewHolder, item, position)
+            senderItemClick(starredTxtSenderViewHolder.viewRowItem, item, position)
+            replyViewUtils!!.showSenderReplyWindow(starredTxtSenderViewHolder, item, context!!)
+            setSelectedChatItem(starredTxtSenderViewHolder.itemView, item, starredMessageMessages, context)
+            with(starredTxtSenderViewHolder.txtChatSender) {
+                setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
+                setTextKeepState(getSpannedText(msg))
+                movementMethod = ModifiedlinkMovementMethod(context)
+                isClickable = false
+                isLongClickable = false
+            }
+            setSearchTextHighlight(starredTxtSenderViewHolder.txtChatSender, getSpannedText(msg))
+            if (position == starredMessageData!!.size - 1) {
+                starredTxtSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredTxtSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(TAG, e)
+        }
+    }
+    /**
+     * starred textview for receiver side
+     *
+     * @param holder   adapter viewholder object
+     * @param item     object which hold item data
+     * @param position of the item
+     */
+    private fun getStarredTextViewReceiver(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        // View holder for the text view
+        val starredTxtReceiverViewHolder = holder as TextReceivedViewHolder
+        setHeader(holder, RECEIVER_HEADER, item)
+        val time: String = getChatMsgTime(item)!!
+        starredTxtReceiverViewHolder.txtChatRevTime.text = time
+        starredTxtReceiverViewHolder.txtChatRevTime
+                .setTextColor(ContextCompat.getColor(context!!, R.color.color_chat_msg_received_time))
+        val msg = item.getMessageTextContent()
+        starredTxtReceiverViewHolder.txtChatReceiver.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
+        starredTxtReceiverViewHolder.txtChatReceiver.setTextColor(ContextCompat.getColor(context!!, R.color.color_black))
+        Linkify.addLinks(starredTxtReceiverViewHolder.txtChatReceiver, Linkify.ALL)
+        replyViewUtils!!.showReceiverReplyWindow(starredTxtReceiverViewHolder, item, context!!)
+        starredItemClick(starredTxtReceiverViewHolder.txtChatReceiver, item, position)
+        setListenersForReceiverTextMessages(starredTxtReceiverViewHolder, item, position)
+        receiverItemClick(starredTxtReceiverViewHolder.viewRowItem, item, position)
+        setSelectedChatItem(starredTxtReceiverViewHolder.itemView, item, starredMessageMessages, context)
+        with(starredTxtReceiverViewHolder.txtChatReceiver) {
+            setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL)
+            setTextKeepState(getSpannedText(msg))
+            movementMethod = ModifiedlinkMovementMethod(context)
+            isClickable = false
+            isLongClickable = false
+        }
+        setSearchTextHighlight(starredTxtReceiverViewHolder.txtChatReceiver, getSpannedText(msg))
+        if (position == starredMessageData!!.size - 1) {
+            starredTxtReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+        }else{
+            starredTxtReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /*
+   * This method is used to set the Text Highlight color for Searched keyword */
+    private fun setSearchTextHighlight(
+        txtChat: EmojiconTextView,
+        fromHtml: Spanned?
+    ) {
+        if (searchEnabled && searchKey.isNotEmpty() && fromHtml.toString().startsWithTextInWords(searchKey)) {
+            var startIndex = fromHtml.toString().checkIndexes(searchKey)
+            if (startIndex < 0) startIndex = fromHtml.toString().indexOf(searchKey, 2)
+            val stopIndex = startIndex + searchKey.length
+            EmojiUtils.setEmojiTextAndHighLightSearchText(context, txtChat, fromHtml.toString(), startIndex, stopIndex)
+        } else {
+            txtChat.setBackgroundColor(context!!.color(android.R.color.transparent))
+            txtChat.setTextKeepState(fromHtml)
+        }
+    }
+
+    /**
+     * Get the image view for the adapter
+     *
+     * @param holder      Holder of the recycler view
+     * @param messageItem Message item contains message data
+     * @param position    List item position
+     */
+    private fun getStarredImageViewSender(holder: RecyclerView.ViewHolder, messageItem: ChatMessage, position: Int) {
+        setHeader(holder, SENDER_HEADER, messageItem)
+        val starredImgSenderViewHolder = holder as ImageSentViewHolder
+        starredImageItemViewHelper!!.setImageWidthAndHeight(starredImgSenderViewHolder, messageItem)
+        val time: String = getChatMsgTime(messageItem)!!
+        val base64Img = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaThumbImage())
+        val filePath = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaLocalStoragePath())
+        starredImageItemViewHelper!!.senderImageItemView(messageItem, starredImgSenderViewHolder, filePath,
+                time, base64Img, false, emptyString())
+        replyViewUtils!!.showSenderReplyWindow(starredImgSenderViewHolder, messageItem, context!!)
+        setListenersForSenderImageMessages(starredImgSenderViewHolder, messageItem, position)
+        senderItemClick(starredImgSenderViewHolder.viewRowItem, messageItem, position)
+        senderDownloadClick(starredImgSenderViewHolder.txtRetryView, starredImgSenderViewHolder.cancelUpload,
+                messageItem, starredImgSenderViewHolder.viewSentCarbonDownload)
+        setSelectedChatItem(starredImgSenderViewHolder.itemView, messageItem, starredMessageMessages, context)
+        if (position == starredMessageData!!.size - 1) {
+            starredImgSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+        }else{
+            starredImgSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /**
+     * starred imageview for receiver side
+     *
+     * @param holder      adapter viewholder object
+     * @param messageItem object which hold item data
+     * @param position    of the item
+     */
+    private fun getStarredImageViewReceiver(holder: RecyclerView.ViewHolder, messageItem: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, RECEIVER_HEADER, messageItem)
+            val starredImgReceiverViewHolder: ImageReceivedViewHolder = holder as ImageReceivedViewHolder
+            starredImageItemViewHelper!!.setImageWidthAndHeight(starredImgReceiverViewHolder, messageItem)
+            val base64Img = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaThumbImage())
+            val filePath = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaLocalStoragePath())
+            val time: String = getChatMsgTime(messageItem)!!
+            starredImageItemViewHelper!!.receiverImageViewItem(messageItem, starredImgReceiverViewHolder,
+                    filePath, time, base64Img, false, emptyString())
+            replyViewUtils!!.showReceiverReplyWindow(starredImgReceiverViewHolder, messageItem, context!!)
+            setListenersForReceiverImageMessages(starredImgReceiverViewHolder, messageItem, position)
+            receiverItemClick(starredImgReceiverViewHolder.viewRowItem, messageItem, position)
+            receiverDownloadClick(starredImgReceiverViewHolder.viewDownload, starredImgReceiverViewHolder.txtRetryView,
+                    starredImgReceiverViewHolder.cancelDownload, messageItem, starredImgReceiverViewHolder.txtImgSize)
+            setSelectedChatItem(starredImgReceiverViewHolder.itemView,
+                    messageItem, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredImgReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredImgReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * starred videoview for sender side
+     *
+     * @param holder      adapter viewholder object
+     * @param messageItem object which hold item data
+     * @param position    of the item
+     */
+    private fun getStarredVideoViewSender(holder: RecyclerView.ViewHolder, messageItem: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, SENDER_HEADER, messageItem)
+            val starredVideoSenderViewHolder: VideoSentViewHolder = holder as VideoSentViewHolder
+            starredVideoItemViewHelper!!.setImageWidthAndHeight(starredVideoSenderViewHolder, messageItem)
+            val filePath = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaLocalStoragePath())
+            val time: String = getChatMsgTime(messageItem)!!
+            val base64Img = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaThumbImage())
+            starredVideoItemViewHelper!!.senderVideoItemView(messageItem, starredVideoSenderViewHolder, filePath,
+                    time, base64Img, false, emptyString())
+            replyViewUtils!!.showSenderReplyWindow(starredVideoSenderViewHolder, messageItem, context!!)
+            setListenersForSenderVideoMessages(starredVideoSenderViewHolder, messageItem, position)
+            senderItemClick(starredVideoSenderViewHolder.viewRowItem, messageItem, position)
+            senderDownloadClick(starredVideoSenderViewHolder.txtRetryView, starredVideoSenderViewHolder.cancelUpload,
+                    messageItem, starredVideoSenderViewHolder.viewSentCarbonDownload)
+            setSelectedChatItem(starredVideoSenderViewHolder.itemView,
+                    messageItem, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredVideoSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredVideoSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * starred videoview for receiver side
+     *
+     * @param holder      adapter viewholder object
+     * @param messageItem object which hold item data
+     * @param position    of the item
+     */
+    private fun getStarredVideoViewReceiver(holder: RecyclerView.ViewHolder, messageItem: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, RECEIVER_HEADER, messageItem)
+            val starredVideoReceiverViewHolder = holder as VideoReceivedViewHolder
+            starredVideoItemViewHelper!!.setImageWidthAndHeight(starredVideoReceiverViewHolder, messageItem)
+            val filePath = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaLocalStoragePath())
+            val time: String = getChatMsgTime(messageItem)!!
+            val base64Img = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaThumbImage())
+            starredVideoItemViewHelper!!.receiverVideoViewItem(messageItem, starredVideoReceiverViewHolder,
+                    filePath, time, base64Img, false, emptyString())
+            replyViewUtils!!.showReceiverReplyWindow(starredVideoReceiverViewHolder, messageItem, context!!)
+            setListenersForReceiverVideoMessages(starredVideoReceiverViewHolder, messageItem, position)
+            receiverItemClick(starredVideoReceiverViewHolder.viewRowItem, messageItem, position)
+            receiverDownloadClick(starredVideoReceiverViewHolder.viewDownload, starredVideoReceiverViewHolder.txtRetryView,
+                    starredVideoReceiverViewHolder.cancelDownload, messageItem, starredVideoReceiverViewHolder.txtImgSize)
+            setSelectedChatItem(starredVideoReceiverViewHolder.itemView,
+                    messageItem, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredVideoReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredVideoReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * Gets the location view to display the map
+     *
+     * @param holder        Holder of the recycler view
+     * @param item          Message item contains message data
+     * @param position      List item position
+     */
+    private fun getStarredLocationViewSender(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, SENDER_HEADER, item)
+            val starredLocationSenderViewHolder = holder as LocationSentViewHolder
+            val locationMessage = item.getLocationChatMessage()
+            val time: String = getChatMsgTime(item)!!
+            val url: String = MapUtils.getMapImageUri(locationMessage.getLatitude(), locationMessage.getLongitude())
+            starredLocationSenderViewHolder.txtSendTime.text = time
+            replyViewUtils!!.showSenderReplyWindow(starredLocationSenderViewHolder, item, context!!)
+            loadMapWithGlide(context, url,
+                    starredLocationSenderViewHolder.imageSendLocation, R.drawable.ic_map_placeholder)
+            LogMessage.v("loadMapWithGlide", url)
+            starredLocationSenderViewHolder.txtSendTime.text = time
+            setChatStatus(item, starredLocationSenderViewHolder.imgSenderStatus)
+            replyViewUtils!!.showSenderReplyWindow(starredLocationSenderViewHolder, item, context!!)
+            setListenersForSenderLocationMessages(starredLocationSenderViewHolder, item, position)
+            senderItemClick(starredLocationSenderViewHolder.viewRowItem, item, position)
+            setSelectedChatItem(starredLocationSenderViewHolder.itemView, item, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredLocationSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredLocationSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * Gets the location view to display the map in receiver side
+     *
+     * @param holder        Holder of the recycler view
+     * @param item          Message item contains message data
+     * @param position      List item position
+     */
+    private fun getStarredLocationViewReceiver(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, RECEIVER_HEADER, item)
+            val starredLocationReceiverViewHolder = holder as LocationReceivedViewHolder
+            val locationMessage = item.getLocationChatMessage()
+            val time: String = getChatMsgTime(item)!!
+            val url = MapUtils.getMapImageUri(locationMessage.getLatitude(), locationMessage.getLongitude())
+            loadMapWithGlide(context, url,
+                    starredLocationReceiverViewHolder.imageReceiveLocation, R.drawable.ic_map_placeholder)
+            starredLocationReceiverViewHolder.txtRevTime.text = time
+            replyViewUtils!!.showReceiverReplyWindow(starredLocationReceiverViewHolder, item, context!!)
+            replyViewUtils!!.showReceiverReplyWindow(starredLocationReceiverViewHolder, item, context!!)
+            setListenersForReceiverLocationMessages(starredLocationReceiverViewHolder, item, position)
+            receiverItemClick(starredLocationReceiverViewHolder.viewRowItem, item, position)
+            setSelectedChatItem(starredLocationReceiverViewHolder.itemView, item, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredLocationReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredLocationReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * Create the audio view based on the Message data
+     *
+     * @param holder   Holder of the recycler view
+     * @param item     Message item contains message data
+     * @param position List item position
+     */
+    private fun getStarredAudioViewSender(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            val time: String = getChatMsgTime(item)!!
+            val filePath = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaLocalStoragePath())
+            setHeader(holder, SENDER_HEADER, item)
+            val starredAudioSenderViewHolder = holder as AudioSentViewHolder
+            starredAudioItemView!!.disableSenderAudioViews(starredAudioSenderViewHolder, true)
+            starredAudioItemView!!.audioSenderItemView(starredAudioSenderViewHolder, time, item)
+            starredAudioPlayClick(filePath, item.getMediaChatMessage().getMediaDuration(),
+                    position, starredAudioSenderViewHolder.imgAudioPlay,
+                    starredAudioSenderViewHolder.audioMirrorFlySeekBar,
+                    starredAudioSenderViewHolder.txtAudioDuration, true)
+            replyViewUtils!!.showSenderReplyWindow(starredAudioSenderViewHolder, item, context!!)
+            mMediaController!!.checkStateOfPlayer(starredAudioSenderViewHolder.imgAudioPlay,
+                    starredAudioSenderViewHolder.audioMirrorFlySeekBar,
+                    starredAudioSenderViewHolder.txtAudioDuration, position)
+            setListenersForAudioMessages(starredAudioSenderViewHolder, item, position)
+            senderItemClick(starredAudioSenderViewHolder.viewRowItem, item, position)
+            uploadClick(starredAudioSenderViewHolder.viewRetry, starredAudioSenderViewHolder.viewCarbonRetry, starredAudioSenderViewHolder.progressUploadDownloadLayout, item)
+            setSelectedChatItem(starredAudioSenderViewHolder.itemView, item, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredAudioSenderViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredAudioSenderViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+            if (item.mediaChatMessage.isAudioRecorded){
+                starredAudioSenderViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_recorded_icon)
+            }else{
+                starredAudioSenderViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_music_icon)
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * Create the audio view based on the Message data in receiver side
+     *
+     * @param holder   Holder of the recycler view
+     * @param item     Message item contains message data
+     * @param position List item position
+     */
+    private fun getStarredAudioViewReceiver(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            val time: String = getChatMsgTime(item)!!
+            val filePath = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaLocalStoragePath())
+            setHeader(holder, RECEIVER_HEADER, item)
+            val starredAudioReceiverViewHolder = holder as AudioReceivedViewHolder
+            starredAudioItemView!!.disableReceiverAudioViews(starredAudioReceiverViewHolder, true)
+            starredAudioItemView!!.audioReceiverItemView(starredAudioReceiverViewHolder, time, item)
+            starredAudioPlayClick(filePath, item.getMediaChatMessage().getMediaDuration(),
+                    position, starredAudioReceiverViewHolder.imgAudioPlay,
+                    starredAudioReceiverViewHolder.audioMirrorFlySeekBar,
+                    starredAudioReceiverViewHolder.txtAudioDuration, false)
+            mMediaController!!.checkStateOfPlayer(starredAudioReceiverViewHolder.imgAudioPlay,
+                    starredAudioReceiverViewHolder.audioMirrorFlySeekBar,
+                    starredAudioReceiverViewHolder.txtAudioDuration, position)
+            replyViewUtils!!.showReceiverReplyWindow(starredAudioReceiverViewHolder, item, context!!)
+            setListenersForReceiverAudioMessages(starredAudioReceiverViewHolder, item, position)
+            receiverItemClick(starredAudioReceiverViewHolder.viewRowItem, item, position)
+            downloadClick(starredAudioReceiverViewHolder.viewRetry, starredAudioReceiverViewHolder.progressUploadDownloadLayout, item)
+            setSelectedChatItem(starredAudioReceiverViewHolder.itemView, item, starredMessageMessages, context)
+            if (item.mediaChatMessage.isAudioRecorded) {
+                starredAudioReceiverViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_recorded_icon)
+            } else {
+                starredAudioReceiverViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_music_icon)
+            }
+            if (position == starredMessageData!!.size - 1) {
+                starredAudioReceiverViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredAudioReceiverViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    /**
+     * Handle the file view to display the file on sender view or receiver view with type of file in the chat view.
+     *
+     * @param holder   Holder of the recycler view
+     * @param item     Message item contains message data
+     * @param position List item position
+     */
+    private fun getStarredFileViewSender(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, SENDER_HEADER, item)
+            val starredFileSentViewHolder = holder as FileSentViewHolder
+            val time: String = getChatMsgTime(item)!!
+            setFileSenderView(starredFileSentViewHolder, item, time)
+            replyViewUtils!!.showSenderReplyWindow(holder, item, context!!)
+            starredFileSentViewHolder.fileFavoriteImage.visibility = View.VISIBLE
+            setListenersForSentFileMessages(starredFileSentViewHolder, item, position)
+            senderItemClick(starredFileSentViewHolder.fileSentViewLayout, item, position)
+            uploadClick(starredFileSentViewHolder.fileUploadViewLayout, starredFileSentViewHolder.fileCarbonDownloadView, starredFileSentViewHolder.fileUploadCancelLayout, item)
+            setSelectedChatItem(starredFileSentViewHolder.itemView, item, starredMessageMessages, context)
+            setSearchHighlightAppCompatTextView(starredFileSentViewHolder.fileNameText,  SpannableStringBuilder(item.mediaChatMessage.mediaFileName))
+            if (position == starredMessageData!!.size - 1) {
+                starredFileSentViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredFileSentViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(TAG, e)
+        }
+    }
+
+    /**
+     * Handle the file view to display the file on receiver view with type of file in the chat view.
+     *
+     * @param holder   Holder of the recycler view
+     * @param item     Message item contains message data
+     * @param position List item position
+     */
+    private fun getStarredFileViewReceiver(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, RECEIVER_HEADER, item)
+            val starredFileReceivedViewHolder = holder as FileReceivedViewHolder
+            val time: String = getChatMsgTime(item)!!
+            val fileStatus = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaDownloadStatus().toString())
+            FileItemView(this).fileReceiverItemView(starredFileReceivedViewHolder, time, item)
+            starredFileReceivedViewHolder.fileFavoriteImage.visibility = View.VISIBLE
+            if (fileStatus.isNotEmpty())
+                chatAdapterHelper!!.presentFileTypeView(starredFileReceivedViewHolder.fileCancelLayout,
+                    starredFileReceivedViewHolder.fileDownloadProgress,
+                    starredFileReceivedViewHolder.fileDownloadProgressBuffer, item.getMessageId(), fileStatus.toInt(),
+                    null, starredFileReceivedViewHolder.fileDownloadLayout)
+            replyViewUtils!!.showReceiverReplyWindow(starredFileReceivedViewHolder, item, context!!)
+            setListenersForReceivedFileMessages(starredFileReceivedViewHolder, item, position)
+            receiverItemClick(starredFileReceivedViewHolder.fileReceivedViewLayout, item, position)
+            downloadClick(starredFileReceivedViewHolder.fileDownloadLayout,
+                    starredFileReceivedViewHolder.fileCancelLayout, item)
+            setSelectedChatItem(starredFileReceivedViewHolder.itemView,
+                    item, starredMessageMessages, context)
+            setSearchHighlightAppCompatTextView(starredFileReceivedViewHolder.fileNameText,  SpannableStringBuilder(item.mediaChatMessage.mediaFileName))
+            if (position == starredMessageData!!.size - 1) {
+                starredFileReceivedViewHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredFileReceivedViewHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(TAG, e)
+        }
+    }
+
+    /**
+     * Create the contact view based on the Message data
+     *
+     * @param holder        Holder of the recycler view
+     * @param item          Message item contains message data
+     * @param position      List item position
+     */
+    private fun getStarredContactViewSender(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            setHeader(holder, SENDER_HEADER, item)
+            val starredContactSentHolder = holder as ContactSentViewHolder
+            val contactMessage = item.getContactChatMessage()
+            val contactName = contactMessage.getContactName()
+         //   val registeredJid: String = getJidFromSharedContact(contactMessage)!!
+            val time: String = getChatMsgTime(item)!!
+            starredContactSentHolder.txtSendName.text = contactName
+            starredContactSentHolder.txtSendTime.text = time
+            starredContactSentHolder.contactActionText.gone()
+            starredContactSentHolder.contactSeparator?.hide()
+//            if (registeredJid != null) starredContactSentHolder.contactActionText.text = context!!.resources.getString(R.string.message) else {
+//                starredContactSentHolder.contactActionText.text = context!!.resources.getString(R.string.invite)
+//                setInviteClickListener(starredContactSentHolder.contactActionText, item, position, item.getChatUserJid())
+//            }
+            replyViewUtils!!.showSenderReplyWindow(starredContactSentHolder, item, context!!)
+            starredContactSentHolder.starredSentImage.visibility = View.VISIBLE
+            setStatus(item, starredContactSentHolder.imgSenderStatus)
+            starredItemClick(starredContactSentHolder.viewRowItem, item, position)
+            senderItemClick(starredContactSentHolder.viewRowItem, item, position)
+            setSelectedChatItem(starredContactSentHolder.itemView, item, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredContactSentHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredContactSentHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(TAG, e)
+        }
+    }
+
+    private fun setSearchHighlightAppCompatTextView(txtSendName: AppCompatTextView, fromHtml: Spanned) {
+        if (searchEnabled && searchKey.isNotEmpty()) {
+            var startIndex = fromHtml.toString().checkIndexes(searchKey)
+            if (startIndex < 0) startIndex = fromHtml.toString().indexOf(searchKey, 2)
+            val stopIndex = startIndex + searchKey.length
+            EmojiUtils.setMediaTextHighLightSearched(context,txtSendName, fromHtml.toString(), startIndex, stopIndex)
+        } else {
+            txtSendName.setBackgroundColor(context!!.color(android.R.color.transparent))
+            txtSendName.setTextKeepState(fromHtml)
+        }
+    }
+
+    /**
+     * Create the contact view based on the Message data in receiver side.
+     *
+     * @param holder        Holder of the recycler view
+     * @param item          Message item contains message data
+     * @param position      List item position
+     */
+    private fun getStarredContactViewReceiver(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
+        try {
+            val starredContactReceivedHolder = holder as ContactReceivedViewHolder
+            setHeader(holder, RECEIVER_HEADER, item)
+            val contactMessage = item.getContactChatMessage()
+            val contactName = contactMessage.getContactName()
+            val time: String = getChatMsgTime(item)!!
+          //  val registeredJid: String = getJidFromSharedContact(contactMessage)!!
+            starredContactReceivedHolder.txtSendTime.text = time
+            starredContactReceivedHolder.starredSentImage.visibility = View.VISIBLE
+            starredContactReceivedHolder.txtSendName.text = contactName
+            starredContactReceivedHolder.contactActionText.gone()
+//            if (registeredJid != null) starredContactReceivedHolder.contactActionText.text = context!!.resources.getString(R.string.message) else {
+//                starredContactReceivedHolder.contactActionText.text = context!!.resources.getString(R.string.invite)
+//                setInviteClickListener(starredContactReceivedHolder.contactActionText, item, position, item.getChatUserJid())
+//            }
+            replyViewUtils!!.showReceiverReplyWindow(starredContactReceivedHolder, item, context!!)
+            receiverItemClick(starredContactReceivedHolder.viewRowItem, item, position)
+            setSelectedChatItem(starredContactReceivedHolder.itemView, item, starredMessageMessages, context)
+            if (position == starredMessageData!!.size - 1) {
+                starredContactReceivedHolder.viewDiver?.setVisibility(View.GONE);
+            }else{
+                starredContactReceivedHolder.viewDiver?.setVisibility(View.VISIBLE);
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(TAG, e)
+        }
+    }
+
+    private fun setInviteClickListener(view: View, message: ChatMessage, position: Int, jid: String) {
+        view.setOnClickListener { v: View? ->
+            if (listener != null) {
+                listener!!.onContactClick(message, position, jid)
+            }
+        }
+    }
+
+    /**
+     * Show/Hides sender name in group chat based on the chat sender
+     *
+     * @param holder   view holder of the item
+     * @param position position of the item
+     */
+    private fun showHideSenderName(holder: RecyclerView.ViewHolder, position: Int) {
+        val senderNameHolder = holder as SenderNameHolder
+        starredMessagesAdapterHelper!!.showHideSenderName(senderNameHolder, starredMessageData!![position])
+    }
+
+    /**
+     * This sets the header view for the starred message
+     *
+     * @param holder item holder
+     * @param type   sender or receiver
+     * @param item   message item
+     */
+    private fun setHeader(holder: RecyclerView.ViewHolder, type: Int, item: ChatMessage) {
+        val profileDetails = getProfileDetails(item.getChatUserJid())
+        if (type == SENDER_HEADER) {
+            val userName = getUserProfileName()
+            val setDrawable = SetDrawable(context!!, profileDetails)
+            val icon = setDrawable.setDrawableForProfile(userName)
+            val relativeLayoutHeader = holder.itemView.findViewById<View>(R.id.rl_header_sender)
+            relativeLayoutHeader.visibility = View.VISIBLE
+            val senderHeader = holder.itemView.findViewById<View>(R.id.header_starred_message_receiver)
+            val senderDateTextView: AppCompatTextView = holder.itemView.findViewById(R.id.text_chat_date)
+            val msgDate: String = getMessageDate(item)!!
+            if (!msgDate.contains("1970")) senderDateTextView.text = msgDate
+            senderHeader.visibility = View.VISIBLE
+            val starredSenderTextView: AppCompatTextView = senderHeader.findViewById(R.id.text_participant_name)
+            val receiverName: String = Utils.returnEmptyStringIfNull(profileDetails!!.nickName)
+            val userDpName = "You --> $receiverName"
+            starredSenderTextView.text = userDpName
+            starredSenderTextView.isSelected = true
+            loadImageWithGlideSecure(context, SharedPreferenceManager.getString(Constants.USER_PROFILE_IMAGE),
+                    senderHeader.findViewById(R.id.image_participant_picture), icon)
+        } else setupReceiverHeader(holder, item, profileDetails!!)
+    }
+
+    private fun setupReceiverHeader(holder: RecyclerView.ViewHolder, item: ChatMessage, profileDetails: ProfileDetails) {
+        val receiverHeader = holder.itemView.findViewById<View>(R.id.header_starred_message_sender)
+        val relativeLayoutHeader = holder.itemView.findViewById<View>(R.id.rl_header_receiver)
+        relativeLayoutHeader.visibility = View.VISIBLE
+        val receiverDateTextView: AppCompatTextView = holder.itemView.findViewById(R.id.text_chat_date)
+        val msgDate: String = getMessageDate(item)!!
+        if (!msgDate.contains("1970")) receiverDateTextView.text = msgDate
+        receiverHeader.visibility = View.VISIBLE
+        val starredReceiverTextView: AppCompatTextView = receiverHeader.findViewById(R.id.text_participant_name)
+        val adminJid = SharedPreferenceManager.getString(Constants.ADMIN_USER)
+        var profilePicture: String
+        val profileNickName: String
+        var groupUser = Constants.EMPTY_STRING
+        val setDrawable: SetDrawable
+        if (item.getMessageChatType() == ChatTypeEnum.groupchat) {
+            val profileGroupUser = getProfileDetails(item.senderUserJid)
+            groupUser = if (profileGroupUser != null && profileGroupUser.name != null && profileGroupUser.name.isNotEmpty()) profileGroupUser.name
+            else Utils.getFormattedPhoneNumber(getUserFromJid(profileGroupUser!!.jid))
+            profileNickName = profileGroupUser.name
+            setDrawable = SetDrawable(context!!, profileGroupUser)
+            loadUserProfileImage(context!!, profileGroupUser, receiverHeader.findViewById<ImageView>(R.id.image_participant_picture), setDrawable.setDrawable(profileNickName)!!)
+        } else {
+            profileNickName = profileDetails.name
+            setDrawable = SetDrawable(context!!, profileDetails)
+            loadUserProfileImage(context!!, profileDetails, receiverHeader.findViewById<ImageView>(R.id.image_participant_picture), setDrawable.setDrawable(profileNickName)!!)
+        }
+        val receiverName: String = if (profileDetails.name == null || profileDetails.name.isEmpty()
+                && !profileDetails.jid.equals(adminJid, ignoreCase = true)) Utils.getFormattedPhoneNumber(getUserFromJid(profileDetails.jid)) else profileDetails.name
+        val userDpName = if (item.getMessageChatType() == ChatTypeEnum.groupchat) "$groupUser --> $receiverName" else "$receiverName --> You"
+        starredReceiverTextView.text = userDpName
+        starredReceiverTextView.isSelected = true
+        check(profileDetails, holder)
+    }
+
+    private fun loadUserProfileImage(context: Context, profileDetails: ProfileDetails, imgView: ImageView, errorImg: Drawable) {
+        var errorImg: Drawable? = errorImg
+        var imageUrl = profileDetails.image
+        if (profileDetails.isBlockedMe) {
+            imageUrl = Constants.EMPTY_STRING
+            errorImg = ProfilePicUtil.getDefaultDrawable(context, ChatType.TYPE_CHAT)
+        }
+        loadImageWithGlideSecure(context, imageUrl, imgView, errorImg)
+    }
+
+    /**
+     * Checking the contact type to make email icon visible and invisible
+     *
+     * @param profileDetails profile data
+     * @param holder     item holder
+     */
+    private fun check(profileDetails: ProfileDetails, holder: RecyclerView.ViewHolder) {
+        holder.itemView.findViewById<View>(R.id.header_starred_message_sender)
+                .findViewById<View>(R.id.email_contact_icon).visibility = View.GONE
+    }
+
+    /**
+     * This method is used to get the message sent time
+     *
+     * @param item messsage item
+     * @return time
+     */
+    private fun getChatMsgTime(item: ChatMessage): String? {
+        return ChatMsgTime().getDaySentMsg(context, item.getMessageSentTime())
+    }
+
+    /**
+     * Returns Spanned string by adding HTML empty text to avoid overlap with time view in FrameLayout
+     *
+     * @param message Message content
+     * @return Spanned Result spanned text with space
+     */
+    private fun getHtmlStarredMessageText(message: String): String {
+        val text = context?.getString(R.string.chat_text)
+        return message + text
+    }
+
+
+    /**
+     * Converts message to a valid spanned text
+     *
+     * @param message message date which is sent/received
+     */
+    private fun getSpannedText(message: String?): Spanned {
+        val htmlText: Spanned
+        val chatMessage = getHtmlStarredMessageText(message!!).replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
+        htmlText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            Html.fromHtml(getHtmlStarredMessageText(chatMessage), Html.FROM_HTML_MODE_LEGACY)
+        else
+            Html.fromHtml(getHtmlStarredMessageText(chatMessage))
+
+        return if (htmlText.isEmpty() && chatMessage != "")
+            SpannableStringBuilder(getHtmlStarredMessageText(chatMessage))
+        else
+            htmlText
+    }
+
+    /**
+     * Starred message item click handler
+     *
+     * @param receiverItem Receiver item view
+     * @param messageItem  Received message Item
+     * @param position     Position of message
+     */
+    private fun starredItemClick(receiverItem: View, messageItem: ChatMessage, position: Int) {
+        receiverItem.setOnLongClickListener { v: View? ->
+            if (listener != null) listener!!.onReceiverItemLongClick(messageItem, position)
+            false
+        }
+        receiverItem.setOnClickListener { v: View? -> if (listener != null) listener!!.onReceiverItemClicked(messageItem, position) }
+    }
+
+    /**
+     * set Listeners For Sender Side TextView
+     *
+     * @param txtSenderViewHolder holder object
+     * @param item                object which hold data to display
+     * @param position            list item position
+     */
+    private fun setListenersForSenderTextMessages(txtSenderViewHolder: TextSentViewHolder, item: ChatMessage, position: Int) {
+        txtSenderViewHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        txtSenderViewHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * set single & long click Listeners For Sender Side conversation
+     *
+     * @param senderItem  sender view in conversation
+     * @param messageItem object which hold data to display
+     * @param position    list item position
+     */
+    private fun senderItemClick(senderItem: View, messageItem: ChatMessage, position: Int) {
+        senderItem.setOnClickListener { v: View? -> if (listener != null) listener!!.onSenderItemClicked(messageItem, position) }
+        senderItem.setOnLongClickListener { v: View? ->
+            if (listener != null) listener!!.onSenderItemLongClick(messageItem, position)
+            false
+        }
+    }
+
+    /**
+     * set Listeners For Receiver Side TextView
+     *
+     * @param txtReceiverViewHolder holder object
+     * @param item                  object which hold data to display
+     * @param position              list item position
+     */
+    private fun setListenersForReceiverTextMessages(txtReceiverViewHolder: TextReceivedViewHolder, item: ChatMessage, position: Int) {
+        txtReceiverViewHolder.replyMessageReceivedView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        txtReceiverViewHolder.replyMessageReceivedView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * set single & long click Listeners For Receiver Side conversation
+     *
+     * @param receiverItem sender view in conversation
+     * @param messageItem  object which hold data to display
+     * @param position     list item position
+     */
+    private fun receiverItemClick(receiverItem: View, messageItem: ChatMessage, position: Int) {
+        receiverItem.setOnClickListener { v: View? -> if (listener != null) listener!!.onReceiverItemClicked(messageItem, position) }
+        receiverItem.setOnLongClickListener { v: View? ->
+            if (listener != null) listener!!.onReceiverItemLongClick(messageItem, position)
+            false
+        }
+    }
+
+    /**
+     * Handle the audio play click
+     *
+     * @param filePath        Local path of the audio
+     * @param duration        Local file duration
+     * @param position        Position of the chat item
+     * @param playImage       Play button of the audio view
+     * @param seekBar         Seek bar of the audio
+     * @param durationView    Duration text view
+     * @param doesSentMessage Boolean to identify whether the audio message is posted in the chat activity.
+     */
+    private fun starredAudioPlayClick(filePath: String, duration: Long, position: Int, playImage: ImageView,
+                                      seekBar: SeekBar, durationView: TextView, doesSentMessage: Boolean) {
+        playImage.setOnClickListener { v: View? ->
+            if (mMediaController!!.currentAudioPosition != -1 && position != mMediaController!!.currentAudioPosition) mMediaController!!.resetAudioPlayer()
+            mMediaController!!.setMediaResource(filePath, duration, playImage, doesSentMessage)
+            mMediaController!!.setMediaSeekBar(seekBar)
+            mMediaController!!.setMediaTimer(durationView)
+            mMediaController!!.currentAudioPosition = position
+            mMediaController!!.handlePlayer(doesSentMessage)
+        }
+    }
+
+    private fun getJidFromSharedContact(contactMessage: ContactChatMessage): String? {
+        var registeredJid: String? = null
+        for (i in contactMessage.getIsChatAppUser().indices) {
+            if (contactMessage.getIsChatAppUser()[i] == java.lang.Boolean.TRUE) {
+                registeredJid = Utils.getJidFromPhoneNumber(context, contactMessage.getContactPhoneNumbers()[i], SharedPreferenceManager.getString(Constants.COUNTRY_CODE))
+                break
+            }
+        }
+        return registeredJid
+    }
+
+    override fun setChatStatus(item: ChatMessage?, viewHolder: ImageView?) {
+        chatStarredMessageUtils!!.setChatStatus(viewHolder, item!!.getMessageStatus())
+    }
+
+    override fun setRecentChatStatus(viewHolder: ImageView?, status: MessageStatus?) {
+        chatStarredMessageUtils!!.setChatStatus(viewHolder, status)
+    }
+
+    override fun setMediaStatus(mediaStatus: MediaStatus) {
+        when (mediaStatus.status) {
+            MediaDownloadStatus.MEDIA_DOWNLOADED, MediaUploadStatus.MEDIA_UPLOADED -> {
+                starredMessagesAdapterHelper!!.starredMediaUploadView(mediaStatus.progressBar!!, mediaStatus.cancelImageview!!, mediaStatus.viewProgress)
+                if (mediaStatus.item!!.getMessageType() == MessageType.VIDEO) mediaStatus.imgPlay!!.visibility = View.VISIBLE
+                mediaStatus.txtRetry!!.visibility = View.GONE
+                if (mediaStatus.download != null) mediaStatus.download!!.visibility = View.GONE
+            }
+            MediaDownloadStatus.MEDIA_DOWNLOADING, MediaUploadStatus.MEDIA_UPLOADING -> {
+                mediaStatus.progressBar!!.visibility = View.VISIBLE
+                mediaStatus.cancelImageview!!.visibility = View.VISIBLE
+                if (mediaStatus.viewProgress != null) mediaStatus.viewProgress!!.visibility = View.VISIBLE
+                mediaStatus.txtRetry!!.visibility = View.GONE
+            }
+            MediaDownloadStatus.MEDIA_NOT_DOWNLOADED -> {
+                starredMessagesAdapterHelper!!.starredMediaUploadView(mediaStatus.progressBar!!, mediaStatus.cancelImageview!!, mediaStatus.viewProgress)
+                mediaStatus.download!!.visibility = View.VISIBLE
+            }
+            MediaUploadStatus.MEDIA_NOT_UPLOADED -> {
+                mediaStatus.txtRetry!!.visibility = View.VISIBLE
+                starredMessagesAdapterHelper!!.starredMediaUploadView(mediaStatus.progressBar!!, mediaStatus.cancelImageview!!, mediaStatus.viewProgress)
+            }
+        }
+    }
+
+    override fun setMediaDuration(txtSendDuration: TextView?, fileStatus: Int, starredMessageItem: ChatMessage?, imgChatType: ImageView?) {
+        mediaDetailUtils!!.setMediaView(context, txtSendDuration, fileStatus, starredMessageItem, imgChatType)
+    }
+
+    override fun setImageViewSize(starredFileSize: String?, downloadView: View?, starredFileSizeView: TextView?) {
+        if (starredFileSize!!.isNotEmpty() && downloadView!!.visibility == View.VISIBLE) {
+            var size = 0
+            val txtSize = context?.getString(R.string.title_kb)
+            if (!starredFileSize.equals(Constants.COUNT_ZERO.toString(), ignoreCase = true))
+                size = starredFileSize.toInt() / Constants.ONE_KB
+            if (size >= Constants.ONE_KB) {
+                starredFileSizeView?.text = ChatUtils.getFileSizeText(starredFileSize)
+            } else{
+                starredFileSizeView?.text = "$size $txtSize"
+            }
+        }
+    }
+
+    override fun setStatus(item: ChatMessage?, imgChatStatus: ImageView?) {
+        chatStarredMessageUtils!!.setChatStatus(imgChatStatus, item!!.getMessageStatus())
+    }
+
+    /**
+     * Gets the chat messages.
+     *
+     * @return List<Message> List of messages
+    </Message> */
+    fun getMessages(): List<ChatMessage?>? {
+        return starredMessageData
+    }
+
+    /**
+     * This function is used to manipulate the message date
+     *
+     * @param item message item
+     * @return formatted date as string
+     */
+    @SuppressLint("SimpleDateFormat")
+    private fun getMessageDate(item: ChatMessage): String? {
+        val formatter = SimpleDateFormat("dd-MMM-yyy", Locale.getDefault())
+        val formatter1 = SimpleDateFormat("MMM dd,yyyy", Locale.getDefault())
+        var messageDate: String? = null
+        try {
+            messageDate = formatter.format(formatter1.parse(ChatUserTimeUtils.getDateFromTimestamp(item.getMessageSentTime())))
+        } catch (e: ParseException) {
+            LogMessage.e(TAG, e)
+        }
+        return messageDate
+    }
+
+    private fun setListenersForSenderImageMessages(imgViewHolder: ImageSentViewHolder, item: ChatMessage, position: Int) {
+        imgViewHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        imgViewHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param imgViewHolder The view holding the child items.
+     * @param item          The data set used to render the content of child views.
+     * @param position      The position of the item within the adapter's data set.
+     */
+    private fun setListenersForReceiverImageMessages(imgViewHolder: ImageReceivedViewHolder, item: ChatMessage, position: Int) {
+        imgViewHolder.replyMessageReceivedView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        imgViewHolder.replyMessageReceivedView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Register a callback to be invoked when this view is clicked. If this view is not clickable, it becomes clickable.
+     *
+     * @param download       The download view placed in the ViewHolder.
+     * @param retry          The retry view placed in the ViewHolder.
+     * @param cancelDownload The cancel download view placed in the ViewHolder.
+     * @param messageItem    The message object which possess the data rendered in the ViewHolder.
+     */
+    private fun receiverDownloadClick(download: View, retry: View, cancelDownload: View,
+                                      messageItem: ChatMessage, txtSize: View?) {
+        download.setOnClickListener { v: View? ->
+            if (listener != null) {
+                if (txtSize != null && txtSize.visibility == View.VISIBLE) txtSize.visibility = View.GONE
+                listener!!.onDownloadClicked(messageItem)
+            }
+        }
+        cancelDownload.setOnClickListener { v: View? ->
+            if (listener != null) {
+                if (txtSize != null) {
+                    txtSize.visibility = View.VISIBLE
+                    download.visibility = View.VISIBLE
+                }
+                cancelMediaUploadOrDownload(messageItem.getMessageId())
+                listener!!.onCancelDownloadClicked(messageItem)
+            }
+        }
+        retry.setOnClickListener { v: View? ->
+            if (listener != null && txtSize != null && txtSize.visibility == View.VISIBLE) {
+                txtSize.visibility = View.GONE
+                download.visibility = View.GONE
+            }
+            listener!!.onDownloadClicked(messageItem)
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param videoSenderViewHolder The view holding the child items.
+     * @param item                  The data set used to render the content of child views.
+     * @param position              The position of the item within the adapter's data set.
+     */
+    private fun setListenersForSenderVideoMessages(videoSenderViewHolder: VideoSentViewHolder, item: ChatMessage, position: Int) {
+        videoSenderViewHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        videoSenderViewHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Register a callback to be invoked when this view is clicked. If this view is not clickable, it becomes clickable.
+     *
+     * @param retry              The retry view placed in the ViewHolder.
+     * @param cancelUpload       The cancel upload view placed in the ViewHolder.
+     * @param messageItem        The message object which possess the data rendered in the
+     * ViewHolder.
+     * @param carbonDownloadView The carbon download view placed in the ViewHolder.
+     */
+    private fun senderDownloadClick(retry: View, cancelUpload: View, messageItem: ChatMessage, carbonDownloadView: View) {
+        carbonDownloadView.setOnClickListener { v: View? -> if (listener != null) listener!!.onDownloadClicked(messageItem) }
+        cancelUpload.setOnClickListener { v: View? ->
+            if (listener != null) {
+                cancelMediaUploadOrDownload(messageItem.getMessageId())
+                listener!!.onCancelUploadClicked(messageItem)
+            }
+        }
+        retry.setOnClickListener { v: View? -> if (listener != null) listener!!.onRetryClicked(messageItem) }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param videoReceiverViewHolder The view holding the child items.
+     * @param item                    The data set used to render the content of child views.
+     * @param position                The position of the item within the adapter's data set.
+     */
+    private fun setListenersForReceiverVideoMessages(videoReceiverViewHolder: VideoReceivedViewHolder, item: ChatMessage, position: Int) {
+        videoReceiverViewHolder.replyMessageReceivedView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        videoReceiverViewHolder.replyMessageReceivedView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param locationHolder The view holding the child items.
+     * @param item           The data set used to render the content of child views.
+     * @param position       The position of the item within the adapter's data set.
+     */
+    private fun setListenersForReceiverLocationMessages(locationHolder: LocationReceivedViewHolder, item: ChatMessage, position: Int) {
+        locationHolder.replyMessageReceivedView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        locationHolder.replyMessageReceivedView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param locationHolder The view holding the child items.
+     * @param item           The data set used to render the content of child views.
+     * @param position       The position of the item within the adapter's data set.
+     */
+    private fun setListenersForSenderLocationMessages(locationHolder: LocationSentViewHolder, item: ChatMessage, position: Int) {
+        locationHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        locationHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param audioViewHolder The view holding the child items.
+     * @param item            The data set used to render the content of child views.
+     * @param position        The position of the item within the adapter's data set.
+     */
+    private fun setListenersForAudioMessages(audioViewHolder: AudioSentViewHolder, item: ChatMessage, position: Int) {
+        audioViewHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        audioViewHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Register a callback to be invoked when this view is clicked. If this view is not clickable, it becomes clickable.
+     *
+     * @param retry        The retry view placed in the ViewHolder.
+     * @param cancelUpload The cancel upload view placed in the ViewHolder.
+     * @param messageItem  The message object which possess the data rendered in the ViewHolder.
+     */
+    private fun uploadClick(retry: View, carbonRetry: View?, cancelUpload: View, messageItem: ChatMessage) {
+        retry.setOnClickListener { v: View? -> if (listener != null) listener!!.onRetryClicked(messageItem) }
+        carbonRetry?.setOnClickListener { v: View? -> if (listener != null) listener!!.onDownloadClicked(messageItem) }
+        cancelUpload.setOnClickListener { v: View? ->
+            if (listener != null) {
+                cancelMediaUploadOrDownload(messageItem.getMessageId())
+                listener!!.onCancelUploadClicked(messageItem)
+            }
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param audioReceiverViewHolder The view holding the child items.
+     * @param item                    The data set used to render the content of child views.
+     * @param position                The position of the item within the adapter's data set.
+     */
+    private fun setListenersForReceiverAudioMessages(audioReceiverViewHolder: AudioReceivedViewHolder, item: ChatMessage, position: Int) {
+        audioReceiverViewHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        audioReceiverViewHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Register a callback to be invoked when this view is clicked. If this view is not clickable, it becomes clickable.
+     *
+     * @param download       The download view placed in the ViewHolder.
+     * @param cancelDownload The cancel download view placed in the ViewHolder.
+     * @param messageItem    The message object which possess the data rendered in the ViewHolder.
+     */
+    private fun downloadClick(download: View, cancelDownload: View, messageItem: ChatMessage) {
+        download.setOnClickListener { v: View? -> if (listener != null) listener!!.onDownloadClicked(messageItem) }
+        cancelDownload.setOnClickListener { v: View? ->
+            if (listener != null) {
+                cancelMediaUploadOrDownload(messageItem.getMessageId())
+                listener!!.onCancelDownloadClicked(messageItem)
+            }
+        }
+    }
+
+    /**
+     * Sets the sender view for the file type chat messages.
+     *
+     * @param fileViewHolder the holder containing the view item.
+     * @param item           the message object comprising the file information.
+     * @param time           the time at which the message has been sent.
+     */
+    private fun setFileSenderView(fileViewHolder: FileSentViewHolder, item: ChatMessage, time: String) {
+        fileItemView!!.fileSenderItemView(fileViewHolder, time, item)
+        val fileStatus = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaUploadStatus().toString())
+        val fileDownloadStatus = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaDownloadStatus().toString())
+        fileViewHolder.fileCarbonDownloadView?.gone()
+        fileViewHolder.fileUploadViewLayout.gone()
+        chatAdapterHelper!!.presentFileTypeView(fileViewHolder.fileUploadCancelLayout, fileViewHolder.fileUploadProgress,
+            fileViewHolder.fileUploadProgressBuffer, item.getMessageId(),  if (item.isItCarbonMessage()) fileDownloadStatus.toInt() else fileStatus.toInt(),
+            null, if (item.isItCarbonMessage()) fileViewHolder.fileCarbonDownloadView else fileViewHolder.fileUploadViewLayout)
+        if (item.isThisAReplyMessage()) {
+            fileViewHolder.showSentReplyView()
+            ReplyMessageUtils().showReplyMessage(context, fileViewHolder, item.getReplyParentChatMessage(), item.isGroupMessage())
+        } else fileViewHolder.hideSentReplyView()
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param fileViewHolder The view holding the child items.
+     * @param item           The data set used to render the content of child views.
+     * @param position       The position of the item within the adapter's data set.
+     */
+    private fun setListenersForSentFileMessages(fileViewHolder: FileSentViewHolder, item: ChatMessage, position: Int) {
+        fileViewHolder.replyMessageSentView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        fileViewHolder.replyMessageSentView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
+     * @param fileViewHolder The view holding the child items.
+     * @param item           The data set used to render the content of child views.
+     * @param position       The position of the item within the adapter's data set.
+     */
+    private fun setListenersForReceivedFileMessages(fileViewHolder: FileReceivedViewHolder, item: ChatMessage, position: Int) {
+        fileViewHolder.replyMessageReceivedView?.setOnClickListener { v -> if (listener != null) listener!!.onReplyMessageClick(item.getMessageId()) }
+        fileViewHolder.replyMessageReceivedView?.setOnLongClickListener { v ->
+            if (listener != null) listener!!.onSenderItemLongClick(item, position)
+            false
+        }
+    }
+
+    override fun setStaredStatus(isStarred: Boolean, imageView: ImageView) {
+        if (isStarred) imageView.show() else imageView.gone()
+    }
+
+    override fun setStarredCaptionStatus(isStarred: Boolean, imageView: ImageView) {
+        if (isStarred) imageView.show() else imageView.gone()
+    }
+}

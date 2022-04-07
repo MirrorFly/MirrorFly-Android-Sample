@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".fragments.RecentChatListFragment">
+
+    <include
+        android:id="@+id/no_message_view"
+        layout="@layout/view_no_messages"
+        android:visibility="gone" />
+
+    <com.contusfly.views.CustomRecyclerView
+        android:id="@+id/view_list_contacts"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/transparent_color"
+        android:cacheColorHint="?attr/transparent_color"
+        android:divider="?attr/transparent_color"
+        android:footerDividersEnabled="true"
+        android:listSelector="?attr/transparent_color" />
+
+    <include
+        android:id="@+id/empty_list"
+        layout="@layout/view_empty_data" />
+
+</LinearLayout>

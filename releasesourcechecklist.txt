@@ -1,0 +1,18 @@
+Date: 18 Feb 2022
+
+Note: While sharing the UI Kit source code, please do follow the below mentioned steps and share the source.
+
+1. Remove ".git" hidden folder from local Project Source folder
+2. app/build.gradle -> remove the debug build variant
+3. In release build variant check the server config details as mentioned below
+     'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
+     'XMPP_PORT', '"5222"'
+     'XMPP_DOMAIN', '"xmpp-preprod-sandbox.mirrorfly.com"'
+     'XMPP_HOST', '"xmpp-preprod-sandbox.mirrorfly.com"'
+     'IV_KEY', '"ddc0f15cc2c90fca"'
+     'LICENSE', '"lu3Om85JYSghcsB6vgVoSgTlSQArL5"'
+     'SIGNAL_SERVER', '"https://signal-preprod-sandbox.mirrorfly.com"'
+     'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
+     'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
+4. Make sure that License Key value[lu3Om85JYSghcsB6vgVoSgTlSQArL5] should be removed and replace the String as "Please enter your License key"
+    Ex: 'LICENSE', '"Please enter your License key"'

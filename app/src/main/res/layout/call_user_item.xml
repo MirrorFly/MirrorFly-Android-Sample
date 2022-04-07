@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="150dp">
+
+    <org.webrtc.SurfaceViewRenderer
+        android:id="@+id/view_video_surface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignWithParentIfMissing="true" />
+
+    <View
+        android:id="@+id/view_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/background_group_call_audio" />
+
+    <ImageView
+        android:id="@+id/img_profile_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_centerInParent="true"
+        android:gravity="center"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/title_image" />
+
+    <LinearLayout
+        android:id="@+id/caller_name_bg_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:gravity="bottom"
+        android:orientation="vertical"
+        android:weightSum="8">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="6"
+            android:background="@drawable/ic_group_user_info_layout" />
+
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/image_audio_muted"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentBottom="true"
+        android:layout_gravity="center_horizontal"
+        android:layout_margin="7dp"
+        android:contentDescription="@null"
+        app:srcCompat="@drawable/ic_mic_off" />
+
+    <TextView
+        android:id="@+id/text_user_name"
+        style="@style/TextMediumStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="7dp"
+        android:layout_toEndOf="@+id/image_audio_muted"
+        android:ellipsize="end"
+        android:fontFamily="@font/sf_ui_display_regular"
+        android:maxLines="1"
+        android:textAlignment="textEnd"
+        android:textColor="@color/color_white"
+        android:textSize="14sp" />
+
+    <RelativeLayout
+        android:id="@+id/caller_status_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/ic_caller_status_bg"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/caller_status_text_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:fontFamily="@font/sf_ui_display_light"
+            android:textColor="@color/color_white"
+            android:textSize="14sp" />
+
+    </RelativeLayout>
+
+</RelativeLayout>
