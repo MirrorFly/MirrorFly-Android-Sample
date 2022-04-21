@@ -43,11 +43,30 @@ android {
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        resValue("string", "google_maps_key", "Please enter your google maps key")
+        resValue("string", "google_maps_key", "AIzaSyCe4m08a3eMvInU8LBxAjAyEIyG-Kj_Ayw")
     }
 
     buildTypes {
-        
+        debug {
+            buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
+            buildConfigField 'String', 'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
+            buildConfigField 'String', 'XMPP_PORT', '"5222"'
+            buildConfigField 'String', 'XMPP_DOMAIN', '"xmpp-preprod-sandbox.mirrorfly.com"'
+            buildConfigField 'String', 'XMPP_HOST', '"xmpp-preprod-sandbox.mirrorfly.com"'
+            buildConfigField 'String', 'IV_KEY', '"ddc0f15cc2c90fca"'
+            buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
+            buildConfigField 'String', 'SIGNAL_SERVER', '"https://signal-preprod-sandbox.mirrorfly.com"'
+            buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
+            buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
+            buildConfigField 'String', 'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
+            resValue("string", "app_name", "UI Kit")
+            shrinkResources false
+            debuggable true
+            minifyEnabled false
+            signingConfig signingConfigs.config
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
         release {
             initWith debug
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
