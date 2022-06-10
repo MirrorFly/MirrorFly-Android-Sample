@@ -69,6 +69,5 @@ class CustomTextView : EmojiconTextView {
     private fun setTextViewAttributes(set: AttributeSet) {
         val a = context.obtainStyledAttributes(set, R.styleable.Emojicon)
         a.recycle()
-        text = text
     }
 }

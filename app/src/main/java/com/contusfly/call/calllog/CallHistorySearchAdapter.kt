@@ -64,7 +64,8 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
         setCallStatusIcon(holder, callLog)
         updateSelectedItem(holder.itemView, selectedCallLogs.contains(callLog.roomId))
         holder.imageViewCallIcon.setOnClickListener(1000) {
-            listener.onItemClick(holder.imageViewCallIcon, mCallLogsList.indexOf(callLog))
+            if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+                listener.onItemClick(holder.imageViewCallIcon, mCallLogsList.indexOf(callLog))
         }
     }
 
@@ -146,7 +147,7 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
             }
         } else {
             holder.txtChatPersonName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            holder.imgRoster.addImage(GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as ArrayList<String>)
+            holder.imgRoster.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as ArrayList<String>)
         }
         holder.emailContactIcon.gone()
     }

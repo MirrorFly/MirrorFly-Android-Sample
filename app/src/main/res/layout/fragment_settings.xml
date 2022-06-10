@@ -92,7 +92,7 @@
                     android:layout_marginStart="@dimen/margin_10dp"
                     android:layout_marginEnd="@dimen/margin_3"
                     android:contentDescription="@null"
-                    app:srcCompat="@drawable/ic_right_arrow" />
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 
@@ -134,7 +134,7 @@
                     android:layout_marginStart="@dimen/margin_10"
                     android:layout_marginEnd="@dimen/margin_3"
                     android:contentDescription="@null"
-                    app:srcCompat="@drawable/ic_right_arrow" />
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 
@@ -176,7 +176,7 @@
                     android:layout_marginStart="@dimen/margin_10"
                     android:layout_marginEnd="@dimen/margin_3"
                     android:contentDescription="@null"
-                    app:srcCompat="@drawable/ic_right_arrow" />
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 
@@ -218,7 +218,7 @@
                     android:layout_marginStart="@dimen/margin_10dp"
                     android:layout_marginEnd="@dimen/margin_3"
                     android:contentDescription="@null"
-                    app:srcCompat="@drawable/ic_right_arrow" />
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 
@@ -260,7 +260,7 @@
                     android:layout_marginStart="@dimen/margin_10dp"
                     android:layout_marginEnd="@dimen/margin_3"
                     android:contentDescription="@null"
-                    app:srcCompat="@drawable/ic_right_arrow" />
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 
@@ -304,7 +304,7 @@
                     android:layout_marginStart="@dimen/margin_10dp"
                     android:layout_marginEnd="@dimen/margin_3"
                     android:contentDescription="@null"
-                    app:srcCompat="@drawable/ic_right_arrow" />
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 
@@ -347,6 +347,50 @@
                     android:padding="@dimen/padding_5"
                     android:thumb="@drawable/thumb_selector"
                     app:track="@drawable/track_selector" />
+
+            </RelativeLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.2dp"
+                android:layout_marginStart="@dimen/margin_20dp"
+                android:layout_marginEnd="@dimen/margin_20dp"
+                android:background="@color/color_list_divider_color" />
+
+            <RelativeLayout
+                android:id="@+id/layout_delete_my_account"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?android:attr/selectableItemBackground"
+                android:paddingStart="@dimen/padding_20"
+                android:paddingTop="@dimen/padding_15"
+                android:paddingEnd="@dimen/padding_20"
+                android:paddingBottom="@dimen/padding_15">
+
+                <com.contusfly.views.CustomTextView
+                    style="@style/TextMediumStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@+id/image_delete_my_account"
+                    android:drawableStart="@drawable/ic_delete_my_account"
+                    android:drawablePadding="@dimen/padding_16"
+                    android:gravity="start|center_vertical"
+                    android:padding="@dimen/padding_6"
+                    android:paddingStart="@dimen/padding_3"
+                    android:paddingEnd="2dp"
+                    android:text="@string/delete_my_account" />
+
+                <ImageView
+                    android:id="@+id/image_delete_my_account"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="@dimen/margin_10dp"
+                    android:layout_marginEnd="@dimen/margin_3"
+                    android:contentDescription="@null"
+                    app:srcCompat="@drawable/ic_right_icon" />
 
             </RelativeLayout>
 

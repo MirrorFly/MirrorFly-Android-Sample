@@ -15,11 +15,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.core.content.ContextCompat
-import com.contusfly.R
-import com.contusfly.applySourceColorFilter
-import com.contusfly.applySrcInColorFilter
+import com.contusfly.*
 import com.contusfly.databinding.ActivityCommonEditorBinding
-import com.contusfly.profileNameCharValidation
 import com.contusfly.utils.Constants
 import com.contusfly.utils.CustomLengthFilter
 import com.contusfly.utils.EmojiHandler
@@ -80,6 +77,8 @@ class CommonEditorActivity : BaseActivity(), View.OnClickListener,
      */
     private var lastClickTime: Long = 0
 
+    private var groupJid: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         commonEditorBinding = ActivityCommonEditorBinding.inflate(layoutInflater)
@@ -137,6 +136,7 @@ class CommonEditorActivity : BaseActivity(), View.OnClickListener,
             supportActionBar?.title = Utils.returnEmptyStringIfNull(intent.getStringExtra(Constants.TITLE))
             type = intent.getIntExtra(Constants.TYPE, 0)
             maxCount = intent.getIntExtra(Constants.TEXT_COUNT, Constants.MAX_NAME_COUNT)
+            groupJid = intent.getStringExtra(Constants.USER_JID) ?: Constants.EMPTY_STRING
             if (intent.hasExtra(Constants.TEXT_COUNT)) maxCount = intent.getIntExtra(Constants.TEXT_COUNT, Constants.MAX_TEXT_COUNT)
             else if (type == Constants.GROUP_NAME_UPDATE) maxCount = intent.getIntExtra(Constants.TEXT_COUNT, Constants.MAX_GROUP_NAME_COUNT)
         }
@@ -372,6 +372,17 @@ class CommonEditorActivity : BaseActivity(), View.OnClickListener,
                 editorEditText.setText(sortedString)
                 editorEditText.setSelection(editorEditText.text.toString().length)
             }
+        }
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (groupJid == jid && status) {
+            showToast(getString(R.string.group_block_message_label))
+            val dashboardIntent = Intent(applicationContext, DashboardActivity::class.java)
+            dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+            startActivity(dashboardIntent)
+            finish()
         }
     }
 }

@@ -23,8 +23,16 @@ constructor(private val callLogRepository: CallLogRepository) : ViewModel() {
     fun getInviteUserList(callConnectedUserList: ArrayList<String>?) {
         viewModelScope.launch(Dispatchers.Main.immediate) {
             val userProfilesList = getProfileDetailsWithoutCallMembers(callConnectedUserList)
-            inviteUserList.value = userProfilesList.sortedBy { it.name.toLowerCase() }
+            inviteUserList.value = getUpdatedProfiles(userProfilesList)
         }
+    }
+
+    private fun getUpdatedProfiles(userProfilesList: List<ProfileDetails>): List<ProfileDetails>? {
+        val filteredProfiles = mutableListOf<ProfileDetails>()
+        userProfilesList.forEach { profileDetail ->
+            if (!profileDetail.isAdminBlocked) filteredProfiles.add(profileDetail)
+        }
+        return filteredProfiles.sortedBy { it.name.toLowerCase() }
     }
 
     fun getInviteUserListForGroup(groupId: String, callConnectedUserList: ArrayList<String>?) {
@@ -34,14 +42,13 @@ constructor(private val callLogRepository: CallLogRepository) : ViewModel() {
                 if (isSuccess) profileDetails = data["data"] as ArrayList<ProfileDetails>
                 val groupWithOutCallMembers: MutableList<ProfileDetails> =
                     profileDetails!!.toMutableList()
-                inviteUserList.value =
-                    sortProfileList(getFilteredList(callConnectedUserList, groupWithOutCallMembers))
+                inviteUserList.value = getUpdatedProfiles(getFilteredList(callConnectedUserList, groupWithOutCallMembers))
             }
         }
     }
 
     fun getProfileDetailsWithoutCallMembers(callConnectedUserList: ArrayList<String>?): List<ProfileDetails> {
-        val profileDetails = FlyCore.getAllProfilesList()
+        val profileDetails = FlyCore.getFriendsList()
         val withOutCallMembers: MutableList<ProfileDetails> = profileDetails.toMutableList()
         return sortProfileList(getFilteredList(callConnectedUserList, getSingleProfiles(withOutCallMembers)))
     }

@@ -94,4 +94,11 @@ public class BiometricDialogV23 extends BottomSheetDialog implements View.OnClic
         dismiss();
         biometricCallback.onAuthenticationCancelled();
     }
+
+    public void closeBiometricDialog() {
+        if (isShowing()) {
+            dismiss();
+            biometricCallback.onAuthenticationCancelled();
+        }
+    }
 }

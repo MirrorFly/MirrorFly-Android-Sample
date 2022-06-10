@@ -127,8 +127,8 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
         binding.userVideoSurface1.gone()
         var drawable = ContextCompat.getDrawable(context, R.drawable.ic_pip_default_profile)
         if (profileDetails != null) {
-            if (!profileDetails.isBlockedMe && profileDetails.isItSavedContact)
-                drawable = SetDrawable(context, profileDetails).setDrawable(profileDetails.nickName)
+            if (!profileDetails.isBlockedMe && profileDetails.isItSavedContact())
+                drawable = SetDrawable(context, profileDetails).setDrawable(profileDetails.name)
 
             var imageUrl = profileDetails.image ?: Constants.EMPTY_STRING
             if (profileDetails.isBlockedMe)

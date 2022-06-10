@@ -16,12 +16,12 @@ import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.adapters.BaseViewHolder
 import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
+import com.contusfly.isItSavedContact
 import com.contusfly.isValidIndex
 import com.contusfly.loadUserProfileImage
 import com.contusfly.utils.EmojiUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.CustomTextView
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.Utils
 import java.util.*
@@ -47,7 +47,7 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
     /**
      * The temporary data of the list to reuse the list.
      */
-    private val mTempData = java.util.ArrayList<ProfileDetails>()
+    val mTempData = java.util.ArrayList<ProfileDetails>()
 
     /**
      * RecyclerView ClickLister Adapter
@@ -111,6 +111,24 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
         holder.checkBox.setOnClickListener(onClickListener)
 
         enableCheckbox(holder, item)
+    }
+
+    fun removeUser(jid: String) {
+        val index = mTempData.indexOfFirst { it.jid == jid }
+        if (index.isValidIndex()) {
+            selectedList.remove(jid)
+            val selectedIndex = selectedProfileDetailsList.indexOfFirst { it.jid == jid }
+            if (selectedIndex.isValidIndex())
+                selectedProfileDetailsList.removeAt(selectedIndex)
+            else
+                selectedProfileDetailsList.remove(mTempData[index])
+            mTempData.removeAt(index)
+            notifyItemRemoved(index)
+        }
+        val userIndex = profileDetailsList?.indexOfFirst { it.jid == jid }
+        if (userIndex != null && userIndex.isValidIndex()) {
+            profileDetailsList?.removeAt(userIndex)
+        }
     }
 
     /**
@@ -190,7 +208,7 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
              * Filter the list from the roster name.
              */
             for (mKey in profileDetailsList!!) {
-                if (mKey.isItSavedContact && mKey.name.toLowerCase(Locale.getDefault()).contains(filterKey.toLowerCase(Locale.getDefault())))
+                if (mKey.isItSavedContact() && mKey.name.toLowerCase(Locale.getDefault()).contains(filterKey.toLowerCase(Locale.getDefault())))
                     mTempData.add(mKey)
             }
             setSearchCount(mTempData)

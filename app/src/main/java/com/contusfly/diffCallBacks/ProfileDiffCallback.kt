@@ -13,7 +13,11 @@ import com.contusflysdk.api.contacts.ProfileDetails
 class ProfileDiffCallback(private val oldList: List<ProfileDetails>, private val newList: List<ProfileDetails>) : DiffUtil.Callback() {
 
     override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-        return oldList.size > oldItemPosition && newList.size > newItemPosition && oldList[oldItemPosition].jid == newList[newItemPosition].jid
+        return try {
+            oldList.size > oldItemPosition && newList.size > newItemPosition && oldList[oldItemPosition].jid == newList[newItemPosition].jid
+        } catch (e : Exception){
+            false
+        }
     }
 
     override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
@@ -52,7 +56,7 @@ fun isProfileObjEqual(oldItem: ProfileDetails?, newItem: ProfileDetails?): Boole
             oldItem.isMuted == newItem.isMuted && oldItem.jid == newItem.jid
                     && oldItem.isBlocked == newItem.isBlocked && oldItem.isBlockedMe == newItem.isBlockedMe
                     && oldItem.jid == newItem.jid && oldItem.isGroupInOfflineMode && newItem.isGroupInOfflineMode
-                    && oldItem.isGroupProfile == newItem.isGroupProfile && oldItem.isItSavedContact && newItem.isItSavedContact
+                    && oldItem.isGroupProfile == newItem.isGroupProfile && oldItem.contactType == newItem.contactType
                     && oldItem.isGroupAdmin && newItem.isGroupAdmin && oldItem.name == newItem.name
                     && oldItem.email == newItem.email && oldItem.groupCreatedTime == newItem.groupCreatedTime
                     && oldItem.image == newItem.image && oldItem.imagePrivacyFlag == newItem.imagePrivacyFlag

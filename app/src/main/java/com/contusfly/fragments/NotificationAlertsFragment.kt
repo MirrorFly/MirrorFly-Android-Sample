@@ -94,8 +94,6 @@ class NotificationAlertsFragment : Fragment(),View.OnClickListener {
                 displayMuteNotificationPreference()
                 SafeChatUtils.silentDisableSafeChat(requireContext())
             }
-            else -> {
-            }
         }
     }
 

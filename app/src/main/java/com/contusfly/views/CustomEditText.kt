@@ -71,7 +71,6 @@ class CustomEditText : AppCompatEditText {
     private fun setEditTextAttributes(set: AttributeSet?) {
         val a = context.obtainStyledAttributes(set, R.styleable.Emojicon)
         a.recycle()
-        text = text
     }
 
     /**

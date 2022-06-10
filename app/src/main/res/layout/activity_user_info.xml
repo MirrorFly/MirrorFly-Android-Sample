@@ -219,14 +219,24 @@
                     android:gravity="center_vertical"
                     android:paddingTop="@dimen/padding_20"
                     android:paddingBottom="@dimen/padding_20"
-                    android:text="@string/label_view_all_media"
-                    />
+                    android:text="@string/label_view_all_media" />
 
                 <View
-                    android:visibility="gone"
                     android:id="@+id/viewAllMediaDivider"
-                    style="@style/DividerStyle"
-                    />
+                    style="@style/DividerStyle" />
+
+                <com.contusfly.views.CustomTextView
+                    android:id="@+id/report_user"
+                    style="@style/Report_User_TitleMedium"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:drawableStart="@drawable/ic_report_user"
+                    android:drawablePadding="@dimen/padding_15"
+                    android:gravity="center_vertical"
+                    android:paddingTop="@dimen/padding_20"
+                    android:paddingBottom="@dimen/padding_20"
+                    android:text="@string/label_report"/>
 
             </LinearLayout>
 

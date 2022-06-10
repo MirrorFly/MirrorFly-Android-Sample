@@ -557,7 +557,7 @@ open class BaseMessageInfoActivity : BaseActivity(), CommonDialogClosedListener 
                 if (MediaChecker.isMediaAvailable(message)) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         startActivity(this, message.getMediaChatMessage().getMediaLocalStoragePath(), imgView)
-                    } else startActivity(Intent(this, ImageViewActivity::class.java)
+                    } else startActivity(Intent(this, ImageViewActivity::class.java).putExtra(Constants.GROUP_ID, groupJid)
                             .putExtra(Constants.MEDIA_URL, message.getMediaChatMessage().getMediaLocalStoragePath()))
                 }
             }

@@ -1,5 +1,7 @@
 package com.contusfly.fragments
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,6 +10,7 @@ import androidx.fragment.app.Fragment
 import com.contusfly.R
 import com.contusfly.activities.SettingsActivity
 import com.contusfly.databinding.FragmentAboutHelpBinding
+import com.contusfly.makeLinks
 import com.contusflysdk.AppUtils
 import com.contusflysdk.views.CustomToast
 
@@ -42,21 +45,31 @@ class AboutHelpFragment : Fragment(),View.OnClickListener {
 
     private fun setClickListeners() {
         binding.layoutAboutUs.setOnClickListener(this)
-        binding.layoutTermsPrivacyPolicy.setOnClickListener(this)
+        binding.layoutContactUs.setOnClickListener(this)
+
+        binding.txtTermsAndConditions.text = String.format(getString(R.string.terms_and_privacy_policy_label), getString(R.string.terms_and_condition_label), getString(R.string.privacy_policy_label))
+        binding.txtTermsAndConditions.makeLinks(
+            Pair(getString(R.string.terms_and_condition_label), View.OnClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.terms_and_conditions_link))))
+            }),
+            Pair(getString(R.string.privacy_policy_label), View.OnClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.privacy_policy_link))))
+            })
+        )
     }
 
-    override fun onClick(v: View) {
-        when (v.getId()) {
-            R.id.layout_about_us -> {
+    override fun onClick(view: View) {
+        when (view) {
+            binding.layoutAboutUs -> {
                 if (AppUtils.isNetConnected(activity))
-                    settingsActivity!!.performFragmentTransaction(ContactUsFragment.newInstance())
+                    settingsActivity!!.performFragmentTransaction(AboutUsFragment.newInstance())
                 else
                     CustomToast.show(
                         activity,
                         requireActivity().getString(R.string.msg_no_internet)
                     )
             }
-            R.id.layout_terms_privacy_policy -> settingsActivity!!.performFragmentTransaction(TermsAndConditionsFragment.newInstance())
+            binding.layoutContactUs ->  settingsActivity!!.performFragmentTransaction(ContactUsFragment.newInstance())
             else -> {
                 /* No Implementation Needed */
             }

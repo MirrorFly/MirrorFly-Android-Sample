@@ -316,7 +316,56 @@
         <item name="android:textColor">@color/color_error_message_gray</item>
         <item name="android:textSize">@dimen/text_size_16</item>
     </style>
+
+    <style name="CustomAlertDialog" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/popup_background</item>
+        <item name="android:colorAccent">@color/color_blue</item>
+    </style>
+
+    <style name="AdminBlockAlertDialogStyle" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:background">@color/color_white</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">
+            @color/color_blue
+        </item>
+        <item name="android:textColorPrimary">@color/text_color_black</item>
+        <item name="android:windowTitleSize">@style/AdminBlockAlertDialogTitleStyle</item>
+        <item name="android:layout_gravity">left</item>
+        <item name="android:gravity">left</item>
+    </style>
+
+    <style name="AdminBlockAlertDialogTitleStyle" parent="TextAppearance.AppCompat">
+        <item name="android:fontFamily">@font/sf_ui_display_semi_bold</item>
+        <item name="font_name">@font/sf_ui_display_semi_bold</item>
+        <item name="android:textColor">@color/text_color_black</item>
+        <item name="android:textSize">@dimen/text_size_16</item>
+    </style>
+
+    <style name="ReportUserAlertDialogStyle" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:background">@color/color_white</item>
+        <item name="android:colorAccent" tools:targetApi="lollipop">
+            @color/colorAccent
+        </item>
+        <item name="android:textColorPrimary">@color/text_black_dark</item>
+        <item name="android:windowTitleSize">@style/AlertDialogTitleStyle</item>
+        <item name="android:layout_gravity">left</item>
+        <item name="android:gravity">left</item>
+    </style>
+
+    <style name="ReportUserAlertDialogTitleStyle" parent="TextAppearance.AppCompat">
+        <item name="android:fontFamily">@font/sf_ui_display_semi_bold</item>
+        <item name="font_name">@font/sf_ui_display_semi_bold</item>
+        <item name="android:textColor">@color/text_black_dark</item>
+        <item name="android:textSize">@dimen/text_size_16</item>
+    </style>
     <!-- ENd AlertDialog -->
+
+    <style name="Report_User_TitleMedium">
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:fontFamily">@font/sf_ui_display_medium</item>
+        <item name="font_name">@font/sf_ui_display_medium</item>
+        <item name="android:textColor">@color/color_red_light</item>
+        <item name="android:textSize">@dimen/text_size_14</item>
+    </style>
 
     <style name="TextBoldStyle">
         <item name="font_name">@font/sf_ui_display_bold</item>
@@ -885,5 +934,10 @@
         <item name="android:scrollbarSize">@dimen/margin_5</item>
         <item name="android:scrollbarFadeDuration">800</item>
         <item name="android:scrollbarDefaultDelayBeforeFade">500</item>
+    </style>
+
+    <style name="spinnerHintTheme">
+        <item name="android:textColor">@color/text_black_dark</item>
+        <item name="android:textSize">@dimen/text_size_13</item>
     </style>
 </resources>

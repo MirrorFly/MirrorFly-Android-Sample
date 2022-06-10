@@ -19,10 +19,7 @@ import com.contus.webrtc.api.CallHelper
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.MissedCallListener
 import com.contus.call.utils.GroupCallUtils
-import com.contusfly.AppLifecycleListener
-import com.contusfly.BuildConfig
-import com.contusfly.R
-import com.contusfly.TAG
+import com.contusfly.*
 import com.contusfly.activities.BiometricActivity
 import com.contusfly.activities.PinActivity
 import com.contusfly.activities.StartActivity
@@ -209,6 +206,10 @@ class MobileApplication : Application(), HasAndroidInjector {
         CallManager.setCallHelper(object : CallHelper {
             override fun getDisplayName(jid: String): String {
                 return if (ContactManager.getProfileDetails(jid) != null) ContactManager.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
+            }
+
+            override fun isDeletedUser(jid: String): Boolean {
+                return ContactManager.getProfileDetails(jid)?.isDeletedContact() ?: false
             }
 
             override fun sendCallMessage(details: GroupCallDetails, users: List<String>, invitedUsers: List<String>) {

@@ -33,6 +33,7 @@ import java.io.File
  */
 object MediaUtils {
 
+    val tokenError = "Token refresh error"
     /**
      * Load image with [Drawable] as a placeholder.
      *
@@ -56,7 +57,7 @@ object MediaUtils {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?,
                                                   isFirstResource: Boolean): Boolean {
                             return if (e?.message != null && e.message!!.contains("FileNotFoundException")) {
-                                LogMessage.e("MediaUtils", "Token refresh error")
+                                LogMessage.e("MediaUtils", tokenError)
                                 true
                             } else
                                 false
@@ -193,8 +194,8 @@ object MediaUtils {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?,
                                                   isFirstResource: Boolean): Boolean {
                             return if (e?.message != null && e.message!!.contains("FileNotFoundException")) {
-                                LogMessage.e("MediaUtils", "Token refresh error")
-                                if (progressDialog!= null && progressDialog.isShowing) progressDialog.dismiss()
+                                LogMessage.e("MediaUtils", tokenError)
+                                dismissProgressDialog(progressDialog)
                                 true
                             } else {
                                 progressDialog?.dismiss()
@@ -204,15 +205,20 @@ object MediaUtils {
 
                         override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?,
                                                      dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                            if (progressDialog!= null && progressDialog.isShowing) progressDialog.dismiss()
+                            dismissProgressDialog(progressDialog)
                             return false
                         }
                     }).dontAnimate().dontTransform().into(imageView)
         } else {
             Glide.with(context).load(defaultImage).apply(options).into(imageView)
-            if(progressDialog!= null && progressDialog.isShowing) progressDialog.dismiss()
+            dismissProgressDialog(progressDialog)
         }
     }
+
+    private fun dismissProgressDialog(progressDialog: DoProgressDialog?){
+        if (progressDialog!= null && progressDialog.isShowing) progressDialog.dismiss()
+    }
+
 
     /**
      * Load image with glide with [Drawable] as a placeholder.
@@ -233,7 +239,7 @@ object MediaUtils {
                     .addListener(object : RequestListener<Drawable?> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
                             return if (e != null && e.message!!.contains("FileNotFoundException")) {
-                                LogMessage.e("MediaUtils", "Token refresh error")
+                                LogMessage.e("MediaUtils", tokenError)
                                 true
                             } else false
                         }

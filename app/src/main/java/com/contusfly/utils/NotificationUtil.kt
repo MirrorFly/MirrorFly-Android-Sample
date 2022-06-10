@@ -210,29 +210,11 @@ class NotificationUtil(private val context: Context) {
             val userProfile: ProfileDetails? = getProfileDetails(message.getSenderUserJid())
             name = userProfile?.name ?: Constants.EMPTY_STRING
             contentBuilder.append(GetMsgNotificationUtils.getMessageSummary(context, message))
-            val userProfileImage = getUserProfileImage(userProfile)
-            if (userProfile != null && userProfileImage != null) {
-                messagingStyle.addMessage(contentBuilder, message.getMessageSentTime(),
-                        Person.Builder().setName(name)
-                                .setIcon(IconCompat.createWithBitmap(userProfileImage)).build())
-            } else {
-                messagingStyle.addMessage(contentBuilder, message.getMessageSentTime(),
-                        Person.Builder().setName(name)
-                                .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher)).build())
-            }
+            notificationMessageStyle(profileDetails, messagingStyle, contentBuilder, message, name)
             lastMessage = contentBuilder.toString()
             lastMessageTime = if (message.getMessageSentTime().toString().length > 13) message.getMessageSentTime() / 1000 else message.getMessageSentTime()
         }
-        if (messages.size > 1) {
-            val appendMessagesLabel = " " + context.getString(R.string.messages_label) + ")"
-            if (profileDetails!!.isGroupProfile) {
-                title = title + " (" + messages.size + appendMessagesLabel
-                messagingStyle.setGroupConversation(true).conversationTitle = title
-            } else if (unreadChats <= 1) {
-                title = " (" + messages.size + appendMessagesLabel
-                messagingStyle.conversationTitle = title
-            }
-        } else if (profileDetails!!.isGroupProfile) messagingStyle.setGroupConversation(true).conversationTitle = title
+        setGroupConversationMessagingStyle(messages, title, messagingStyle)
         val notificationIntent = Intent(context, startActivity)
         notificationIntent.flags = (Intent.FLAG_ACTIVITY_CLEAR_TASK
                 or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -268,6 +250,39 @@ class NotificationUtil(private val context: Context) {
         val inlineMessageBuilder = title + " (" + messages.size + (if (messages.size == 1) " message): " else " messages): ") + lastMessage
         notificationInlineMessages.add(inlineMessageBuilder)
         notifications.add(notificationCompatBuilder.build())
+    }
+
+    private fun notificationMessageStyle(
+        profileDetails: ProfileDetails?,
+        messagingStyle: NotificationCompat.MessagingStyle,
+        contentBuilder: StringBuilder,
+        message: ChatMessage,
+        name: String
+    ) {
+        val userProfileImage = getUserProfileImage(profileDetails)
+        if (profileDetails != null && userProfileImage != null) {
+            messagingStyle.addMessage(contentBuilder, message.getMessageSentTime(),
+                Person.Builder().setName(name)
+                    .setIcon(IconCompat.createWithBitmap(userProfileImage)).build())
+        } else {
+            messagingStyle.addMessage(contentBuilder, message.getMessageSentTime(),
+                Person.Builder().setName(name)
+                    .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher)).build())
+        }
+    }
+
+    private fun setGroupConversationMessagingStyle(messages: List<ChatMessage>, title: String?, messagingStyle: NotificationCompat.MessagingStyle) {
+        if (messages.size > 1) {
+            val appendMessagesLabel = " " + context.getString(R.string.messages_label) + ")"
+            val modifiedTitle: String
+            if (profileDetails!!.isGroupProfile) {
+                modifiedTitle = title + " (" + messages.size + appendMessagesLabel
+                messagingStyle.setGroupConversation(true).conversationTitle = modifiedTitle
+            } else if (unreadChats <= 1) {
+                modifiedTitle = " (" + messages.size + appendMessagesLabel
+                messagingStyle.conversationTitle = modifiedTitle
+            }
+        } else if (profileDetails!!.isGroupProfile) messagingStyle.setGroupConversation(true).conversationTitle = title
     }
 
     /**
@@ -358,7 +373,7 @@ class NotificationUtil(private val context: Context) {
     @Synchronized
     fun setDrawable(profileDetails: ProfileDetails?): Drawable? {
         if (profileDetails != null && !profileDetails.isGroupProfile) {
-            return SetDrawable (context, profileDetails).setDrawable(profileDetails.nickName)!!
+            return SetDrawable (context, profileDetails).setDrawable(profileDetails.name)!!
         }
         return ContextCompat.getDrawable(context, R.drawable.ic_profile)
     }
@@ -375,9 +390,10 @@ class NotificationUtil(private val context: Context) {
      */
     init {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notificationChannelId = NotifyRefererUtils.buildNotificationChannel(context, notificationManager)
-        }
+        notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotifyRefererUtils.buildNotificationChannel(context, notificationManager)
+        } else
+            NotifyRefererUtils.getNotificationId()
         notificationIds = ArrayList()
         notificationInlineMessages = ArrayList()
         notifications = ArrayList()

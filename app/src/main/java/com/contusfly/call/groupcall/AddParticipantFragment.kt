@@ -266,12 +266,7 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
 
     fun refreshUsersList() {
         LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} refreshUsersList")
-        lifecycleScope.launchWhenStarted {
-            if (isAddUsersToOneToOneCall)
-                viewModel.getInviteUserList(callConnectedUserList)
-            else
-                viewModel.getInviteUserListForGroup(groupId, callConnectedUserList)
-        }
+        getRefreshedProfilesList()
     }
 
     fun refreshUser(jid: String) {
@@ -279,6 +274,33 @@ class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineS
         val index = mAdapter.profileDetailsList?.indexOfFirst { it.jid == jid }
         if (index != null && index.isValidIndex()) {
             updateProfileDetails(jid)
+        }
+    }
+
+    fun removeUser(jid: String) {
+        LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} removeUser")
+        mAdapter.removeUser(jid)
+    }
+
+    fun onAdminBlockedStatus(jid: String, type: String, status: Boolean) {
+        LogMessage.i(TAG, "OnAdminBlockedStatus jid = $jid, type = $type, status = $status")
+        if (status && mAdapter.selectedList.isNotEmpty()) {
+            val isJidSelected = mAdapter.selectedList.any { it == jid }
+            val index = mAdapter.selectedList.indexOf(jid)
+            if (isJidSelected && index.isValidIndex()) {
+                mAdapter.selectedList.removeAt(index)
+            }
+            addParticipantsTextView.text = selectedUserCount
+        }
+        getRefreshedProfilesList()
+    }
+
+    private fun getRefreshedProfilesList() {
+        lifecycleScope.launchWhenStarted {
+            if (isAddUsersToOneToOneCall)
+                viewModel.getInviteUserList(callConnectedUserList)
+            else
+                viewModel.getInviteUserListForGroup(groupId, callConnectedUserList)
         }
     }
 

@@ -1,14 +1,17 @@
 package com.contusfly.activities
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import com.google.android.material.tabs.TabLayout
 import androidx.viewpager.widget.ViewPager
+import com.contus.flycommons.ChatType
 import com.contusfly.R
 import com.contusfly.adapters.SectionsPagerAdapter
 import com.contusfly.databinding.ActivityViewAllMediaBinding
+import com.contusfly.showToast
 import com.contusfly.utils.Constants
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.viewmodels.ViewAllMediaViewModel
@@ -56,5 +59,20 @@ class ViewAllMediaActivity : BaseActivity() {
             viewModel.getDocsList(it)
             viewModel.getLinksList(it)
         }
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (profileId == jid && status && type == ChatType.TYPE_GROUP_CHAT) {
+            showToast(getString(R.string.group_block_message_label))
+            startDashboardActivity()
+        }
+    }
+
+    private fun startDashboardActivity() {
+        val dashboardIntent = Intent(applicationContext, DashboardActivity::class.java)
+        dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(dashboardIntent)
+        finish()
     }
 }

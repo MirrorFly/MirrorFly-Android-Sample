@@ -16,19 +16,18 @@ import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
-import com.contusfly.AppLifecycleListener
-import com.contusfly.R
-import com.contusfly.getChatType
 import com.contusfly.utils.*
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import com.contus.call.CallConstants
+import com.contus.flycommons.ChatType
 import com.contus.webrtc.api.CallManager
-import com.contusfly.BuildConfig
+import com.contusfly.*
 import com.contusfly.call.groupcall.GroupCallActivity
 import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
+import com.contusflysdk.api.contacts.ContactManager
 
 
 class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
@@ -110,7 +109,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
                     goToChatView(jid, chatType)
                 } else goToDashboard()
             } else goToDashboard()
-        }else if (intent.hasExtra(Constants.IS_FOR_SAFE_CHAT)){
+        } else if (intent.hasExtra(Constants.IS_FOR_SAFE_CHAT)){
             Log.d(TAG, getString(R.string.is_from_chat_shortcut))
             startActivities(
                 TaskStackBuilder.create(this)
@@ -124,36 +123,11 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
     }
 
     private fun goToDashboard() {
-        if (AppLifecycleListener.backPressedSP) startActivity(Intent(this, DashboardActivity::class.java)) else {
-            if (AppLifecycleListener.fromOnCreate && AppLifecycleListener.isPinEnabled) pinForDashBoard() else if (!AppLifecycleListener.isForeground && shouldShowPinOrNot()) {
-                if (SharedPreferenceManager.getBoolean(Constants.BIOMETRIC)) {
-                    SharedPreferenceManager.setString(Constants.APP_SESSION, System.currentTimeMillis().toString())
-                    val intent = Intent(this@StartActivity, BiometricActivity::class.java)
-                    intent.putExtra(GOTO, "DASHBOARD")
-                    startActivity(intent)
-                } else {
-                    SharedPreferenceManager.setString(Constants.APP_SESSION, System.currentTimeMillis().toString())
-                    pinForDashBoard()
-                }
-            } else if (AppLifecycleListener.pinActivityShowing)
-                pinForDashBoard()
-            else if (AppLifecycleListener.isForeground && AppLifecycleListener.isPinEnabled) pinForDashBoard() else startActivity(Intent(this, DashboardActivity::class.java)
-                .putExtra("fromDashboard", true).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
-        }
-    }
-
-    private fun pinForDashBoard() {
-        if (SharedPreferenceManager.getBoolean(Constants.BIOMETRIC)) {
-            val intent = Intent(this@StartActivity, BiometricActivity::class.java)
-            intent.putExtra(GOTO, "DASHBOARD")
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            ChatManager.applicationContext.startActivity(intent)
-        } else {
-            val intent = Intent(ChatManager.applicationContext, ChatManager.pinActivity)
-            intent.putExtra(GOTO, "DASHBOARD")
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            ChatManager.applicationContext.startActivity(intent)
-        }
+        if (AppLifecycleListener.backPressedSP) startActivity(Intent(this, DashboardActivity::class.java))
+        else
+            startActivity(Intent(this, DashboardActivity::class.java)
+                .putExtra("shouldShowPinOrNot", shouldShowPinOrNot())
+                .putExtra(Constants.FROM_SPLASH_SCREEN, true).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
     }
 
     private fun goToChatView(jid: String, chatType: String) {
@@ -174,7 +148,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
         } else if (AppLifecycleListener.pinActivityShowing) {
             SharedPreferenceManager.setString(Constants.APP_SESSION, System.currentTimeMillis().toString())
             pinForChatOrGroup(jid, chatType)
-        }else if (intent.hasExtra(Constants.IS_FOR_SAFE_CHAT)){
+        } else if (intent.hasExtra(Constants.IS_FOR_SAFE_CHAT)){
             Log.d(TAG, getString(R.string.is_from_chat_shortcut))
             startActivities(
                 TaskStackBuilder.create(this)
@@ -184,15 +158,27 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
                             .putExtra(Constants.IS_FOR_SAFE_CHAT, true)
                     ).intents
             )
-        }else {
-            if (intent.hasExtra(Constants.IS_FROM_CHAT_SHORTCUT)) {
-                Log.d(TAG, getString(R.string.is_from_chat_shortcut))
+        } else {
+            checkAndNavigateToDashboard(jid, chatType)
+        }
+    }
+
+    private fun checkAndNavigateToDashboard(jid: String, chatType: String) {
+        if (intent.hasExtra(Constants.IS_FROM_CHAT_SHORTCUT)) {
+            val profileDetails = ContactManager.getProfileDetails(jid)
+            Log.d(TAG, getString(R.string.is_from_chat_shortcut))
+            if (ChatType.TYPE_GROUP_CHAT == chatType && profileDetails != null && profileDetails.isAdminBlocked) {
+                startActivity(Intent(this, DashboardActivity::class.java)
+                    .setAction(Intent.ACTION_VIEW)
+                    .putExtra(Constants.CHAT_TYPE, chatType))
+                showToast(getString(R.string.group_block_message_label))
+            } else {
                 startActivities(
                     TaskStackBuilder.create(this)
                         .addNextIntent(
-                            Intent(this,DashboardActivity::class.java)
+                            Intent(this, DashboardActivity::class.java)
                                 .setAction(Intent.ACTION_VIEW)
-                                .putExtra(Constants.IS_FROM_CHAT_SHORTCUT, chatType)
+                                .putExtra(Constants.CHAT_TYPE, chatType)
                         ).addNextIntent(
                             Intent(this, ChatActivity::class.java)
                                 .setAction(Intent.ACTION_VIEW)
@@ -201,20 +187,20 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
                         )
                         .intents
                 )
-            } else {
-                startActivities(
-                    TaskStackBuilder.create(this)
-                        .addNextIntent(
-                            Intent(this, DashboardActivity::class.java).setAction(Intent.ACTION_VIEW)
-                        )
-                        .addNextIntent(
-                            Intent(this, ChatActivity::class.java).setAction(Intent.ACTION_VIEW)
-                                .putExtra(LibConstants.JID, jid)
-                                .putExtra(com.contus.flycommons.Constants.CHAT_TYPE, chatType)
-                        )
-                        .intents
-                )
             }
+        } else {
+            startActivities(
+                TaskStackBuilder.create(this)
+                    .addNextIntent(
+                        Intent(this, DashboardActivity::class.java).setAction(Intent.ACTION_VIEW)
+                    )
+                    .addNextIntent(
+                        Intent(this, ChatActivity::class.java).setAction(Intent.ACTION_VIEW)
+                            .putExtra(LibConstants.JID, jid)
+                            .putExtra(com.contus.flycommons.Constants.CHAT_TYPE, chatType)
+                    )
+                    .intents
+            )
         }
     }
 

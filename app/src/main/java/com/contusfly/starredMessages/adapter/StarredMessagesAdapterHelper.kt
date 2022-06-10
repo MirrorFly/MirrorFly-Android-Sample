@@ -137,8 +137,6 @@ class StarredMessagesAdapterHelper() : BaseChatAdapterHelper() {
                 view = inflater!!.inflate(R.layout.row_chat_notification_item, parent, false)
                 holder = NotificationViewHolder(view)
             }
-            else -> {
-            }
         }
         return holder
     }

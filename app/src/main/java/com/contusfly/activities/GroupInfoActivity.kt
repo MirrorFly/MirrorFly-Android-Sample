@@ -34,6 +34,7 @@ import com.contusfly.utils.RequestCode.CONTACT_PERMISSION_REQUEST_CODE
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusfly.views.TimerProgressDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatActionListener
@@ -156,6 +157,8 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         }
     }
 
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
     private val galleryPermissionLauncher =  registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -187,7 +190,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      * Alert dialog action mode to handle when the dialog closed
      */
     private enum class DIALOGMODE {
-        REMOVE_GROUP, EXIT_GROUP, DELETE_GROUP, MAKE_ADMIN, REMOVE_ADMIN, REMOVE_PHOTO
+        REMOVE_GROUP, EXIT_GROUP, DELETE_GROUP, MAKE_ADMIN, REMOVE_ADMIN, REMOVE_PHOTO, REPORT_GROUP
     }
 
 
@@ -249,6 +252,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             .putExtra(Constants.TITLE, com.contus.flycommons.getString(R.string.text_new_group_name))
             .putExtra(Constants.TYPE, Constants.GROUP_NAME_UPDATE)
             .putExtra(Constants.TEXT_COUNT, Constants.MAX_GROUP_NAME_COUNT)
+            .putExtra(Constants.USER_JID, groupProfileDetails.jid)
             .putExtra(Constants.MSG_TYPE_TEXT, groupProfileDetails.name), Constants.EDIT_REQ_CODE
         ) }
         binding.profileImage.setOnClickListener { openImageView() }
@@ -261,6 +265,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         groupMembersAdapter.onProfileClickedCallback{position,profile->
             listItemClicked(position,profile)
         }
+        binding.reportGroup.setOnClickListener { showReportMessagePopup() }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -529,20 +534,6 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         }
     }
 
-    private fun setAppBarOffset(offsetPx: Int) {
-        val params = mAppBarLayout.layoutParams as CoordinatorLayout.LayoutParams
-        val behavior = params.behavior as AppBarLayout.Behavior
-        behavior.onNestedPreScroll(
-            mCoordinatorLayout,
-            mAppBarLayout,
-            binding.nestedScrollView,
-            0,
-            offsetPx,
-            intArrayOf(0, 0),
-            0
-        )
-    }
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
@@ -574,6 +565,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                         CustomToast.show(context,getString(R.string.mgs_not_a_group_member))
                     }
                 DIALOGMODE.REMOVE_PHOTO -> revokeAccessForProfileImage()
+                DIALOGMODE.REPORT_GROUP -> reportGroup()
                 else -> {
                     /*
                     * No Implementation needed
@@ -581,6 +573,27 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                 }
             }
         }
+    }
+
+    private fun reportGroup() {
+        progressDialog = DoProgressDialog(this)
+        progressDialog.showProgress()
+        FlyCore.reportUserOrMessages(groupProfileDetails.jid, ChatType.TYPE_GROUP_CHAT) {isSuccess, _, data ->
+            if (isSuccess) {
+                showToast(getString(R.string.label_report_sent))
+            } else {
+                showToast(data.getMessage())
+            }
+            progressDialog.dismiss()
+        }
+    }
+
+    private fun showReportMessagePopup() {
+        dialogMode = DIALOGMODE.REPORT_GROUP
+        val reportLabel = getString(R.string.label_report)
+        val userName = "$reportLabel this group?"
+        mDialog!!.showAlertDialog(userName, getString(R.string.label_group_report_5_message), reportLabel,
+            getString(R.string.action_cancel), CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -701,6 +714,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             ), true) else activity?.let {
             MediaPermissions.requestCameraStoragePermissions(
                 it,
+                permissionAlertDialog,
                 cameraPermissionLauncher
             )
         }
@@ -715,6 +729,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         } else activity?.let {
             MediaPermissions.requestCameraStoragePermissions(
                 it,
+                permissionAlertDialog,
                 galleryPermissionLauncher
             )
         }
@@ -865,7 +880,10 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
+        refreshParticipantData(jid)
+    }
 
+    private fun refreshParticipantData(jid: String) {
         val isGroupMember = GroupManager.isMemberOfGroup(groupProfileDetails.jid, jid)
         if (isGroupMember) {
             val index = groupMembersList.indexOfFirst { it.jid == jid }
@@ -874,6 +892,14 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                 groupMembersAdapter.notifyItemChanged(index)
             }
         }
+    }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        refreshParticipantData(jid)
     }
 
     /**
@@ -1105,12 +1131,18 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        /* setting IS_ACTIVITY_STARTED_FOR_RESULT to false for  xmpp disconnection */
-        ChatManager.isActivityStartedForResult = false
-        if (resultCode == Activity.RESULT_OK)
-            handleOnActivityResult(requestCode, data)
-        else if (resultCode == Activity.RESULT_CANCELED)
+        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails.let {
+            if (it.isAdminBlocked) navigateToDashboard()
+            else {
+                /* setting IS_ACTIVITY_STARTED_FOR_RESULT to false for  xmpp disconnection */
+                ChatManager.isActivityStartedForResult = false
+                if (resultCode == Activity.RESULT_OK)
+                    handleOnActivityResult(requestCode, data)
+                else if (resultCode == Activity.RESULT_CANCELED)
                     isImageUpdate = false
+            }
+        }
     }
 
     /**
@@ -1317,4 +1349,15 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         }
     }
 
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (groupProfileDetails.jid == jid && status) {
+            navigateToDashboard()
+        } else loadAdapterData()
+    }
+
+    private fun navigateToDashboard() {
+        showToast(getString(R.string.group_block_message_label))
+        startDashboardActivity()
+    }
 }

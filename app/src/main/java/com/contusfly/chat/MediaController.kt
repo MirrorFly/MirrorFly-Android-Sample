@@ -20,6 +20,7 @@ import android.widget.TextView
 import com.contus.flycommons.Constants
 import com.contus.flycommons.LogMessage
 import com.contusfly.R
+import com.contusfly.TAG
 import com.contusfly.utils.ChatMessageUtils.getFormattedTime
 import com.contusfly.utils.MediaDetailUtils.getMediaDuration
 import com.contusflysdk.utils.Utils
@@ -112,7 +113,8 @@ class MediaController(private val context: Context) {
             if (mediaPlayer != null) {
                 mediaPlayer!!.seekTo(timeConsumed * progressMilliSeconds)
                 currentPosition = timeConsumed * progressMilliSeconds
-                txtTimer!!.text = getFormattedTime(timeConsumed / 10)
+                if (mediaPlayer!!.isPlaying)
+                    txtTimer!!.text = getFormattedTime(timeConsumed / 10)
             }
             seekBar.progress = timeConsumed
             timeConsumed++
@@ -165,6 +167,7 @@ class MediaController(private val context: Context) {
         imgPlay = imgPlayer
         this.duration = duration
         doesSentAudio = doesSentMessage
+        LogMessage.v(TAG, "#audio duration: duration:${duration}")
     }
 
     /**
@@ -231,6 +234,8 @@ class MediaController(private val context: Context) {
      * @param seekBar         the seek bar
      * @param txtTimer        the txt timer
      * @param position        the position
+     * @param doesSentMessage Boolean to identify whether the audio message is posted in the
+     * chat activity.
      */
     fun checkStateOfPlayer(imgPlay: ImageView, seekBar: SeekBar, txtTimer: TextView?,
                            position: Int) {
@@ -289,6 +294,9 @@ class MediaController(private val context: Context) {
 
     /**
      * Handle the player operations => pause => start => release
+     *
+     * @param doesSentMessage Boolean to identify whether the audio message is posted in the
+     * chat activity.
      */
     @SuppressLint("NewApi", "ClickableViewAccessibility")
     private fun handlePlayerOperations() {
@@ -296,6 +304,7 @@ class MediaController(private val context: Context) {
             currentPosition = mediaPlayer!!.currentPosition
             mediaPlayer!!.pause()
             abandonAudioFocus()
+            LogMessage.v(TAG, "#audio Paused: timeConsumed:${timeConsumed}")
             imgPlay!!.setImageResource(R.drawable.ic_play_audio_recipient)
             if (txtTimer != null) txtTimer!!.text = Utils.returnEmptyStringIfNull(getMediaDuration(context, duration))
             mHandler!!.removeCallbacks(songHandler.get()!!)
@@ -305,7 +314,8 @@ class MediaController(private val context: Context) {
                 mHandler!!.post(songHandler.get()!!)
                 mediaPlayer!!.start()
                 mediaPlayer!!.seekTo(currentPosition)
-                mediaPlayer!!.seekTo((mediaPlayer!!.currentPosition + Constants.ONE_SECOND).toInt())
+                mediaPlayer!!.seekTo(mediaPlayer!!.currentPosition)
+                LogMessage.v(TAG, "#audio Resumed: mediaPlayerCurrentPosition:${mediaPlayer!!.currentPosition} currentPosition:${currentPosition}")
                 imgPlay!!.setImageResource(R.drawable.ic_pause_audio_recipient)
             }
         } else {
@@ -320,18 +330,21 @@ class MediaController(private val context: Context) {
     /**
      * mediaPlayerListener Check the media player listener
      *
+     * @param doesSentMessage Boolean to identify whether the audio message is posted in the
+     * chat activity.
      */
     private fun mediaPlayerListener() {
         try {
             mediaPlayer!!.setOnPreparedListener { mp: MediaPlayer ->
                 lastUsedMedia = filePath
-                if (imgLastUsed != null) imgLastUsed!!.setImageResource(R.drawable.ic_play_audio_sender)
+                if (imgLastUsed != null) imgLastUsed!!.setImageResource(R.drawable.ic_play_audio_recipient)
                 mHandler!!.post(songHandler.get()!!)
                 imgPlay!!.setImageResource(R.drawable.ic_pause_audio_recipient)
                 getActivity(context)!!.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 val maxDuration = mediaPlayer!!.duration / progressMilliSeconds
-                timeConsumed = if (seekBar!!.max == 100 ) seekBar!!.progress * (maxDuration/100) else seekBar!!.progress
+                timeConsumed = if (seekBar!!.max == 100 ) (seekBar!!.progress * (maxDuration.toFloat()/100)).toInt() else seekBar!!.progress
                 seekBar!!.max = maxDuration
+                LogMessage.v(TAG, "#audio Played: maxDuration: ${maxDuration}, seekBarProgress:${seekBar!!.progress} timeConsumed:${timeConsumed}")
                 imgLastUsed = imgPlay
                 mediaPlayer!!.seekTo((timeConsumed * progressMilliSeconds))
                 currentPosition = mediaPlayer!!.currentPosition

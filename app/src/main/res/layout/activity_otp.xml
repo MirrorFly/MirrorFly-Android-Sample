@@ -157,7 +157,7 @@
                     android:paddingTop="@dimen/padding_10"
                     android:paddingEnd="@dimen/padding_40"
                     android:paddingBottom="@dimen/padding_10"
-                    android:text="@string/get_otp_label"
+                    android:text="@string/continue_label"
                     android:textColor="@android:color/white"
                     android:textSize="@dimen/text_size_14"
                     android:visibility="visible" />
@@ -242,6 +242,25 @@
                         android:visibility="visible" />
 
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/txt_terms_and_conditions_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/margin_24"
+                    style="@style/TextLightGreyStyle"
+                    android:textAlignment="center"
+                    android:text="@string/terms_and_condition_description_label"/>
+
+                <TextView
+                    android:id="@+id/txt_terms_and_conditions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAlignment="center"
+                    style="@style/TextSmallStyle"
+                    android:padding="@dimen/margin_4"
+                    android:textColor="?attr/blue_color"
+                    android:textColorLink="?attr/blue_color"/>
 
             </LinearLayout>
 

@@ -23,6 +23,7 @@ import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.MediaPermissions
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
@@ -67,6 +68,8 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
     private var lastSeenEnabled = true
 
     private var settingsUtil: SettingsUtil? = null
+
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(requireActivity()) }
 
     private val writePermissionRequestLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -271,7 +274,7 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
             }
             R.id.layout_auto_download -> {
                 if (!checkWriteExternalPermission()) {
-                    activity?.let { MediaPermissions.requestStorageAccess(it, writePermissionRequestLauncher) }
+                    activity?.let { MediaPermissions.requestStorageAccess(it, permissionAlertDialog, writePermissionRequestLauncher) }
                 } else {
                     SharedPreferenceManager.instance.storeBoolean(
                         SharedPreferenceManager.MEDIA_AUTO_DOWNLOAD,

@@ -1,15 +1,17 @@
 package com.contusfly.call.groupcall
 
 import android.app.ProgressDialog
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Menu
 import android.view.View
 import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,17 +21,19 @@ import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.CallManager.isOnTelephonyCall
 import com.contus.call.utils.CallConstants
-import com.contusfly.R
+import com.contus.flycommons.LogMessage
+import com.contusfly.*
 import com.contusfly.activities.BaseActivity
 import com.contusfly.call.CallPermissionUtils
 import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
-import com.contusfly.isOnAnyCall
-import com.contusfly.showAlertDialog
+import com.contusfly.interfaces.PermissionDialogListener
 import com.contusfly.utils.FirebaseUtils.Companion.setAnalytics
+import com.contusfly.utils.MediaPermissions
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomRecyclerView
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
@@ -50,11 +54,17 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
     private lateinit var callNowTextView: TextView
     private lateinit var callNowLayout: RelativeLayout
     private lateinit var callNowIcon: ImageView
+    private var handler: Handler? = null
 
     /**
      * The adapter of the contacts for group creation selection.
      */
     private var adapterUsers: UserSelectionAdapter? = null
+
+    /**
+     * Selected users
+     */
+    var selectedUsersList: ArrayList<String> = ArrayList()
 
     /**
      * The instance of the CommonAlertDialog
@@ -84,6 +94,33 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
     private lateinit var callType: String
     private lateinit var groupJid: String
 
+    lateinit var callPermissionUtils: CallPermissionUtils
+
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
+    private val requestCallPermissions: ActivityResultLauncher<Array<String>> =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            // Do something if some permissions granted or denied
+            if (!permissions.containsValue(false)) {
+                if (callType == CallType.AUDIO_CALL) {
+                    callPermissionUtils.audioCall()
+                } else {
+                    callPermissionUtils.videoCall()
+                }
+            } else {
+                callNowLayout.isEnabled = true
+            }
+        }
+
+    private val permissionDeniedListener = object : PermissionDialogListener {
+        override fun onPositiveButtonClicked() {
+            //Not Needed
+        }
+
+        override fun onNegativeButtonClicked() {
+            callNowLayout.isEnabled = true
+        }
+    }
     /**
      * Display the list of profile details in the list
      */
@@ -101,6 +138,7 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         UserInterfaceUtils.setUpToolBar(this, toolbar, supportActionBar, getString(R.string.add_participants))
+        handler = Handler(Looper.getMainLooper())
 
         /*
        * Populate the list for display the contacts
@@ -131,33 +169,45 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
     private fun updateGroupMembersList() {
         GroupManager.getGroupMembersList(false, groupJid) { isSuccess, _, data ->
             if (isSuccess) {
-                val groupMembers: MutableList<ProfileDetails> =
-                    data.getData() as ArrayList<ProfileDetails>
-                profileDetailsList =
-                    groupMembers.filter { it.jid != SharedPreferenceManager.getCurrentUserJid() }
-                        .toMutableList()
+                val groupMembers: MutableList<ProfileDetails> = data.getData() as ArrayList<ProfileDetails>
+                filterGroupMembers(groupMembers)
 
                 if (contusProfilesWithBlockedMe != null) profileDetailsList!!.addAll(contusProfilesWithBlockedMe!!)
 
                 profileDetailsList!!.sortWith { o1: ProfileDetails, o2: ProfileDetails ->
                     o1.name.compareTo(o2.name)
                 }
-                adapterUsers = UserSelectionAdapter(this, false)
-                adapterUsers!!.setProfileDetails(profileDetailsList!!)
-                adapterUsers!!.setRecyclerViewUsersItemOnClick(this)
-                /*
-                 * if group users less than max user in call all the users will be  auto selected
-                 */
-                if ((profileDetailsList!!.size + 1) <= CallManager.getMaxCallUsersCount()) {
-                    profileDetailsList?.forEach { roster ->
-                        if (!roster.isBlocked) {
-                            adapterUsers!!.selectedList.add(roster.jid)
-                            adapterUsers!!.selectedProfileDetailsList.add(roster)
-                        }
-                    }
+                updateSelectionAdapter(profileDetailsList!!)
+            }
+        }
+    }
+
+    private fun updateSelectionAdapter(profileDetailsList: MutableList<ProfileDetails>) {
+        adapterUsers = UserSelectionAdapter(this, false)
+        adapterUsers!!.setProfileDetails(profileDetailsList)
+        adapterUsers!!.setRecyclerViewUsersItemOnClick(this)
+        /*
+         * if group users less than max user in call all the users will be  auto selected
+         */
+        if ((profileDetailsList.size + 1) <= CallManager.getMaxCallUsersCount()) {
+            profileDetailsList?.forEach { roster ->
+                if (!roster.isBlocked) {
+                    if (selectedUsersList.isNullOrEmpty()) adapterUsers!!.selectedList.add(roster.jid) else adapterUsers!!.selectedList = selectedUsersList
+                    adapterUsers!!.selectedProfileDetailsList.add(roster)
                 }
-                callNowTextView.text = selectedUserCount
-                listRosters.adapter = adapterUsers
+            }
+        }
+        callNowTextView.text = selectedUserCount
+        listRosters.adapter = adapterUsers
+    }
+
+    private fun filterGroupMembers(groupMembers: MutableList<ProfileDetails>){
+        val filteredMembers = groupMembers.filter { it.jid != SharedPreferenceManager.getCurrentUserJid() }
+            .toMutableList()
+        profileDetailsList = mutableListOf()
+        filteredMembers.forEach { contact ->
+            if (!contact.isAdminBlocked) {
+                profileDetailsList!!.add(contact)
             }
         }
     }
@@ -188,7 +238,7 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
             if (AppUtils.isNetConnected(this)) {
                 progressDialog = ProgressDialog(this)
                 progressDialog!!.show()
-                FlyCore.unblockUser(blockedUserJid!!) { isSuccess, _, _ -> }
+                FlyCore.unblockUser(blockedUserJid!!) { _, _, _ -> }
                 isUnblockRequested = true
             } else CustomToast.show(this, getString(R.string.fly_error_msg_no_internet))
         }
@@ -232,7 +282,7 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
      */
     private val selectedUserCount: String
         get() {
-            return if (adapterUsers!!.selectedList.isEmpty()) {
+            return if (adapterUsers?.selectedList?.isEmpty() != false) {
                 callNowLayout.isEnabled = false
                 getString(R.string.msg_no_selected_user_call)
             } else {
@@ -251,22 +301,17 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
 
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
+        if (adapterUsers?.selectedList?.isEmpty() != null)
+            selectedUsersList = adapterUsers!!.selectedList
         updateGroupMembersList()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (grantResults.isNotEmpty() && !grantResults.contains(PackageManager.PERMISSION_DENIED)) {
-            when (requestCode) {
-                Constants.RECORD_AUDIO_CODE -> {
-                    CallPermissionUtils(this, false, adapterUsers!!.selectedList, groupJid, true).audioCall()
-                }
-                Constants.VIDEO_CALL_PERMISSION_CODE -> {
-                    CallPermissionUtils(this, false, adapterUsers!!.selectedList, groupJid, true).videoCall()
-                }
-            }
-        }
-        callNowLayout.isEnabled = true
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        updateGroupMembersList()
     }
 
     /**
@@ -285,16 +330,62 @@ class UsersSelectionActivity : BaseActivity(), RecyclerViewUserItemClick, View.O
                     showAlertDialog(this, getString(R.string.msg_ongoing_call_alert_for_group_call))
                 }
                 else -> {
-                    callNowLayout.isEnabled = false
-                    if (callType == CallType.AUDIO_CALL) {
-                        CallPermissionUtils(this, false, adapterUsers!!.selectedList, groupJid, true).audioCall()
-                    } else {
-                        CallPermissionUtils(this, false, adapterUsers!!.selectedList, groupJid, true).videoCall()
-                    }
+                    makeCall()
                 }
             }
         } else {
             Toast.makeText(context, context!!.getString(R.string.error_select_atleast_one), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun makeCall() {
+        callNowLayout.isEnabled = false
+        if (callType == CallType.AUDIO_CALL) {
+            callPermissionUtils = CallPermissionUtils(this, false, false, adapterUsers!!.selectedList, groupJid, true)
+            if (CallManager.isAudioCallPermissionsGranted()) {
+                callPermissionUtils.audioCall()
+            } else {
+                MediaPermissions.requestAudioCallPermissions(
+                    this,
+                    permissionAlertDialog,
+                    requestCallPermissions,
+                    permissionDeniedListener
+                )
+            }
+        } else {
+            callPermissionUtils = CallPermissionUtils(this, false, false, adapterUsers!!.selectedList, groupJid, true)
+            if (CallManager.isVideoCallPermissionsGranted()) {
+                callPermissionUtils.videoCall()
+            } else {
+                MediaPermissions.requestVideoCallPermissions(
+                    this,
+                    permissionAlertDialog,
+                    requestCallPermissions,
+                    permissionDeniedListener
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        selectedUserCount
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        LogMessage.d(TAG, "#onAdminBlockedStatus jid == $jid status == $status")
+        //To avoid multiple callbacks
+        handler?.postDelayed({
+            if (adapterUsers?.selectedList?.isEmpty() != null) {
+                val index = adapterUsers!!.selectedList.indexOfFirst { it == jid }
+                val isJidAvailable = adapterUsers!!.selectedList.any { it == jid }
+                if (status && isJidAvailable && index.isValidIndex()) {
+                    adapterUsers!!.selectedList.removeAt(index)
+                }
+                selectedUsersList = adapterUsers!!.selectedList
+            }
+            updateGroupMembersList()
+        }, 500)
     }
 }

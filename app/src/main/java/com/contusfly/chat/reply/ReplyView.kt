@@ -83,7 +83,7 @@ class ReplyView {
                         txtChatReply?.text = MediaDetailUtils.getMediaDuration(context, replyMessage.getMediaChatMessage().getMediaDuration())
                         imgSenderMessageType?.gone()
                         imgSenderImageVideoPreview?.show()
-                        imgSenderMessageType?.setImageResource(getAudioResource(replyMessage))
+                        imgSenderImageVideoPreview?.setImageResource(getAudioResource(replyMessage))
                     }
                 }
                 MessageType.DOCUMENT -> {
@@ -182,7 +182,7 @@ class ReplyView {
                         txtChatReceivedReply?.text = MediaDetailUtils.getMediaDuration(context, replyMessage.getMediaChatMessage().getMediaDuration())
                         imgReceivedReplyMessageType?.gone()
                         imgReceivedReplyImageVideoPreview?.show()
-                        imgReceivedReplyMessageType?.setImageResource(getAudioResource(replyMessage))
+                        imgReceivedReplyImageVideoPreview?.setImageResource(getAudioResource(replyMessage))
                     }
                 }
                 MessageType.DOCUMENT -> {

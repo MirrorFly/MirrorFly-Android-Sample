@@ -37,6 +37,7 @@ class MessageRepository {
     private var canBeCopied = true
     private var canBeCopiedSet = false
     private var canShowInfo = true
+    private var canShowReport = true
 
     private fun getMessageListWithDate(messageList: List<ChatMessage>): List<ChatMessage> {
         val dateList = ArrayList<ChatMessage>()
@@ -154,6 +155,7 @@ class MessageRepository {
         canBeReplied = true
         canBeCopiedSet = false
         canShowInfo = true
+        canShowReport = true
     }
 
     fun handleActionMenuVisibilityValidation(messages: ArrayList<String>): HashMap<String, Boolean> {
@@ -169,6 +171,7 @@ class MessageRepository {
         canBeShared = availableMessageActions.canBeShared
         canBeReplied = availableMessageActions.canBeReplied
         canShowInfo = availableMessageActions.canShowMessageInfo
+        canShowReport = availableMessageActions.canShowMessageReport
 
         for (messageId in messages)
             validateMessage(FlyMessenger.getMessageOfId(messageId))
@@ -182,6 +185,7 @@ class MessageRepository {
         menuHashMap[Constants.REPLY] = canBeReplied
         menuHashMap[Constants.COPY] = canBeCopied
         menuHashMap[Constants.INFO] = canShowInfo
+        menuHashMap[Constants.REPORT] = canShowReport
         return menuHashMap
     }
 

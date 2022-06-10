@@ -99,6 +99,7 @@ class BiometricActivity : BaseActivity(), BiometricCallback {
         }
         setContentView(R.layout.activity_biometric)
         getIntentExtras()
+        SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.IS_PIN_VALIDATED, true)
     }
 
     override fun onSdkVersionNotSupported() {
@@ -191,6 +192,7 @@ class BiometricActivity : BaseActivity(), BiometricCallback {
             finish()
         } else {
             SharedPreferenceManager.setInt("Wrong_password_count", 0)
+            SharedPreferenceManager.setBoolean(Constants.IS_PIN_VALIDATED, false)
             checkAndRedirect()
         }
     }
@@ -294,6 +296,13 @@ class BiometricActivity : BaseActivity(), BiometricCallback {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == INTENT_AUTHENTICATE && resultCode == RESULT_OK) {
             pinForDashBoard()
+        }
+    }
+
+    override fun onAdminBlockedUser(jid: String, status: Boolean) {
+        super.onAdminBlockedUser(jid, status)
+        if (status) {
+            mBiometricManager!!.closeBiometricDialogIfOpened()
         }
     }
 }

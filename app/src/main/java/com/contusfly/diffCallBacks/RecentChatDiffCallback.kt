@@ -31,26 +31,31 @@ class RecentChatDiffCallback(private val oldList: List<RecentChat>, private val 
             val oldItem = oldList[oldItemPosition]
             val newItem = newList[newItemPosition]
 
-            val bundle = Bundle()
-
-            if (oldItem.lastMessageId != newItem.lastMessageId || oldItem.lastMessageTime != newItem.lastMessageTime
-                    || SharedPreferenceManager.getBoolean(Constants.IS_TIME_FORMAT_CHANGED)) //Update recent chat row if device time format changes
-                bundle.putInt(Constants.NOTIFY_MESSAGE_UPDATE, 1)
-            if (oldItem.profileName != newItem.profileName)
-                bundle.putInt(Constants.NOTIFY_USER_NAME, 1)
-            if (oldItem.isBlockedMe != newItem.isBlockedMe || oldItem.profileImage != newItem.profileImage)
-                bundle.putInt(Constants.NOTIFY_PROFILE_ICON, 1)
-            if (oldItem.unreadMessageCount != newItem.unreadMessageCount)
-                bundle.putInt(Constants.NOTIFY_UNREAD_ICON, 1)
-            if (oldItem.isMuted != newItem.isMuted)
-                bundle.putInt(Constants.NOTIFY_MUTE_UNMUTE, 1)
-            if (oldItem.isChatPinned != newItem.isChatPinned)
-                bundle.putInt(Constants.NOTIFY_PINNED_ICON, 1)
+            val bundle = getChangePayloadAsBundle(oldItem, newItem)
 
             if (bundle.keySet().isNotEmpty())
                 return bundle
         }
         return super.getChangePayload(oldItemPosition, newItemPosition)
+    }
+
+    private fun getChangePayloadAsBundle(oldItem: RecentChat, newItem: RecentChat): Bundle {
+        val bundle = Bundle()
+        if (oldItem.lastMessageId != newItem.lastMessageId || oldItem.lastMessageTime != newItem.lastMessageTime
+            || SharedPreferenceManager.getBoolean(Constants.IS_TIME_FORMAT_CHANGED)) //Update recent chat row if device time format changes
+            bundle.putInt(Constants.NOTIFY_MESSAGE_UPDATE, 1)
+        if (oldItem.profileName != newItem.profileName)
+            bundle.putInt(Constants.NOTIFY_USER_NAME, 1)
+        if (oldItem.isBlockedMe != newItem.isBlockedMe || oldItem.profileImage != newItem.profileImage)
+            bundle.putInt(Constants.NOTIFY_PROFILE_ICON, 1)
+        if (oldItem.unreadMessageCount != newItem.unreadMessageCount)
+            bundle.putInt(Constants.NOTIFY_UNREAD_ICON, 1)
+        if (oldItem.isMuted != newItem.isMuted)
+            bundle.putInt(Constants.NOTIFY_MUTE_UNMUTE, 1)
+        if (oldItem.isChatPinned != newItem.isChatPinned)
+            bundle.putInt(Constants.NOTIFY_PINNED_ICON, 1)
+
+        return bundle
     }
 
     override fun getOldListSize() = oldList.size

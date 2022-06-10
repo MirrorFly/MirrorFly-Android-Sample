@@ -1,138 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/color_white"
+    android:orientation="vertical"
     android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="@dimen/padding_18">
 
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_child"
-            android:lineSpacingExtra="7dp"
-            android:text="@string/title_contact_msg"
-            app:font_name="@string/font_roboto_regular" />
-
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_header"
-            android:fontFamily="@font/sf_ui_display_bold"
-            android:lineSpacingExtra="7dp"
-            android:textStyle="bold"
-            android:text="@string/title_contact_us"
-            app:fontFamily="@font/sf_ui_display_bold"
-            app:font_name="@string/font_roboto_bold" />
-
-
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_child"
-            android:lineSpacingExtra="7dp"
-            android:text="@string/title_contact_msg_time"
-            app:font_name="@string/font_roboto_regular" />
-
-
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_header"
-            android:text="@string/title_call"
-            android:lineSpacingExtra="7dp"
-            app:font_name="@string/font_roboto_bold"
-            android:visibility="gone"/>
-
-        <com.contusfly.views.CustomTextView
-            android:id="@+id/text_call_one"
-            style="@style/style_contact_us_child"
+        <TextView
+            style="@style/ResendTextStyle"
             android:layout_width="wrap_content"
-            android:text="@string/title_call_no_one"
-            android:textColor="@color/grey"
-            android:lineSpacingExtra="7dp"
-            app:font_name="@string/font_roboto_bold"
-            android:visibility="gone"/>
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/margin_4"
+            android:text="@string/label_title" />
 
-
-        <com.contusfly.views.CustomTextView
-            android:id="@+id/text_call_two"
-            style="@style/style_contact_us_child"
-            android:layout_width="wrap_content"
-            android:layout_marginTop="5dp"
-            android:lineSpacingExtra="7dp"
-            android:text="@string/title_call_no_two"
-            android:textColor="@color/grey"
-            app:font_name="@string/font_roboto_bold"
-            android:visibility="gone"/>
-
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_header"
-            android:text="@string/title_support"
-            android:lineSpacingExtra="7dp"
-            app:font_name="@string/font_roboto_bold"
-            android:visibility="gone"/>
-
-
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_child"
-            android:lineSpacingExtra="7dp"
-            android:text="@string/title_support_msg"
-            app:font_name="@string/font_roboto_regular"
-            android:visibility="gone"/>
-
-
-        <LinearLayout
+        <androidx.appcompat.widget.AppCompatEditText
+            android:id="@+id/title_edit_text"
+            style="@style/ProfileValueStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:orientation="horizontal"
-            android:visibility="gone">
+            android:background="?attr/white_color"
+            android:inputType="textCapSentences|textMultiLine"
+            android:maxLength="100"
+            android:paddingTop="@dimen/margin_13"
+            android:paddingBottom="@dimen/margin_8"
+            android:textSize="@dimen/text_size_14" />
 
-            <com.contusfly.views.CustomTextView
-                style="@style/style_contact_us_child"
-                android:layout_width="wrap_content"
-                android:layout_marginTop="0dp"
-                android:lineSpacingExtra="7dp"
-                android:text="@string/title_drop_mail_to"
-                app:font_name="@string/font_roboto_regular" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.2dp"
+            android:background="@color/color_list_divider_color" />
 
-            <com.contusfly.views.CustomTextView
-                android:id="@+id/text_mail"
-                style="@style/style_contact_us_child"
-                android:layout_width="wrap_content"
-                android:layout_marginLeft="5dp"
-                android:lineSpacingExtra="7dp"
-                android:layout_marginTop="0dp"
-                android:text="@string/title_mail_id"
-                android:textColor="@color/grey"
-                app:font_name="@string/font_roboto_regular" />
+        <TextView
+            style="@style/ResendTextStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/margin_22"
+            android:text="@string/feedback_description" />
 
-        </LinearLayout>
+        <androidx.appcompat.widget.AppCompatEditText
+            android:id="@+id/description_edit_text"
+            style="@style/ProfileValueStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/white_color"
+            android:inputType="textCapSentences|textMultiLine"
+            android:maxLength="512"
+            android:paddingTop="@dimen/margin_13"
+            android:paddingBottom="@dimen/margin_8"
+            android:textSize="@dimen/text_size_14" />
 
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_header"
-            android:text="@string/title_faq"
-            android:fontFamily="@font/sf_ui_display_bold"
-            android:lineSpacingExtra="7dp"
-            android:textStyle="bold"
-            app:fontFamily="@font/sf_ui_display_bold"
-            app:font_name="@string/font_roboto_bold" />
-
-        <com.contusfly.views.CustomTextView
-            style="@style/style_contact_us_header"
-            android:lineSpacingExtra="7dp"
-            android:text="@string/title_faq_msg"
-            app:font_name="@string/font_roboto_regular" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.2dp"
+            android:background="@color/color_list_divider_color" />
 
         <com.contusfly.views.CustomTextView
-            android:id="@+id/text_link"
-            android:lineSpacingExtra="7dp"
-            style="@style/style_contact_us_header"
-            android:paddingBottom="15dp"
-            android:text="@string/title_contus_fly"
-            android:textColor="@color/grey"
-            app:font_name="@string/font_roboto_bold" />
-
+            android:id="@+id/send_button"
+            style="@style/NewTextSemiBoldMediumStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/margin_45"
+            android:background="@drawable/bg_button_shape"
+            android:focusable="false"
+            android:gravity="center"
+            android:paddingStart="@dimen/padding_40"
+            android:paddingTop="@dimen/padding_10"
+            android:paddingEnd="@dimen/padding_40"
+            android:paddingBottom="@dimen/padding_10"
+            android:text="@string/action_send"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/text_size_14"
+            android:visibility="visible" />
     </LinearLayout>
 
 </ScrollView>

@@ -185,6 +185,7 @@ class Constants {
         const val REPLY = "reply"
         const val INFO = "info"
         const val COPY = "copy"
+        const val REPORT = "report"
         const val STAR = "star"
         const val UNSTAR = "unstar"
         val CONTENT_URI = Uri.parse("content://eu.janmuller.android.simplecropimage.contus-fly/")
@@ -215,7 +216,6 @@ class Constants {
         const val TYPE_NOTIFICATION = 3
         const val IS_STARRED_MESSAGE = "Starred_Message"
         const val STORAGE_PERMISSION_CODE = 233
-        const val CAMERA_PERMISSION_CODE = 236
         const val QR_CAMERA_PERMISSION_CODE = 2001
 
 
@@ -229,6 +229,7 @@ class Constants {
 
         const val LOCATION_PERMISSION_ASKED = "location_permission_asked_before"
         const val CONTACT_PERMISSION_ASKED = "contact_permission_asked_before"
+        const val CONTACT_SAVE_PERMISSION_ASKED = "contact_save_permission_asked_before"
         const val CAMERA_PERMISSION_ASKED = "camera_permission_asked_before"
         const val STORAGE_PERMISSION_ASKED = "storage_permission_asked_before"
         const val AUDIO_RECORD_PERMISSION_ASKED = "audio_record_permission_asked_before"
@@ -293,6 +294,8 @@ class Constants {
         const val SEEKER_POS = "seeker_pos_in_sec"
         const val FROM_GROUP_INFO = "from_group_info"
         const val FROM_SPLASH_SCREEN = "fromSplashScreen"
+        const val FROM_ADMIN_BLOCK_SCREEN = "fromAdminBlockScreen"
+        const val IS_PIN_VALIDATED = "fromAdminBlockScreen"
 
         val NOTIFICATION_SOUND: String = PACKAGE_NAME + "notification_sound"
         val NOTIFICATION_POPUP: String = PACKAGE_NAME + "notification_popup"

@@ -5,6 +5,7 @@ object AppConstants {
     const val SEND_TO = "send_to"
     const val MAX_MEDIA_SELECTION_RESTRICTION = "max_media_selection_restriction"
     const val NOTIFY_PROFILE_ICON = "notify_profile_icon"
+    const val NOTIFY_ADMIN_BLOCK = "notify_admin_block"
     const val NOTIFY_SELECTION = "notify_selection"
     const val NOTIFY_IS_SELECTED = "notify_is_selected"
     const val MY_JID = "my_jid"

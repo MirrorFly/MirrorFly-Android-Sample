@@ -10,7 +10,9 @@ import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Build
-import android.text.TextUtils
+import android.text.*
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -18,6 +20,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
+import android.widget.TextView
 import androidx.annotation.IdRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.annotation.ColorInt
@@ -30,7 +33,6 @@ import com.contus.flycommons.ChatType
 import com.contus.flycommons.ChatTypeEnum
 import com.contus.flycommons.Constants
 import com.contus.call.utils.GroupCallUtils
-import com.contusfly.call.CallConfiguration
 import com.contusfly.chat.AndroidUtils
 import com.contusfly.utils.DebounceOnClickListener
 import com.contusfly.utils.MediaUtils
@@ -186,6 +188,8 @@ fun Boolean.ifElse(functionOne: () -> Unit, functionTwo: () -> Unit) {
         functionTwo()
 }
 
+fun RecentChat.isItSavedContact() = contactType == ContactType.LIVE_CONTACT
+fun RecentChat.isDeletedContact() = contactType == ContactType.DELETED_CONTACT
 fun RecentChat.isSingleChat() = !isGroup && !isBroadCast
 
 fun String?.returnEmptyIfNull() = this ?: Constants.EMPTY_STRING
@@ -222,10 +226,10 @@ val Any.TAG: String
 fun AppCompatImageView.loadUserProfileImage(context: Context, recentChat: RecentChat) {
     val drawable: Drawable?
     var imageUrl = recentChat.profileImage ?: Constants.EMPTY_STRING
-    if (recentChat.isBlockedMe) {
+    if (recentChat.isBlockedMe || recentChat.isAdminBlocked) {
         imageUrl = Constants.EMPTY_STRING
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
-    } else if (!recentChat.isItSavedContact) {
+    } else if (!recentChat.isItSavedContact() || recentChat.isDeletedContact()) {
         imageUrl = recentChat.profileImage ?: Constants.EMPTY_STRING
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
     } else if (TextUtils.isEmpty(imageUrl) || this.drawable == null)
@@ -241,8 +245,11 @@ fun AppCompatImageView.loadUserProfileImage(context: Context, recentChat: Recent
 fun ImageView.loadUserProfileImage(context: Context, profileDetails: ProfileDetails) {
     val drawable: Drawable?
     var imageUrl = profileDetails.image ?: Constants.EMPTY_STRING
-    if (profileDetails.isBlockedMe) {
+    if (profileDetails.isBlockedMe || profileDetails.isAdminBlocked) {
         imageUrl = Constants.EMPTY_STRING
+        drawable = CustomDrawable(context).getDefaultDrawable(profileDetails)
+    } else if (profileDetails.isDeletedContact()) {
+        imageUrl = profileDetails.image ?: Constants.EMPTY_STRING
         drawable = CustomDrawable(context).getDefaultDrawable(profileDetails)
     } else if (TextUtils.isEmpty(imageUrl) || this.drawable == null)
         drawable = CustomDrawable(context).getDefaultDrawable(profileDetails)
@@ -260,10 +267,10 @@ fun CustomDrawable.getDefaultDrawable(recentChat: RecentChat): Drawable {
         recentChat.isGroup -> this.context.getDefaultDrawable(ChatType.TYPE_GROUP_CHAT)
         else -> {
             val profileDetails:ProfileDetails? = ContactManager.getProfileDetails(recentChat.jid)
-            if(profileDetails?.isBlockedMe!!){
+            if(profileDetails?.isBlockedMe!! || profileDetails.isAdminBlocked || profileDetails.isDeletedContact()){
                 this.context.getDefaultDrawable(profileDetails.getChatType())
             }else{
-                SetDrawable (context, profileDetails)!!.setDrawable(profileDetails.name)!!
+                SetDrawable (context, profileDetails).setDrawable(profileDetails.name)!!
             }
         }
     }
@@ -274,8 +281,8 @@ fun CustomDrawable.getDefaultDrawable(profileDetails: ProfileDetails): Drawable 
     return when {
         profileDetails.isGroupProfile -> this.context.getDefaultDrawable(ChatType.TYPE_GROUP_CHAT)
         else -> {
-            if(!profileDetails.isBlockedMe)
-                SetDrawable (context, profileDetails)!!.setDrawable(profileDetails.name)!!
+            if(!profileDetails.isBlockedMe && !profileDetails.isAdminBlocked && !profileDetails.isDeletedContact())
+                SetDrawable (context, profileDetails).setDrawable(profileDetails.name)!!
             else
                 this.context.getDefaultDrawable(profileDetails.getChatType())
         }
@@ -426,6 +433,8 @@ fun Chat.getUsername(): String {
     }
 }
 
+fun ProfileDetails.isItSavedContact() = contactType == ContactType.LIVE_CONTACT
+fun ProfileDetails.isDeletedContact() = contactType == ContactType.DELETED_CONTACT
 fun ProfileDetails.getChatType(): String {
     return when {
         isGroupProfile -> ChatType.TYPE_GROUP_CHAT
@@ -499,12 +508,38 @@ fun profileNameCharValidation(name: String): Boolean {
     return name.length >= 3
 }
 
-fun View.setVisibile(isVisible: Boolean) {
-    if (isVisible) {
-        visibility = View.VISIBLE
+fun View.setVisible(isVisible: Boolean) {
+    visibility = if (isVisible) {
+        View.VISIBLE
     } else {
-        visibility = View.GONE
+        View.GONE
     }
+}
+
+fun TextView.makeLinks(vararg links: Pair<String, View.OnClickListener>) {
+    val spannableString = SpannableString(this.text)
+    var startIndexOfLink = -1
+    for (link in links) {
+        val clickableSpan = object : ClickableSpan() {
+            override fun updateDrawState(textPaint: TextPaint) {
+                textPaint.color = textPaint.linkColor
+                textPaint.isUnderlineText = true
+            }
+
+            override fun onClick(view: View) {
+                Selection.setSelection((view as TextView).text as Spannable, 0)
+                view.invalidate()
+                link.second.onClick(view)
+            }
+        }
+        startIndexOfLink = this.text.toString().indexOf(link.first, startIndexOfLink + 1)
+        spannableString.setSpan(
+            clickableSpan, startIndexOfLink, startIndexOfLink + link.first.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+    }
+    this.movementMethod = LinkMovementMethod.getInstance()
+    this.setText(spannableString, TextView.BufferType.SPANNABLE)
 }
 
 suspend fun hasActiveInternet(): Boolean {

@@ -1,11 +1,12 @@
 package com.contusfly.call.groupcall
 
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.BlendModeColorFilterCompat
@@ -22,6 +23,7 @@ import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.JoinCallActionListener
 import com.contusfly.*
 import com.contusfly.activities.BaseActivity
+import com.contusfly.activities.DashboardActivity
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.ActivityOnGoingCallPreviewScreenBinding
 import com.contusfly.network.NetworkConnection
@@ -65,10 +67,33 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     private var callLink: String = Constants.EMPTY_STRING
 
+    private var userJid: String = Constants.EMPTY_STRING
+
     /**
      * The common alert dialog to display the alert dialogs in the alert view
      */
     private var commonAlertDialog: CommonAlertDialog? = null
+
+    private val videoCallPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if (!permissions.containsValue(false)) {
+            setAudioMuteUnMuteStatus()
+            CallManager.startVideoCapture()
+            showLocalVideoView(true)
+            setViewMuteAndUnMuteStatus(muteVideoImage, false)
+            toggleVideoMute()
+        }
+    }
+
+    private val audioCallPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if (!permissions.containsValue(false)) {
+            setViewMuteAndUnMuteStatus(muteAudioImage, false)
+            toggleMic()
+        }
+    }
+
+    private val permissionAlertDialog : PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     /**
      * This image view for  audio mute
@@ -115,6 +140,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
         //Initialise the join call setup in the call SDK
         callLink = intent.extras!!.getString(CallConstants.CALL_LINK, Constants.EMPTY_STRING)
         isFromSplashScreen = intent.extras!!.getBoolean(Constants.FROM_SPLASH_SCREEN, false)
+        userJid = intent.extras!!.getString(Constants.USER_JID, Constants.EMPTY_STRING)
 
         if (callLink.isNotEmpty()) {
             LogMessage.d(TAG, "#OnGngCall Preview Started")
@@ -237,7 +263,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
             CallManager.muteVideo(true)
             muteVideoImage.isActivated = false
             showLocalVideoView(false)
-            MediaPermissions.requestVideoCallPermissions(this, RequestCode.VIDEO_CALL_PERMISSION_CODE)
+            MediaPermissions.requestVideoCallPermissions(this, permissionAlertDialog, videoCallPermissionLauncher)
         }
 
         /* Audio Permission */
@@ -247,7 +273,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
         } else {
             CallManager.muteAudio(true)
             muteAudioImage.isActivated = false
-            MediaPermissions.requestAudioCallPermissions(this, RequestCode.AUDIO_CALL_PERMISSION_CODE)
+            MediaPermissions.requestAudioCallPermissions(this, permissionAlertDialog, audioCallPermissionLauncher)
         }
     }
 
@@ -376,25 +402,6 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
         onGoingCallPreviewScreenBinding.textJoin.isEnabled = enable
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (grantResults.isNotEmpty() && !grantResults.contains(PackageManager.PERMISSION_DENIED)) {
-            when (requestCode) {
-                RequestCode.AUDIO_CALL_PERMISSION_CODE -> {
-                    setViewMuteAndUnMuteStatus(muteAudioImage, false)
-                    toggleMic()
-                }
-                RequestCode.VIDEO_CALL_PERMISSION_CODE -> {
-                    setAudioMuteUnMuteStatus()
-                    CallManager.startVideoCapture()
-                    showLocalVideoView(true)
-                    setViewMuteAndUnMuteStatus(muteVideoImage, false)
-                    toggleVideoMute()
-                }
-            }
-        }
-    }
-
     private fun setAudioMuteUnMuteStatus() {
         if (CallManager.isAudioCallPermissionsGranted() && !isAudioMuteClicked) {
             setViewMuteAndUnMuteStatus(muteAudioImage, false)
@@ -434,11 +441,11 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
             R.id.image_mute_audio -> {
                 isAudioMuteClicked = true
                 if (CallManager.isAudioCallPermissionsGranted()) toggleMic()
-                else MediaPermissions.requestAudioCallPermissions(this, RequestCode.AUDIO_CALL_PERMISSION_CODE)
+                else MediaPermissions.requestAudioCallPermissions(this, permissionAlertDialog, audioCallPermissionLauncher)
             }
             R.id.image_mute_video -> {
                 if (CallManager.isVideoCallPermissionsGranted()) toggleVideoMute()
-                else MediaPermissions.requestVideoCallPermissions(this, RequestCode.VIDEO_CALL_PERMISSION_CODE)
+                else MediaPermissions.requestVideoCallPermissions(this, permissionAlertDialog, videoCallPermissionLauncher)
             }
             R.id.text_join -> checkAndAllowToOnGngCall()
             R.id.return_to_chat -> finish()
@@ -449,10 +456,10 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
         if (AppUtils.isNetConnected(this)) {
             if (!CallManager.isAudioCallPermissionsGranted()) MediaPermissions.requestAudioCallPermissions(
                 this,
-                RequestCode.AUDIO_CALL_PERMISSION_CODE)
+                permissionAlertDialog, audioCallPermissionLauncher)
             else if (muteVideoImage.isActivated && !CallManager.isVideoCallPermissionsGranted()) MediaPermissions.requestVideoCallPermissions(
                 this,
-                RequestCode.VIDEO_CALL_PERMISSION_CODE)
+                permissionAlertDialog, videoCallPermissionLauncher)
             else {
                 handleJoinNowButton(false)
                 checkInternetConnection!!.visibility = View.VISIBLE
@@ -548,5 +555,16 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     override fun listOptionSelected(position: Int) {
         //Not yet implemented
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (userJid == jid && status) {
+            showToast(getString(R.string.group_block_message_label))
+            val dashboardIntent = Intent(applicationContext, DashboardActivity::class.java)
+            dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+            startActivity(dashboardIntent)
+            finish()
+        }
     }
 }

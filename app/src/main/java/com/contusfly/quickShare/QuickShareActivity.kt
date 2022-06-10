@@ -174,6 +174,8 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     @Inject
     lateinit var shareMessagesController: ShareMessagesController
 
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
     private val galleryPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -211,6 +213,18 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         updateProfileDetails(jid)
     }
 
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        val position = getPositionOfProfile(jid)
+        if (position >= 0) {
+            mContactsAdapter.removeProfileDetails(position, jid)
+            selectedUsers!!.text = getSelectedUserNames()
+        }
+    }
+
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
 
@@ -219,7 +233,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         fileList = ArrayList()
         initViews()
         setObservers()
-        viewModel.loadForwardChatList()
+        viewModel.loadForwardChatList(null)
         if (checkPermission()) {
             //handle sharing only when permissions are granted
             handleIntent()
@@ -584,7 +598,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         if (!(isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE) &&
                     MediaPermissions.isWriteFilePermissionAllowed(this))) {
             permissionDenied = true
-            MediaPermissions.requestStorageAccess(this, galleryPermissionLauncher)
+            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
             return false
         }
         return true
@@ -865,7 +879,8 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         if (position >= 0) {
             val profileDetails = ContactManager.getProfileDetails(userJid)
             mContactsAdapter.updateProfileDetails(position, profileDetails)
-        }
+        } else
+            viewModel.loadForwardChatList(userJid)
     }
 
     private fun getPositionOfProfile(jid: String): Int {
@@ -939,5 +954,15 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         super.onDestroy()
         AppLifecycleListener.isFromQuickShareForBioMetric = false
         AppLifecycleListener.isFromQuickShareForPin = false
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (status && mContactsAdapter.selectedList.any { it.profileDetails.jid == jid }) {
+            val index = mContactsAdapter.selectedList.indexOfFirst { profileDetailsShareModel -> profileDetailsShareModel.profileDetails.jid == jid }
+            if (index.isValidIndex()) mContactsAdapter.selectedList.removeAt(index)
+        }
+        viewModel.loadForwardChatList(null)
+        selectedUsers!!.text = getSelectedUserNames()
     }
 }

@@ -408,9 +408,11 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 )
             } else if (key == Constants.NOTIFY_MESSAGE_PROGRESS_CHANGED)
                 audioItemView.handleSenderAudioItemProgressUpdate(item, this)
-            else if (key == Constants.NOTIFY_MESSAGE_MEDIA_STATUS_CHANGED)
+            else if (key == Constants.NOTIFY_MESSAGE_MEDIA_STATUS_CHANGED) {
                 audioItemView.setAudioSenderMediaStatus(this, item)
-            else if (key == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
+                if (item.isMediaDownloaded())
+                    audioPlayClick(item, position, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, true)
+            } else if (key == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
                 if (item.isMessageRecalled())
                     getAudioView(this, item, position)
                 else {
@@ -439,9 +441,11 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 )
             } else if (key == Constants.NOTIFY_MESSAGE_PROGRESS_CHANGED)
                 audioItemView.handleReceiverAudioItemProgressUpdate(item, this)
-            else if (key == Constants.NOTIFY_MESSAGE_MEDIA_STATUS_CHANGED)
+            else if (key == Constants.NOTIFY_MESSAGE_MEDIA_STATUS_CHANGED) {
                 audioItemView.setAudioReceiverMediaStatus(this, item)
-            else if (key == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
+                if (item.isMediaDownloaded())
+                    audioPlayClick(item, position, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, false)
+            } else if (key == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
                 if (item.isMessageRecalled())
                     getAudioView(this, item, position)
                 else {
@@ -810,8 +814,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                         setTextKeepState(getSpannedText(msg))
                         handleSenderTextSearch(getSpannedText(msg), holder)
                         if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
-                            setJoinLinkView(txtChatSender, joinLinkView, joinLinkLogo)
-                        movementMethod = ModifiedlinkMovementMethod(context)
+                            setJoinLinkView(item.chatUserJid, txtChatSender, joinLinkView, joinLinkLogo)
+                        movementMethod = ModifiedlinkMovementMethod(context, item.chatUserJid)
                         isClickable = false
                         isLongClickable = false
                     }
@@ -826,13 +830,13 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
         }
     }
 
-    private fun setJoinLinkView(txtChat: EmojiconTextView, joinLinkView: LinearLayout, joinLinkLogo: ImageView) {
+    private fun setJoinLinkView(userJid: String, txtChat: EmojiconTextView, joinLinkView: LinearLayout, joinLinkLogo: ImageView) {
         val screenWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
         txtChat.setTextColor(ContextCompat.getColor(context, R.color.light_blue))
         txtChat.setLinkTextColor(ContextCompat.getColor(context, R.color.light_blue))
         joinLinkView.show()
         joinLinkView.setOnClickListener {
-            ChatUtils.navigateToOnGoingCallPreviewScreen(context, txtChat.text.toString().trim())
+            ChatUtils.navigateToOnGoingCallPreviewScreen(context, userJid, txtChat.text.toString().trim())
             com.contusfly.utils.LogMessage.d(TAG, "Join Call via Link Clicked")
         }
         val lp = LinearLayout.LayoutParams((screenWidth + 20), LinearLayout.LayoutParams.WRAP_CONTENT) //20 is nothing but text message margin Start and End value in XML
@@ -948,8 +952,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     setTextKeepState(getSpannedText(msg))
                     handleReceiverTextSearch(getSpannedText(msg), textViewHolder)
                     if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
-                        setJoinLinkView(txtChatReceiver, receiverJoinLinkView, receiverJoinLinkLogo)
-                    movementMethod = ModifiedlinkMovementMethod(context)
+                        setJoinLinkView(item.chatUserJid, txtChatReceiver, receiverJoinLinkView, receiverJoinLinkLogo)
+                    movementMethod = ModifiedlinkMovementMethod(context, item.chatUserJid)
                     isClickable = false
                     isLongClickable = false
                 }

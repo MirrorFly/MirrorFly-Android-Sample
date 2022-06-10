@@ -17,8 +17,8 @@ import android.service.notification.StatusBarNotification
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.*
-import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.view.menu.MenuBuilder
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -33,6 +33,7 @@ import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.CallManager.isOnTelephonyCall
 import com.contus.call.utils.CallConstants
 import com.contus.call.utils.GroupCallUtils
+import com.contus.flycommons.getMessage
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
 import com.contusfly.activities.parent.ChatParent
@@ -44,16 +45,15 @@ import com.contusfly.chat.RealPathUtil
 import com.contusfly.chat.ReplyHashMap
 import com.contusfly.chat.reply.MessageSwipeController
 import com.contusfly.constants.MobileApplication
+import com.contusfly.databinding.ActivityChatBinding
 import com.contusfly.interfaces.OnChatItemClickListener
+import com.contusfly.interfaces.PermissionDialogListener
 import com.contusfly.models.Chat
 import com.contusfly.models.MediaPreviewModel
 import com.contusfly.models.MessageObject
 import com.contusfly.utils.*
 import com.contusfly.views.*
-import com.contusflysdk.api.ChatActionListener
-import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.FlyCore
-import com.contusflysdk.api.FlyMessenger
+import com.contusflysdk.api.*
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.utils.ConstantActions
 import com.contusflysdk.utils.ItemClickSupport
@@ -73,11 +73,11 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, EmojiconsFragment.OnEmojiconBackspaceClickedListener,
-        EmojiconGridFragment.OnEmojiconClickedListener, OnChatItemClickListener,
-        CommonAlertDialog.CommonDialogClosedListener,
-        CommonAlertDialog.CommonTripleDialogClosedListener, View.OnClickListener,
-        ReplySuggestionsAdapter.SuggestionClickListener,
-        AudioRecordView.RecordingListener {
+    EmojiconGridFragment.OnEmojiconClickedListener, OnChatItemClickListener,
+    CommonAlertDialog.CommonDialogClosedListener,
+    CommonAlertDialog.CommonTripleDialogClosedListener, View.OnClickListener,
+    ReplySuggestionsAdapter.SuggestionClickListener,
+    AudioRecordView.RecordingListener {
 
     private val TAG = ChatActivity::class.java.simpleName
 
@@ -97,13 +97,69 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private var forwardClickedPostition:Int = -1
 
-    private var isFromResumeState: Boolean = false
+    private var selectedReportMessage = Constants.EMPTY_STRING
+
+    private var adminBlockStatus : Boolean = false
+    private var userJid:String = Constants.EMPTY_STRING
+    private var userType:String = Constants.EMPTY_STRING
+    private var handler: Handler? = null
 
     private val downloadPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         val writePermissionGranted = permissions[Manifest.permission.WRITE_EXTERNAL_STORAGE] ?: ChatUtils.checkWritePermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
         if(writePermissionGranted) {
             handleDownloadProcess()
+        }
+    }
+
+    private val audioCallPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(!permissions.containsValue(false)) {
+            CallPermissionUtils(
+                this,
+                profileDetails.isBlocked,
+                profileDetails.isAdminBlocked,
+                arrayListOf(profileDetails.jid),
+                "",
+                false
+            ).audioCall()
+        } else {
+            optionMenu?.let {
+                it.get(R.id.action_audio_call).isEnabled = true
+                it.get(R.id.action_video_call).isEnabled = true
+            }
+        }
+    }
+
+    private val videoCallPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(!permissions.containsValue(false)) {
+            CallPermissionUtils(
+                this,
+                profileDetails.isBlocked,
+                profileDetails.isAdminBlocked,
+                arrayListOf(profileDetails.jid),
+                "",
+                false
+            ).videoCall()
+        } else {
+            optionMenu?.let {
+                it.get(R.id.action_audio_call).isEnabled = true
+                it.get(R.id.action_video_call).isEnabled = true
+            }
+        }
+    }
+
+    private val permissionDeniedListener = object : PermissionDialogListener {
+        override fun onPositiveButtonClicked() {
+            //Not Needed
+        }
+
+        override fun onNegativeButtonClicked() {
+            optionMenu?.let {
+                it.get(R.id.action_audio_call).isEnabled = true
+                it.get(R.id.action_video_call).isEnabled = true
+            }
         }
     }
 
@@ -151,6 +207,30 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        if (chat.toUser == jid) {
+            viewModel.getProfileDetails()
+            updateDeletedUserMessages()
+        } else if (GroupManager.isMemberOfGroup(chat.toUser, jid) || leftUserJid == jid) {
+            updateDeletedUserMessages()
+        }
+    }
+
+    private fun updateDeletedUserMessages() {
+        for (index in firstCompletelyVisibleItemPosition - 10 until lastCompletelyVisibleItemPosition+10)
+            getMessageAndPosition(index).let { messageAndPosition ->
+                if (messageAndPosition.first.isValidIndex() && messageAndPosition.second != null) {
+                    refreshMessageAndUpdateAdapter(messageAndPosition.second!!.messageId, Constants.EMPTY_STRING)
+                }
+            }
+        selectedMessageIdForReply = ReplyHashMap.getReplyId(chat.toUser)
+        showUnsentMessage(parentViewModel.getUnSentMessageForAnUser(chat.toUser))
+    }
+
+    /**
      * Update the network state change while user chat with other user.
      */
     override fun updateNetworkStateChange(isConnected: Boolean) {
@@ -159,6 +239,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
     override fun onLeftFromGroup(groupJid: String, leftUserJid: String) {
         super.onLeftFromGroup(groupJid, leftUserJid)
+        this.leftUserJid = leftUserJid
         parentViewModel.getParticipantsNameAsCsv(chat.toUser)
     }
     /**
@@ -174,21 +255,21 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun initObservers() {
         val uploadDownloadProgressDisposable = uploadDownloadProgressObserver.buffer(5)
-                .subscribeOn(Schedulers.io()).map {
-                    val messageIdAndPositionList = ArrayList<Int>()
-                    for (item in it.distinct()) {
-                        messageIdAndPositionList.add(getMessagePosition(item))
-                    }
-                    return@map messageIdAndPositionList
-                }.observeOn(AndroidSchedulers.mainThread()).subscribe {
-                    for (item in it) {
-                       if (item != -1) {
-                            val bundle = Bundle()
-                            bundle.putInt(Constants.NOTIFY_MESSAGE_PROGRESS_CHANGED, 1)
-                            chatAdapter.notifyItemChanged(item, bundle)
-                       }
+            .subscribeOn(Schedulers.io()).map {
+                val messageIdAndPositionList = ArrayList<Int>()
+                for (item in it.distinct()) {
+                    messageIdAndPositionList.add(getMessagePosition(item))
+                }
+                return@map messageIdAndPositionList
+            }.observeOn(AndroidSchedulers.mainThread()).subscribe {
+                for (item in it) {
+                    if (item != -1) {
+                        val bundle = Bundle()
+                        bundle.putInt(Constants.NOTIFY_MESSAGE_PROGRESS_CHANGED, 1)
+                        chatAdapter.notifyItemChanged(item, bundle)
                     }
                 }
+            }
         compositeDisposable.add(uploadDownloadProgressDisposable)
     }
 
@@ -211,7 +292,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_chat)
+        binding = ActivityChatBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        handler = Handler(Looper.getMainLooper())
         keyboardHeightProvider = KeyboardHeightProvider(this)
         keyboardHeightProvider?.addKeyboardListener(getKeyboardListener())
         mobileApplication = mainApplication as MobileApplication
@@ -294,6 +377,8 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         chatAdapter.setOnDownloadClickListener(this)
         val messageSwipeController = MessageSwipeController(this, object : MessageSwipeController.SwipeControllerActions {
             override fun showSwipeInReplyUI(position: Int) {
+                if (profileDetails.isBlocked || profileDetails.isAdminBlocked)
+                    return
                 Handler(Looper.getMainLooper()).postDelayed({
                     isReplyTagged = true
                     replyMessageSlideActionClicked(position)
@@ -452,10 +537,17 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 menu.get(R.id.action_block).isVisible = !profileDetails.isBlocked
                 menu.get(R.id.action_unblock).isVisible = profileDetails.isBlocked
             }
-
+            updateMenuItemsClicks(menu)
             setCallButtonVisibility()
         }
         return true
+    }
+
+    @SuppressLint("RestrictedApi")
+    private fun updateMenuItemsClicks(menu: Menu) {
+        for (menuItem in (menu as MenuBuilder).visibleItems) {
+            menuItem.isEnabled = !profileDetails.isAdminBlocked
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -494,6 +586,10 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
             R.id.action_prev -> if (searchedText.isNotEmpty()) handlePrevNextClicked(true)
             R.id.action_next -> if (searchedText.isNotEmpty()) handlePrevNextClicked(false)
+            R.id.action_report -> {
+                selectedReportMessage = if (clickedMessages.isNotEmpty()) clickedMessages[0] else ""
+                showReportMessagePopup()
+            }
         }
         return super.onOptionsItemSelected(item)
     }
@@ -502,7 +598,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         hideKeyboard()
         profileDetails.let {
             optionMenu?.let {
-                if (!profileDetails.isBlocked && !isOnTelephonyCall(this) && !isOnAnyCall()) {
+                if (!profileDetails.isBlocked && !profileDetails.isDeletedContact() && !profileDetails.isAdminBlocked && !isOnTelephonyCall(this) && !isOnAnyCall()) {
                     it.get(R.id.action_audio_call).isEnabled = false
                     it.get(R.id.action_video_call).isEnabled = false
                 }
@@ -521,9 +617,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                         hideKeyboard()
                         GroupCallUtils.setIsCallStarted(callType)
                         startActivityForResult(Intent(this, UsersSelectionActivity::class.java)
-                                .putExtra(com.contus.flycommons.Constants.GROUP_ID, it.jid)
-                                .putExtra(com.contus.flycommons.Constants.CHAT_TYPE, it.getChatType())
-                                .putExtra(CallConstants.CALL_TYPE, callType), com.contus.flycommons.Constants.ACTIVITY_REQ_CODE)
+                            .putExtra(com.contus.flycommons.Constants.GROUP_ID, it.jid)
+                            .putExtra(com.contus.flycommons.Constants.CHAT_TYPE, it.getChatType())
+                            .putExtra(CallConstants.CALL_TYPE, callType), com.contus.flycommons.Constants.ACTIVITY_REQ_CODE)
                     }
                 }
             }
@@ -537,6 +633,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 CallPermissionUtils(
                     this,
                     profileDetails.isBlocked,
+                    profileDetails.isAdminBlocked,
                     arrayListOf(profileDetails.jid),
                     "",
                     false
@@ -544,7 +641,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             } else {
                 MediaPermissions.requestAudioCallPermissions(
                     (activity as Activity),
-                    RequestCode.AUDIO_CALL_PERMISSION_CODE
+                    permissionAlertDialog,
+                    audioCallPermissionLauncher,
+                    permissionDeniedListener
                 )
             }
         } else {
@@ -552,6 +651,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 CallPermissionUtils(
                     this,
                     profileDetails.isBlocked,
+                    profileDetails.isAdminBlocked,
                     arrayListOf(profileDetails.jid),
                     "",
                     false
@@ -559,7 +659,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             } else {
                 MediaPermissions.requestVideoCallPermissions(
                     (activity as Activity),
-                    RequestCode.VIDEO_CALL_PERMISSION_CODE
+                    permissionAlertDialog,
+                    videoCallPermissionLauncher,
+                    permissionDeniedListener
                 )
             }
         }
@@ -716,7 +818,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             validateAndSendMessage(locationMessage.second!!)
         else
             commonAlertDialog.showAlertDialog(getString(R.string.error_location_selection), Constants.EMPTY_STRING, getString(R.string.action_Ok),
-                    CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false)
+                CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false)
     }
 
     private fun sendVoiceMessage() {
@@ -746,8 +848,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     fun clear() {
-        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(chatMessageEditText.windowToken, 0)
+        hideKeyboard()
         showChatKeyboard = false
         compositeDisposable.clear()
         coroutineContext.cancel(CancellationException("$TAG Destroyed"))
@@ -818,7 +919,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 clickDone = forwardMessageActionMenuClicked(clickedMessages)
             }
             R.id.action_share -> {
-                MediaShareUtils().shareMediaExternal(clickedMessages, this)
+                if (!profileDetails.isAdminBlocked) {
+                    MediaShareUtils().shareMediaExternal(clickedMessages, this)
+                }
                 actionMode?.finish()
                 clickDone = true
             }
@@ -835,16 +938,48 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 clickDone = true
             }
             R.id.action_reply -> {
-                isReplyTagged = true
-                replyMessageActionMenuClicked()
-                chatMessageEditText.showSoftKeyboard()
-                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+                if (!profileDetails.isAdminBlocked) {
+                    isReplyTagged = true
+                    replyMessageActionMenuClicked()
+                    chatMessageEditText.showSoftKeyboard()
+                    window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+                }
+                actionMode?.finish()
+                clickDone = true
+            }
+            R.id.action_report -> {
+                selectedReportMessage = if (clickedMessages.isNotEmpty()) clickedMessages[0] else ""
+                showReportMessagePopup()
                 actionMode?.finish()
                 clickDone = true
             }
             else -> clickDone = false
         }
         return clickDone
+    }
+
+    private fun showReportMessagePopup() {
+        val isUserNotAvailable = profileDetails.isAdminBlocked || profileDetails.isDeletedContact()
+        if (chat.chatType == ChatType.TYPE_CHAT && isUserNotAvailable) {
+            val errorMessage = if (profileDetails.isAdminBlocked) getString(R.string.user_block_message_label)
+            else if (selectedReportMessage.isNotEmpty()) getString(R.string.label_deleted_user_messages_report_message) else getString(R.string.label_deleted_user_report_message)
+            showToast(errorMessage)
+            selectedReportMessage = Constants.EMPTY_STRING
+            return
+        }
+        commonAlertDialog.dialogAction = CommonAlertDialog.DialogAction.REPORT_MESSAGES
+        val reportLabel = getString(R.string.label_report)
+        val userName = "$reportLabel ${getReporterName()}?"
+        val reportMessage = if (!clickedMessages.isNullOrEmpty()) getString(R.string.label_report_message)
+        else if (chat.getChatType().name == ChatType.TYPE_GROUP_CHAT) getString(R.string.label_group_report_5_message)
+        else getString(R.string.label_user_report_5_message)
+
+        commonAlertDialog.showAlertDialog(userName, reportMessage, reportLabel,
+            getString(R.string.action_cancel), CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL)
+    }
+
+    private fun getReporterName(): String {
+        return if (chat.getChatType().name == ChatType.TYPE_GROUP_CHAT) "this group" else getUserNickname()
     }
 
     override fun onDestroyActionMode(mode: ActionMode) {
@@ -871,6 +1006,13 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         getRecalledMessagesForThisUser()
         handleCursorAndKeyboardVisibility()
         clearNotification()
+        checkIsGroupAdminBlocked()
+    }
+
+    private fun checkIsGroupAdminBlocked() {
+        if (ChatType.TYPE_GROUP_CHAT == chat.chatType && parentViewModel.getProfileDetails(chat.toUser)!!.isAdminBlocked) {
+            showGroupBlockedByAdminNotification()
+        }
     }
 
     @SuppressLint("CheckResult")
@@ -969,7 +1111,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 handleDialogResp(it, CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, 0)
                 if (action == CommonAlertDialog.DialogAction.SMART_REPLY_UNBLOCK) {
                     messagesQueue.add(messagingClient.composeTextMessage(chat.toUser,
-                            chatMessageEditText.text.toString().trim(), selectedMessageIdForReply))
+                        chatMessageEditText.text.toString().trim(), selectedMessageIdForReply))
                     chatMessageEditText.setText(Constants.EMPTY_STRING)
                 } else if(action == CommonAlertDialog.DialogAction.SMART_REPLY_BUSY) {
                     smartReply.let {
@@ -979,12 +1121,41 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 } else if (action == CommonAlertDialog.DialogAction.STATUS_BUSY && isAttachMenuClick) {
                     onAttachMenuClick()
                     isAttachMenuClick = false
+                } else {
+                    handleSuccessResponse(action)
                 }
-            } else if (action == CommonAlertDialog.DialogAction.UNBLOCK) {
-                messagesQueue.clear()
-            } else if ((action == CommonAlertDialog.DialogAction.SMART_REPLY_UNBLOCK || action == CommonAlertDialog.DialogAction.SMART_REPLY_BUSY)) {
-                chatMessageEditText.setText(Constants.EMPTY_STRING)
+            } else {
+                handleFailureResponse(action)
             }
+        }
+    }
+
+    private fun handleSuccessResponse(action: CommonAlertDialog.DialogAction) {
+        if (action == CommonAlertDialog.DialogAction.REPORT_MESSAGES) {
+            LogMessage.d(TAG, "Messages = $selectedReportMessage")
+            if (doProgressDialog == null) doProgressDialog = DoProgressDialog(this)
+            doProgressDialog!!.showProgress()
+            FlyCore.reportUserOrMessages(chat.toUser, chat.chatType, selectedReportMessage) {isSuccess, _, data ->
+                if (isSuccess) {
+                    LogMessage.d(TAG, "Success")
+                    showToast(getString(R.string.label_report_sent))
+                } else {
+                    LogMessage.d(TAG, "Failure")
+                    showToast(data.getMessage())
+                }
+                selectedReportMessage = Constants.EMPTY_STRING
+                dismissProgress()
+            }
+        }
+    }
+
+    private fun handleFailureResponse(action: CommonAlertDialog.DialogAction) {
+        if (action == CommonAlertDialog.DialogAction.REPORT_MESSAGES) {
+            selectedReportMessage = Constants.EMPTY_STRING
+        } else if (action == CommonAlertDialog.DialogAction.UNBLOCK) {
+            messagesQueue.clear()
+        } else if ((action == CommonAlertDialog.DialogAction.SMART_REPLY_UNBLOCK || action == CommonAlertDialog.DialogAction.SMART_REPLY_BUSY)) {
+            chatMessageEditText.setText(Constants.EMPTY_STRING)
         }
     }
 
@@ -1142,6 +1313,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 isBlocked = false
                 sendQueuedUpMessages()
             }
+            hideEmojiKeyboard()
         }
         isBlockUnblockCalled = false
         viewModel.getProfileDetails()
@@ -1208,7 +1380,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     override fun onContactClick(item: ChatMessage, position: Int, registeredJid: String?) {
-
+        //Do nthg
     }
 
     override fun onCancelDownloadClicked(messageItem: ChatMessage) {
@@ -1260,7 +1432,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 chatAdapter.notifyItemChanged(position, messageItem)
             }, { showToast(getString(R.string.msg_no_internet)) })
         } else
-            MediaPermissions.requestStorageAccess(this, downloadPermissionLauncher)
+            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
     }
 
     override fun onCancelUploadClicked(messageItem: ChatMessage) {
@@ -1474,7 +1646,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 RequestCode.READ_CONTACTS_PERMISSION_CODE -> {
                     attachContact()
                 }
-                RequestCode.CAMERA_PERMISSION_CODE, RequestCode.ALL_PERMISSIONS_CODE, RequestCode.AUDIO_SELECTION_PERMISSIONS_CODE -> {
+                RequestCode.ALL_PERMISSIONS_CODE, RequestCode.AUDIO_SELECTION_PERMISSIONS_CODE -> {
                     mediaClickEvent(selectedOptionName!!, requestCode)
                 }
                 RequestCode.STORAGE_PERMISSION_CODE -> {
@@ -1482,29 +1654,6 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 }
                 RequestCode.GALLERY_PERMISSION_CODE -> {
                     selectImagesFromGallery()
-                }
-                RequestCode.AUDIO_CALL_PERMISSION_CODE -> {
-                    CallPermissionUtils(
-                        this,
-                        profileDetails.isBlocked,
-                        arrayListOf(profileDetails.jid),
-                        "",
-                        false
-                    ).audioCall()
-                }
-                RequestCode.VIDEO_CALL_PERMISSION_CODE -> {
-                    CallPermissionUtils(
-                        this,
-                        profileDetails.isBlocked,
-                        arrayListOf(profileDetails.jid),
-                        "",
-                        false
-                    ).videoCall()
-                }
-                2000 -> {
-//                    launch(exceptionHandler) {
-//                        chatViewUtils.refreshContacts(this@ChatActivity, viewModel)
-//                    }
                 }
             }
         }
@@ -1521,7 +1670,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 handleForwardMessages(intent)
             }
             intent.hasExtra(Constants.SELECTED_VIDEO) -> sendVideoFromGallery(intent.getStringExtra(Constants.SELECTED_VIDEO)!!,
-                    intent.getStringExtra(Constants.SELECTED_VIDEO_CAPTION)!!)
+                intent.getStringExtra(Constants.SELECTED_VIDEO_CAPTION)!!)
         }
     }
 
@@ -1627,31 +1776,30 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
 
-    private fun getChatTypingUserName(userName: String): String {
+    private fun getChatTypingUserName(userName: String): String{
         val userNameArray = userName.split(" ")
-        if (userNameArray.size == 1) {
-            if (userNameArray[0].length > 10)
-                return userNameArray[0].substring(0, 12) + "..."
-            return userNameArray[0]
-        } else if (userNameArray.size == 2) {
-            if (userNameArray[0].length > 10)
-                return userNameArray[0].substring(0, 12) + "..."
-            else if (userNameArray[1].length > 10)
-                return userNameArray[0]
-            else
-                return userName
-        } else {
-            if (userNameArray[0].length > 10)
-                return userNameArray[0].substring(0, 12) + "..."
-            else if (userNameArray[1].length > 10)
-                return userNameArray[0]
-            else if (userNameArray[2].length > 7)
-                return userNameArray[0] + " " + userNameArray[1]
-            else {
-                if (userName.length > 20)
-                    return userName.substring(0, 17) + "..."
-                else
-                    return userName
+        when {
+            (userNameArray.size == 1) -> return if(userNameArray[0].length > 10) userNameArray[0].substring(0,12) + "..." else userNameArray[0]
+            (userNameArray.size == 2) -> {
+                return when {
+                    userNameArray[0].length > 10 -> userNameArray[0].substring(0,12) + "..."
+                    userNameArray[1].length > 10 -> userNameArray[0]
+                    else -> userName
+                }
+            }
+            else -> {
+                return if(userNameArray[0].length > 10)
+                    userNameArray[0].substring(0,12) + "..."
+                else if(userNameArray[1].length > 10)
+                    userNameArray[0]
+                else if(userNameArray[2].length > 7)
+                    userNameArray[0] +" "+ userNameArray[1]
+                else {
+                    if(userName.length > 20)
+                        userName.substring(0,17)+"..."
+                    else
+                        userName
+                }
             }
         }
     }
@@ -1847,7 +1995,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             }
         }
         LocalBroadcastManager.getInstance(this).registerReceiver(telephoneCallReceiver!!,
-                IntentFilter(GroupCallUtils.ACTION_PHONE_CALL_STATE_CHANGED))
+            IntentFilter(GroupCallUtils.ACTION_PHONE_CALL_STATE_CHANGED))
     }
 
     /**
@@ -1911,7 +2059,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private fun smartReplySuggestionCallback() {
         parentViewModel.getSuggestions().observe(this, {
             suggestionCount = it.size
-            if ( it.isNotEmpty()) {
+            if (isProfileObjectInitialized() && !profileDetails.isAdminBlocked && !profileDetails.isDeletedContact() && it.isNotEmpty()) {
                 suggestionLayout.show()
                 replySuggestionAdapter.setSmartReplySuggestions(it)
             } else
@@ -1996,4 +2144,40 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         showUnsentMessage(chatMessageEditText.text.toString())
     }
 
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        adminBlockStatus = status
+        userJid = jid
+        userType = type
+        LogMessage.d(TAG, "#onAdminBlockedStatus jid == $userJid status == $adminBlockStatus")
+        //To avoid multiple callbacks
+        handler?.postDelayed({
+            if (chat.toUser == userJid) {
+                if (adminBlockStatus && audioRecordView.getAudioRecordingStatus()) audioRecordView.cancelRecording()
+                if (adminBlockStatus && userType == ChatType.TYPE_GROUP_CHAT) {
+                    showGroupBlockedByAdminNotification()
+                } else {
+                    isAdminBlocked = adminBlockStatus
+                    viewModel.getProfileDetails()
+                    hideKeyboard()
+                    setUserProfileImage()
+                    hideEmojiKeyboard()
+                }
+            }
+        }, 1200)
+    }
+
+    private fun showGroupBlockedByAdminNotification() {
+        showToast(getString(R.string.group_block_message_label))
+        chatMessageEditText.text?.clear()
+        chatAdapter.stopMediaPlayer()
+        clear()
+        finish()
+    }
+
+    private fun hideEmojiKeyboard() {
+        if (emojiHandler.isEmojiShowing && (isAdminBlocked || isBlocked)) {
+            emojiHandler.hideEmoji()
+        }
+    }
 }

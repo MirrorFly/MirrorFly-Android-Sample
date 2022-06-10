@@ -97,8 +97,6 @@ class UserBusyStatusFragment : Fragment(), View.OnClickListener,
                 textDone
                 context?.findViewById<View>(R.id.text_done)?.visibility = View.GONE
             }
-            else -> {
-            }
         }
     }
 
