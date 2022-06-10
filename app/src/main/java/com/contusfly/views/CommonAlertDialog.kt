@@ -1,10 +1,13 @@
 package com.contusfly.views
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.widget.CheckBox
 import android.widget.CompoundButton
 import com.contus.call.CallConstants
@@ -13,6 +16,8 @@ import com.contus.webrtc.api.CallActionListener
 import com.contus.webrtc.api.CallManager
 import com.contusfly.R
 import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
+import com.contusfly.chat.AndroidUtils
+import com.contusfly.databinding.CommonAlertDialogBinding
 import com.contusfly.utils.Constants
 import com.contusfly.utils.SharedPreferenceManager
 
@@ -95,7 +100,7 @@ class CommonAlertDialog(context: Context?) {
      */
     fun showAlertDialog(msg: String?, positiveString: String?, negativeString: String?,
                         dialogType: DIALOGTYPE, smartreply: Boolean, isCheckBoxShown: Boolean = false) {
-        val builder = AlertDialog.Builder(context, R.style.AlertDialogStyle)
+        val builder = AlertDialog.Builder(context, R.style.AdminBlockAlertDialogStyle)
         builder.setMessage(msg)
         if (isCheckBoxShown) builder.setView(createAndSetCheckBox())
         if (dialogType == DIALOGTYPE.DIALOG_DUAL) {
@@ -194,6 +199,40 @@ class CommonAlertDialog(context: Context?) {
         alertDialog.show()
     }
 
+    fun showAlertDialogWithTitle(activity: Activity, title: String, msg: String,
+                                 positiveString: String, negativeString: String,
+                                 dialogType: DIALOGTYPE, listener: CommonDialogClosedListener?) {
+        val dialogBuilder = AlertDialog.Builder(context,  R.style.CustomAlertDialog)
+        val inflater: LayoutInflater = activity.layoutInflater
+        val dialogBinding = CommonAlertDialogBinding.inflate(inflater)
+        dialogBinding.dialogTitle.text = title
+        dialogBinding.dialogDescription.text = msg
+        dialogBuilder.apply {
+            setCancelable(true)
+            setView(dialogBinding.root)
+            setPositiveButton(positiveString) { dialog, _ ->
+                dialog.dismiss()
+                listener?.onDialogClosed(dialogType, true)
+            }
+            if (dialogType == DIALOGTYPE.DIALOG_DUAL) {
+                setNegativeButton(negativeString) { dialog, _ ->
+                    dialog.dismiss()
+                    listener?.onDialogClosed(dialogType, false)
+                }
+            }
+        }
+        val alertDialog = dialogBuilder.create()
+        alertDialog.show()
+        adjustAlertDialogWidth(activity, alertDialog)
+    }
+
+    private fun adjustAlertDialogWidth(activity: Activity, alertDialog: AlertDialog) {
+        val layoutParams = WindowManager.LayoutParams()
+        layoutParams.copyFrom(alertDialog.window!!.attributes)
+        layoutParams.width = (AndroidUtils.getScreenWidth(activity) * 0.9).toInt()
+        alertDialog.window!!.attributes = layoutParams
+    }
+
     /**
      * Shows the alert dialog to confirm the delete action of the selected chat messages.
      *
@@ -271,6 +310,34 @@ class CommonAlertDialog(context: Context?) {
         builder.create().show()
     }
 
+    /**
+     * Show alert dialog.
+     *
+     * @param title          the title
+     * @param msg            the msg
+     * @param positiveString the positive string
+     * @param negativeString the negative string
+     * @param dialogType     the dialog type
+     */
+    fun showAlertDialog(title: String?, msg: String?, positiveString: String?, negativeString: String?,
+                        dialogType: DIALOGTYPE) {
+        val builder = AlertDialog.Builder(context, R.style.ReportUserAlertDialogStyle)
+        builder.setTitle(title)
+        builder.setMessage(msg)
+        if (dialogType == DIALOGTYPE.DIALOG_DUAL) {
+            builder.setNegativeButton(negativeString) { dialog: DialogInterface, _: Int ->
+                dialog.dismiss()
+                listener?.onDialogClosed(dialogType, false)
+            }
+        }
+        builder.setPositiveButton(positiveString) { dialog: DialogInterface, _: Int ->
+            listener?.onDialogClosed(dialogType, true)
+            dialog.dismiss()
+        }
+        builder.create().show()
+    }
+
+
     private fun createAndSetCheckBox(): View? {
         val checkBoxView = View.inflate(context, R.layout.checkbox, null)
         val checkBox = checkBoxView.findViewById<CheckBox>(R.id.checkbox)
@@ -304,7 +371,9 @@ class CommonAlertDialog(context: Context?) {
      * Actions of the dialog
      */
     enum class DialogAction {
-        CLEAR_CONVERSATION, DELETE_CHAT, CAMERA, GALLERY, STATUS_BUSY, UNBLOCK, BLOCK, SMART_REPLY_UNBLOCK, SMART_REPLY_BUSY, SET_PIN_ALERT, INVITE, STATUS_BUSY_KEYBOARD, STATUS_BUSY_EMOJI,FORWARD_STATUS_BUSY, SAFE_CHAT_ENABLED, SAFE_CHAT_ENABLE_APP_LOCK
+        CLEAR_CONVERSATION, DELETE_CHAT, CAMERA, GALLERY, STATUS_BUSY, UNBLOCK, BLOCK, SMART_REPLY_UNBLOCK, SMART_REPLY_BUSY,
+        SET_PIN_ALERT, INVITE, STATUS_BUSY_KEYBOARD, STATUS_BUSY_EMOJI,FORWARD_STATUS_BUSY, SAFE_CHAT_ENABLED,
+        SAFE_CHAT_ENABLE_APP_LOCK, REPORT_MESSAGES
     }
 
     /**

@@ -12,10 +12,12 @@ import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import com.contus.flycommons.Prefs
 import com.contus.call.utils.GroupCallUtils
+import com.contusfly.activities.AdminBlockedActivity
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.api.ChatManager
+import com.contusflysdk.api.FlyCore
 
 
 class AppLifecycleListener : LifecycleObserver {
@@ -42,6 +44,17 @@ class AppLifecycleListener : LifecycleObserver {
         isForeground = true
         // app moved to foreground
         deviceContactCount = 0
+
+        //To check the user blocked by admin status and navigate to show stopper screen
+        if (FlyCore.getIsProfileBlockedByAdmin()) {
+            if (!isAdminBlockedActivityOpened) {
+                val intent = Intent(ChatManager.applicationContext, AdminBlockedActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ChatManager.applicationContext.startActivity(intent)
+            }
+            return
+        }
+
         val deviceTimeFormat = DateFormat.is24HourFormat(ChatManager.applicationContext)
         val devicePreviousTimeFormat = SharedPreferenceManager.getBoolean(Constants.IS_24_FORMAT)
         SharedPreferenceManager.setBoolean(Constants.IS_TIME_FORMAT_CHANGED, deviceTimeFormat != devicePreviousTimeFormat)
@@ -118,6 +131,10 @@ class AppLifecycleListener : LifecycleObserver {
 
         @JvmField
         var isFromQuickShareForPin = false
+
+        @JvmField
+        var isAdminBlockedActivityOpened = false
+
         val backPressedSP: Boolean
             get() = SharedPreferenceManager.getBoolean(Constants.BACK_PRESS) && !shouldShowPinActivity()
 

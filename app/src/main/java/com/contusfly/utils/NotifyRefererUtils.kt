@@ -197,6 +197,11 @@ object NotifyRefererUtils {
         }
     }
 
+    fun getNotificationId(): String {
+        val randomNumberGenerator = Random(System.currentTimeMillis())
+        return randomNumberGenerator.nextInt().toString()
+    }
+
     private val isLastMessageRecalled: Boolean
         get() {
             return FlyMessenger.getLastUnreadMessage()?.isMessageRecalled() ?: false

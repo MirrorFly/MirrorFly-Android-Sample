@@ -61,16 +61,7 @@ class MirrorFlySeekBar @JvmOverloads constructor(
                 lastX = 0f
                 lastY = 0f
                 handler.removeMessages(1)
-                if (System.currentTimeMillis() - downTime > timeDiff && possibleLongTouch) {
-                    if (!hasLongTouch) { // If you have already executed, you don't need to execute again.
-                        hasLongTouch = true
-                        if (isEnabled) {
-                            longClickListener?.onLongClick()
-                        }
-                    }
-                    possibleLongTouch = false
-                    return true
-                }
+                if (isPossibleLongTouch()) return true
                 return super.onTouchEvent(event)
             }
             MotionEvent.ACTION_CANCEL -> {
@@ -79,6 +70,20 @@ class MirrorFlySeekBar @JvmOverloads constructor(
                 lastY = 0f
                 return super.onTouchEvent(event)
             }
+        }
+        return false
+    }
+
+    private fun isPossibleLongTouch(): Boolean {
+        if (System.currentTimeMillis() - downTime > timeDiff && possibleLongTouch) {
+            if (!hasLongTouch) { // If you have already executed, you don't need to execute again.
+                hasLongTouch = true
+                if (isEnabled) {
+                    longClickListener?.onLongClick()
+                }
+            }
+            possibleLongTouch = false
+            return true
         }
         return false
     }

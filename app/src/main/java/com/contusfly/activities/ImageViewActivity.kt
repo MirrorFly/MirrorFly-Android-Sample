@@ -6,7 +6,6 @@ import android.app.ActivityOptions
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import com.contusflysdk.api.contacts.ContactManager
 import android.net.Uri
@@ -20,12 +19,14 @@ import androidx.core.view.ViewCompat
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.databinding.ActivityImageViewBinding
+import com.contusfly.showToast
 import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.CommonUtils
 import com.contusfly.utils.CommonUtils.Companion.showBottomSheetView
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
@@ -51,6 +52,8 @@ import java.net.URISyntaxException
 class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, CommonAlertDialog.CommonDialogClosedListener {
 
     private lateinit var imageViewBinding: ActivityImageViewBinding
+
+    private var storagePath = "/storage/emulated/"
 
     /**
      * The jabber id of the selected group.
@@ -112,6 +115,8 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     var isSuccess = false
     var position = 0
 
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
     private val galleryPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -162,7 +167,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
         groupOrUserName = intent.getStringExtra(Constants.GROUP_OR_USER_NAME)
         imageUrl = intent.getStringExtra(Constants.MEDIA_URL)
         fromLoginProfile = intent.getBooleanExtra(Constants.FROM_LOGIN_PROFILE,false)
-
+        profileImageUrlUpdate()
         setSupportActionBar(imageViewBinding.appBarLayout.toolbar)
         if (groupOrUserName == null || groupOrUserName!!.isEmpty())
             UserInterfaceUtils.setUpToolBar(this, imageViewBinding.appBarLayout.toolbar, supportActionBar, resources.getString(R.string.sent_media_label))
@@ -172,7 +177,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
         if(fromLoginProfile){
             com.contusfly.utils.MediaUtils.loadImageWithGlideSkipCache(this, imageUrl, groupImage, errorImage)
         }else {
-            if (imageUrl!!.startsWith("/storage/emulated/")) {
+            if (imageUrl!!.startsWith(storagePath)) {
                 MediaUtils.loadImageWithGlide(this, imageUrl, groupImage, errorImage)
             } else {
                 MediaUtils.loadImageWithGlideSecure(
@@ -197,14 +202,32 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
         mFileCameraTemp = File(FilePathUtils.getExternalStorage(), Constants.TEMP_PHOTO_FILE_NAME)
     }
 
+    private fun profileImageUrlUpdate() {
+        val profile = if (groupId != null && groupId!!.isNotEmpty()) ContactManager.getProfileDetails(groupId!!)
+        else ContactManager.getProfileDetails(userId!!)
+        if (profile!!.isAdminBlocked) imageUrl = Constants.EMPTY_STRING
+    }
+
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
-        if(jid != null && userId == jid){
+        updateUserProfile(jid)
+    }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        updateUserProfile(jid)
+    }
+
+    private fun updateUserProfile(jid: String) {
+        if(userId == jid) {
             val profileDetail = ContactManager.getProfileDetails(jid)
-            if (profileDetail?.image!!.startsWith("/storage/emulated/"))
-                MediaUtils.loadImageWithGlide(this, profileDetail?.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
+            if (profileDetail?.image!!.startsWith(storagePath))
+                com.contusfly.utils.MediaUtils.loadImageWithGlide(this, profileDetail.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
             else
-                MediaUtils.loadImageWithGlide(this, profileDetail?.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
+                com.contusfly.utils.MediaUtils.loadImage(this, profileDetail.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
         }
     }
 
@@ -284,7 +307,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     private fun pickImageFromGallery() {
         if (MediaPermissions.isReadFilePermissionAllowed(this)) {
             PickFileUtils.chooseImageFromGallery(this)
-        } else MediaPermissions.requestCameraStoragePermissions(this, galleryPermissionLauncher)
+        } else MediaPermissions.requestCameraStoragePermissions(this, permissionAlertDialog, galleryPermissionLauncher)
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
@@ -377,6 +400,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
             true) else activity?.let {
             MediaPermissions.requestCameraStoragePermissions(
                 it,
+                permissionAlertDialog,
                 cameraPermissionLauncher)
         }
     }
@@ -478,4 +502,37 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
                 }
             }
         }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (this.groupId != null && jid == this.groupId && status) {
+            showToast(getString(R.string.group_block_message_label))
+            setResult(Activity.RESULT_FIRST_USER)
+            startDashboardActivity()
+            finish()
+        } else {
+            setUserProfileImage(jid, status)
+        }
+    }
+
+    private fun setUserProfileImage(jid: String, status: Boolean) {
+        val profileDetail = ContactManager.getProfileDetails(jid)
+        if (profileDetail != null) {
+            profileDetail.image = if (status) Constants.EMPTY_STRING else profileDetail.image
+            if (profileDetail.image!!.startsWith(storagePath))
+                com.contusfly.utils.MediaUtils.loadImageWithGlide(
+                    this,
+                    profileDetail.image!!,
+                    groupImage,
+                    ContextCompat.getDrawable(this, errorImage)
+                )
+            else
+                com.contusfly.utils.MediaUtils.loadImage(
+                    this,
+                    profileDetail.image!!,
+                    groupImage,
+                    ContextCompat.getDrawable(this, errorImage)
+                )
+        }
+    }
 }

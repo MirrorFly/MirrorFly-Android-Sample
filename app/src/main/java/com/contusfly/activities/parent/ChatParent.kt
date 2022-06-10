@@ -9,14 +9,12 @@ import android.content.Intent
 import android.content.pm.ResolveInfo
 import android.graphics.BitmapFactory
 import android.graphics.Point
-import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.location.LocationManager
 import android.media.MediaMetadataRetriever
 import android.os.*
-import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.*
@@ -60,6 +58,7 @@ import com.contusfly.chat.MessagingClient
 import com.contusfly.chat.ReplyHashMap
 import com.contusfly.chat.ReplyViewHandler
 import com.contusfly.constants.MobileApplication
+import com.contusfly.databinding.ActivityChatBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.interfaces.ChatAttachmentLister
 import com.contusfly.interfaces.MessageListener
@@ -93,7 +92,6 @@ import dagger.android.AndroidInjection
 import io.github.rockerhieu.emojicon.EmojiconEditText
 import io.reactivex.Observable
 import io.reactivex.Observer
-import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
@@ -127,6 +125,11 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     }
 
     lateinit var chat: Chat
+
+    protected var leftUserJid = Constants.EMPTY_STRING
+
+    protected lateinit var binding: ActivityChatBinding
+    protected val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     protected var isFromForward = false
     protected var dontAllowClick = false
@@ -171,6 +174,8 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     protected var isBlockUnblockCalled = false
 
     var isBlocked: Boolean = false
+
+    var isAdminBlocked: Boolean = false
 
     var isEmailChatClicked: Boolean = false
 
@@ -300,6 +305,37 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     private val filteredPosition = ArrayList<Int>()
 
     protected var typingList:MutableList<String> = ArrayList<String>()
+
+    private val editTextWatcher = object : TextWatcher {
+        override fun afterTextChanged(p0: Editable?) {
+            if (p0.toString().trim().isNotEmpty()) {
+                imgSend.isEnabled = true
+                imgSend.show()
+                imgSend.setImageResource(R.drawable.ic_send_active)
+                suggestionLayout.gone()
+            } else {
+                imgSend.isEnabled = false
+                imgSend.gone()
+                imgSend.setImageResource(R.drawable.ic_send_inactive)
+                if (isReplyTagged)
+                    parentViewModel.addMessage(
+                        parentViewModel.getMessageForId(
+                            selectedMessageIdForReply
+                        ), chat.toUser
+                    )
+                else
+                    addMessagesforSmartReply()
+            }
+        }
+
+        override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            //To change body of created functions use File | Settings | File Templates.
+        }
+
+        override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            //To change body of created functions use File | Settings | File Templates.
+        }
+    }
 
     companion object {
         val TAG = ChatParent::class.java.simpleName
@@ -523,20 +559,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             // r.bottom is the position above soft keypad or device button.
             // if keypad is shown, the r.bottom is smaller than that before.
             val keypadHeight = screenHeight - r.bottom
-
-            if (keypadHeight > screenHeight * 0.15) { // 0.15 ratio is perhaps enough to determine keypad height.
-                if (!isSoftKeyboardShown) {
-                    isSoftKeyboardShown = true
-                    Log.d(TAG, " keyboard is opened")
-                    if(emojiHandler.isEmojiShowing)
-                        emojiHandler.hideEmoji()
-                }
-            } else {
-                if (isSoftKeyboardShown) {
-                    isSoftKeyboardShown = false
-                    Log.d(TAG, " keyboard is closed")
-                }
-            }
+            showHideKeyboard(screenHeight, keypadHeight)
         }
 
         setSupportActionBar(toolbar)
@@ -554,33 +577,13 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         val infoClickDisposable =
             userNameLayout.clicks().throttleFirst(1000, TimeUnit.MILLISECONDS).subscribe {
                 hideKeyboard()
-                if (chat.isSingleChat()) {
-                    launchActivity<UserInfoActivity> {
-                        putExtra(
-                            AppConstants.PROFILE_DATA,
-                            ContactManager.getProfileDetails(chat.toUser)
-                        )
-                    }
-                } else if (chat.isGroupChat()) {
-                    launchActivity<GroupInfoActivity> {
-                        putExtra(
-                            AppConstants.PROFILE_DATA,
-                            ContactManager.getProfileDetails(chat.toUser)
-                        )
-                    }
-                }
+                navigateToChatProfilePage()
             }
 
         searchEdit.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
 
-                if (searchedText.isNotEmpty())
-                    isFromSearchIcon = true
-                    actionPrev?.icon = resources.getDrawable(R.drawable.ic_search_prev_ripple_arrow)
-                    actionPrev?.let {
-                        onOptionsItemSelected(it)
-                    }
-                // optionMenu?.performIdentifierAction(R.id.action_prev, 0)
+                searchRippleView()
                 searchEdit.requestFocus()
                 true
             } else {
@@ -619,8 +622,6 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 isComposing = true
             }
 
-        setEditTextListener()
-
         if (chat.isSingleChat()) {
             clickableSpan = object : ClickableSpan() {
                 override fun onClick(textView: View) {
@@ -645,6 +646,49 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         observeMessageRefreshListener()
     }
 
+    private fun searchRippleView() {
+        if (searchedText.isNotEmpty())
+            isFromSearchIcon = true
+        actionPrev?.icon = resources.getDrawable(R.drawable.ic_search_prev_ripple_arrow)
+        actionPrev?.let {
+            onOptionsItemSelected(it)
+        }
+    }
+
+    private fun navigateToChatProfilePage() {
+        if (chat.isSingleChat()) {
+            launchActivity<UserInfoActivity> {
+                putExtra(
+                    AppConstants.PROFILE_DATA,
+                    ContactManager.getProfileDetails(chat.toUser)
+                )
+            }
+        } else if (chat.isGroupChat()) {
+            launchActivity<GroupInfoActivity> {
+                putExtra(
+                    AppConstants.PROFILE_DATA,
+                    ContactManager.getProfileDetails(chat.toUser)
+                )
+            }
+        }
+    }
+
+    private fun showHideKeyboard(screenHeight: Int, keypadHeight: Int) {
+        if (keypadHeight > screenHeight * 0.15) { // 0.15 ratio is perhaps enough to determine keypad height.
+            if (!isSoftKeyboardShown) {
+                isSoftKeyboardShown = true
+                Log.d(TAG, " keyboard is opened")
+                if(emojiHandler.isEmojiShowing)
+                    emojiHandler.hideEmoji()
+            }
+        } else {
+            if (isSoftKeyboardShown) {
+                isSoftKeyboardShown = false
+                Log.d(TAG, " keyboard is closed")
+            }
+        }
+    }
+
     private fun observeMessageRefreshListener() {
         launch {
             messageRefreshFlow.buffer().collect { pair ->
@@ -652,31 +696,39 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                     emit(viewModel.getMessage(pair.first))
                 }.collect { message ->
                     message?.let {
-                        val messagePosition = getMessagePosition(message.messageId)
-                        if (messagePosition.isValidIndex()) {
-                            if (pair.second == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
-                                runOnUiThread {
-                                    chatAdapter.refreshMessage(messagePosition, message)
-                                    val bundle = Bundle()
-                                    bundle.putInt(Constants.NOTIFY_MESSAGE_STATUS_CHANGED, 1)
-                                    chatAdapter.notifyItemChanged(messagePosition, bundle)
-                                }
-                            } else {
-                                val firstCompletelyVisibleItemPosition = firstCompletelyVisibleItemPosition - 3
-                                val lastCompletelyVisibleItemPosition = lastCompletelyVisibleItemPosition + 3
-                                if (messagePosition in firstCompletelyVisibleItemPosition..lastCompletelyVisibleItemPosition)
-                                    runOnUiThread {
-                                        chatAdapter.refreshMessageAtPosition(messagePosition, message)
-                                    }
-                                else
-                                    runOnUiThread {
-                                        chatAdapter.refreshMessage(messagePosition, message)
-                                    }
-                            }
+                        try {
+                            val messagePosition = getMessagePosition(message.messageId)
+                            if (messagePosition.isValidIndex() && pair.second == Constants.NOTIFY_MESSAGE_STATUS_CHANGED)
+                                updateMessageStatusAndRefreshData(messagePosition, message)
+                            else if (messagePosition.isValidIndex()) checkAndUpdateItemPosition(messagePosition, message)
+                        } catch (e: Exception) {
+                            LogMessage.e(TAG, e.message)
                         }
                     }
                 }
             }
+        }
+    }
+
+    private fun checkAndUpdateItemPosition(messagePosition: Int, message: ChatMessage) {
+        val firstCompletelyVisibleItemPosition = firstCompletelyVisibleItemPosition - 3
+        val lastCompletelyVisibleItemPosition = lastCompletelyVisibleItemPosition + 3
+        if (messagePosition in firstCompletelyVisibleItemPosition..lastCompletelyVisibleItemPosition)
+            runOnUiThread {
+                chatAdapter.refreshMessageAtPosition(messagePosition, message)
+            }
+        else
+            runOnUiThread {
+                chatAdapter.refreshMessage(messagePosition, message)
+            }
+    }
+
+    private fun updateMessageStatusAndRefreshData(messagePosition: Int, message: ChatMessage) {
+        runOnUiThread {
+            chatAdapter.refreshMessage(messagePosition, message)
+            val bundle = Bundle()
+            bundle.putInt(Constants.NOTIFY_MESSAGE_STATUS_CHANGED, 1)
+            chatAdapter.notifyItemChanged(messagePosition, bundle)
         }
     }
 
@@ -724,7 +776,8 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         videoCallDrawable = this.drawable(R.drawable.ic_call_log_video_call)
         optionMenu?.let {
             when {
-                parentViewModel.getProfileDetails(chat.toUser)?.isBlocked!! -> {
+                (parentViewModel.getProfileDetails(chat.toUser)?.isBlocked!! || parentViewModel.getProfileDetails(chat.toUser)?.isAdminBlocked!!
+                        || parentViewModel.getProfileDetails(chat.toUser)?.isDeletedContact()!!) -> {
                     audioCallDrawable?.mutate()?.applySrcInColorFilter(
                         ContextCompat.getColor(
                             this,
@@ -753,49 +806,18 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 it.get(R.id.action_audio_call).isVisible = true
                 it.get(R.id.action_video_call).setVisible(true)
             } else {
-                it.get(R.id.action_audio_call).setVisible(CallConfiguration.isGroupCallEnabled())
+                it.get(R.id.action_audio_call).isVisible = CallConfiguration.isGroupCallEnabled()
                 it.get(R.id.action_video_call).setVisible(CallConfiguration.isGroupCallEnabled())
             }
         }
     }
 
     private fun setEditTextListener() {
-        chatMessageEditText.let {
-            it.addTextChangedListener(object : TextWatcher {
-                override fun afterTextChanged(p0: Editable?) {
-                    if (p0.toString().trim().isNotEmpty()) {
-                        imgSend.isEnabled = true
-                        imgSend.show()
-                        imgSend.setImageResource(R.drawable.ic_send_active)
-                        suggestionLayout.gone()
-                    } else {
-                        imgSend.isEnabled = false
-                        imgSend.gone()
-                        imgSend.setImageResource(R.drawable.ic_send_inactive)
-                        if (isReplyTagged)
-                            parentViewModel.addMessage(
-                                parentViewModel.getMessageForId(
-                                    selectedMessageIdForReply
-                                ), chat.toUser
-                            )
-                        else
-                            addMessagesforSmartReply()
-                    }
-                }
-
-                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                    //To change body of created functions use File | Settings | File Templates.
-                }
-
-                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                    //To change body of created functions use File | Settings | File Templates.
-                }
-            })
-            it.setOnTouchListener { _, _ ->
-                if (attachmentDialog.isShowing)
-                    closeControls()
-                false
-            }
+        binding.viewChatFooter.editChatMsg.addTextChangedListener(editTextWatcher)
+        binding.viewChatFooter.editChatMsg.setOnTouchListener { _, _ ->
+            if (attachmentDialog.isShowing)
+                closeControls()
+            false
         }
     }
 
@@ -892,8 +914,12 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         }
     }
 
+    protected fun isProfileObjectInitialized(): Boolean {
+        return ::profileDetails.isInitialized
+    }
+
     protected fun setUserProfileImage() {
-        if (::profileDetails.isInitialized) {
+        if (isProfileObjectInitialized()) {
             if(profileDetails.isGroupProfile) {
             val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
             val newlyCreatedJid = SharedPreferenceManager.getString(Constants.NEW_GROUP_JID)
@@ -925,14 +951,18 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                     LogMessage.e("ProfileDialogFragment", e)
                 }
             } else
-                this?.let { toUserImageView.loadUserProfileImage(it, profileDetails) }
+                this.let { toUserImageView.loadUserProfileImage(it, profileDetails) }
         } else
-            toUserImageView.loadUserProfileImage(this, profileDetails)
+                this.let { toUserImageView.loadUserProfileImage(it, profileDetails) }
         }
     }
 
     protected fun setChatStatus() {
         if (chat.isSingleChat()) {
+            if (profileDetails.isDeletedContact()) {
+                chatViewUtils.setUserPresenceStatus(this, Constants.EMPTY_STRING)
+                return
+            }
             netConditionalCall({
                 launch(exceptionHandler) {
                     ContactManager.getUserLastSeenTime(
@@ -1017,13 +1047,13 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     protected fun showUnsentMessage(unsentMessage: String) {
         if (unsentMessage.isNotEmpty()) {
             enableEdt = false
-            chatMessageEditText.setText(unsentMessage)
+            binding.viewChatFooter.editChatMsg.setText(unsentMessage)
             imgSend.setImageResource(R.drawable.ic_send_active)
             imgSend.show()
             if (showChatKeyboard)
                 showChatKeyboard = false
         } else {
-            chatMessageEditText.setText(Constants.EMPTY_STRING)
+            binding.viewChatFooter.editChatMsg.setText(Constants.EMPTY_STRING)
             imgSend.gone()
             imgSend.setImageResource(R.drawable.ic_send_inactive)
         }
@@ -1035,6 +1065,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             )
         } else
             resetReplyMessageView()
+        setEditTextListener()
     }
 
     fun getUserLastActivity() {
@@ -1050,6 +1081,10 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
      */
     private fun getUserLastActivityWithDelay() {
         if (statusTextView.text.isEmpty()) {
+            if (isProfileObjectInitialized() && profileDetails.isDeletedContact()) {
+                chatViewUtils.setUserPresenceStatus(this, Constants.EMPTY_STRING)
+                return
+            }
             launch(exceptionHandler) {
                 ContactManager.getUserLastSeenTime(
                     chat.toUser,
@@ -1166,10 +1201,12 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                     menu.get(R.id.action_add_chat_shortcuts).isVisible = false
                     if (isSingleMessage) {
                         menu.get(R.id.action_copy).isVisible = true
+                        menu.get(R.id.action_report).isVisible = menuHashMap[Constants.REPORT]!!
                         if (menuHashMap[Constants.INFO]!!)  menu.get(R.id.action_info).isVisible = true
                     } else {
                         menu.get(R.id.action_info).isVisible = false
                         menu.get(R.id.action_copy).isVisible = false
+                        menu.get(R.id.action_report).isVisible = false
                     }
                 }
             }
@@ -1519,7 +1556,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 options?.preSelectedUrls = returnValue
                 Pix.start(this, options)
             } else
-                MediaPermissions.requestCameraStoragePermissions(this, cameraPermissionLauncher)
+                MediaPermissions.requestCameraStoragePermissions(this, permissionAlertDialog, cameraPermissionLauncher)
             closeControls()
         } else
             vibrateWithToast(getString(R.string.warning_camera_restriction_message))
@@ -1549,7 +1586,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             && MediaPermissions.isWriteFilePermissionAllowed(this))
             PickFileUtils.pickFile(this)
         else
-            MediaPermissions.requestStorageAccess(this, filePermissionLauncher)
+            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, filePermissionLauncher)
         closeControls()
     }
 
@@ -1562,7 +1599,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 && MediaPermissions.isWriteFilePermissionAllowed(this)) {
             selectAudioFileFromStorage()
         } else
-            MediaPermissions.requestStorageAccess(this, audioSelectionPermissionLauncher)
+            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, audioSelectionPermissionLauncher)
         closeControls()
     }
 
@@ -1574,7 +1611,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         if (MediaPermissions.isPermissionAllowed(this, Manifest.permission.READ_CONTACTS))
             showMobileContacts()
         else
-            MediaPermissions.requestContactsReadPermission(this, contactPermissionLauncher)
+            MediaPermissions.requestContactsReadPermission(this, permissionAlertDialog, contactPermissionLauncher, null)
         closeControls()
     }
 
@@ -1617,7 +1654,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             && ChatUtils.checkWritePermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
             selectImagesFromGallery()
         } else
-            MediaPermissions.requestStorageAccess(this, galleryPermissionLauncher)
+            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
         closeControls()
     }
 
@@ -1627,7 +1664,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             if (MediaPermissions.isLocationPermissionAllowed(this)) {
                 checkLocationPermission()
             } else
-                MediaPermissions.requestLocationPermission(this, locationPermissionLauncher)
+                MediaPermissions.requestLocationPermission(this, permissionAlertDialog, locationPermissionLauncher)
         }
         closeControls()
     }
@@ -1662,12 +1699,12 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         try {
             val mBuilder = AlertDialog.Builder(context, R.style.AlertDialogStyle)
             mBuilder.setMessage(context.getString(R.string.fly_info_msg_location_disabled))
-            mBuilder.setPositiveButton(context.getString(R.string.fly_info_action_enable)) { dialog: DialogInterface, which: Int ->
+            mBuilder.setPositiveButton(context.getString(R.string.fly_info_action_enable)) { dialog: DialogInterface, _: Int ->
                 dialog.dismiss()
                 val myIntent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 context.startActivity(myIntent)
             }
-            mBuilder.setNegativeButton(context.getString(R.string.fly_action_cancel)) { dialog: DialogInterface, which: Int -> dialog.dismiss() }
+            mBuilder.setNegativeButton(context.getString(R.string.fly_action_cancel)) { dialog: DialogInterface, _: Int -> dialog.dismiss() }
             val dialog = mBuilder.create()
             dialog.setCancelable(false)
             dialog.show()
@@ -1720,6 +1757,18 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     protected fun getMessageAndPosition(messageId: String) : Pair<Int, ChatMessage?> {
         val messageIndex = mainList.indexOfFirst { it.messageId == messageId }
         return if (messageIndex.isValidIndex()) {
+            val message = parentViewModel.getMessageForId(messageId)
+            message?.let {
+                mainList[messageIndex] = it
+            }
+            Pair(messageIndex, message)
+        } else Pair(messageIndex, null)
+    }
+
+    protected fun getMessageAndPosition(index: Int) : Pair<Int, ChatMessage?> {
+        val messageIndex = if (index < mainList.size) index else -1
+        return if (messageIndex.isValidIndex()) {
+            val messageId = mainList[messageIndex].messageId
             val message = parentViewModel.getMessageForId(messageId)
             message?.let {
                 mainList[messageIndex] = it
@@ -1942,27 +1991,41 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         // Checks the chat type and validates if user presents in group or users exists in broadcast list
         // if chat type is group or broadcast enable/disable chat type option
         if (ChatType.TYPE_GROUP_CHAT == chat.chatType) {
-            if (parentViewModel.isGroupUserExist(chat.toUser, SharedPreferenceManager.getCurrentUserJid())) {
-                setBottomChatFooterView()
-            } else {
-                val view = this.currentFocus
-                if (view != null) {
-                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.hideSoftInputFromWindow(view.windowToken, 0)
-                }
-                makeViewsGone(viewChat, imgSend)
-                showViews(txtNoMsg)
-            }
-        } else if (parentViewModel.getProfileDetails(chat.toUser)?.isBlocked!!) {
-            txtNoMsg.show()
-            makeViewsGone(viewChat, imgSend, voiceAttachment, replyMessageSentView, closeReplyMessage)
-            parentViewModel.clearSuggestions()
-            suggestionLayout.gone()
-            addMessagesforSmartReply()
-            setCallButtonVisibility()
+            setUpGroupChatEditText()
         } else {
-            setBottomChatFooterView()
+            val userProfile = parentViewModel.getProfileDetails(chat.toUser)
+            val isUserBlocked = userProfile!!.isBlocked
+            val isAdminBlocked = userProfile!!.isAdminBlocked
+            if (isUserBlocked || isAdminBlocked) {
+                showTxtNoMsg(isAdminBlocked)
+                makeViewsGone(viewChat, imgSend, voiceAttachment, replyMessageSentView, closeReplyMessage)
+                parentViewModel.clearSuggestions()
+                suggestionLayout.gone()
+                setCallButtonVisibility()
+            } else {
+                setBottomChatFooterView()
+            }
+            addMessagesforSmartReply()
         }
+    }
+
+    private fun setUpGroupChatEditText() {
+        if (parentViewModel.isGroupUserExist(chat.toUser, SharedPreferenceManager.getCurrentUserJid())) {
+            setBottomChatFooterView()
+        } else {
+            val view = this.currentFocus
+            if (view != null) {
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+            }
+            makeViewsGone(viewChat, imgSend)
+            showViews(txtNoMsg)
+        }
+    }
+
+    private fun showTxtNoMsg(adminBlocked: Boolean) {
+        txtNoMsg.text = if (adminBlocked) getString(R.string.user_block_message_label) else setBlockedSpannableText()
+        txtNoMsg.show()
     }
 
     private fun setBottomChatFooterView() {
@@ -2018,7 +2081,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 MediaPermissions.isWriteFilePermissionAllowed(this)) {
                 isEmailChatClicked = false
                 FlyCore.exportChatConversationToEmail(chat.toUser, emptyList())
-            } else MediaPermissions.requestStorageAccess(this, emailPermissionLauncher)
+            } else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, emailPermissionLauncher)
         }
     }
 
@@ -2211,7 +2274,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     }
 
     protected fun addMessagesforSmartReply() {
-        if (mainList.isNotEmpty() && !searchEnabled && mainList.last().messageType == MessageType.TEXT ) {
+        if ((isProfileObjectInitialized() && !profileDetails.isAdminBlocked) && mainList.isNotEmpty() && !searchEnabled && mainList.last().messageType == MessageType.TEXT ) {
             val list = mainList.filter { !it.isMessageRecalled() && !it.isMessageSentByMe && it.messageType == MessageType.TEXT }
             if(!mainList.last().isMessageSentByMe) {
                 if (list.isNotEmpty() && !mainList.last().isMessageRecalled) parentViewModel.addMessage(list.last(), chat.toUser)
@@ -2225,7 +2288,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             chatAdapter.notifyItemChanged(getMessagePosition(mid))
     }
 
-    private fun updateDeliveryAndSeenStatus() {
+    protected fun updateDeliveryAndSeenStatus() {
         if (firstCompletelyVisibleItemPosition in 0 until lastCompletelyVisibleItemPosition) {
             updateAdapter()
             chatAdapter.notifyItemRangeChanged(firstCompletelyVisibleItemPosition, lastCompletelyVisibleItemPosition + 1)
@@ -2432,14 +2495,6 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         }
     }
 
-    /**
-     * Clear the selected messages
-     */
-    private fun clearSelection() {
-        clickedMessages.clear()
-        actionMode?.let { invalidateActionMode() }
-    }
-
     protected fun invalidateActionMode() {
         if (clickedMessages.isEmpty())
             actionMode?.finish()
@@ -2492,6 +2547,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             } else {
                 MediaPermissions.requestAudioStoragePermissions(
                     this,
+                    permissionAlertDialog,
                     audioRecordingPermissionLauncher
                 )
                 false

@@ -29,6 +29,7 @@ import com.contusfly.fragments.RecentChatListFragment
 import com.contusfly.interfaces.RecentChatEvent
 import com.contusfly.utils.*
 import com.contusfly.views.CommonAlertDialog
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.models.ChatMessage
@@ -50,13 +51,19 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     private lateinit var callTitleTextView: TextView
     private lateinit var unReadChatCountTextView: TextView
     private lateinit var missedCallCountTextView: TextView
+    private var isLoadCallLogsOnMainThread: Boolean = false
+
+    private var adminBlockStatus : Boolean = false
+    private var userJid:String = Constants.EMPTY_STRING
+    private var handler: Handler? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
+        checkConditionForPin()
         super.onCreate(savedInstanceState)
         dashboardBinding = ActivityDashboardBinding.inflate(layoutInflater)
         setContentView(dashboardBinding.root)
-
+        handler = Handler(Looper.getMainLooper())
         setSupportActionBar(dashboardBinding.toolbar)
         supportActionBar?.title = Constants.EMPTY_STRING
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
@@ -74,6 +81,41 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         setUpTabColors(0)
         setupTabPosition()
         checkEnableSafeChat()
+    }
+
+    private fun checkConditionForPin() {
+        val isPinNotValidated = SharedPreferenceManager.getBoolean(Constants.IS_PIN_VALIDATED)
+        if (intent.getBooleanExtra(Constants.FROM_SPLASH_SCREEN, false) || intent.getBooleanExtra(Constants.FROM_ADMIN_BLOCK_SCREEN, false)) {
+            val shouldShowPinOrNot = intent.getBooleanExtra("shouldShowPinOrNot", false)
+            if (AppLifecycleListener.fromOnCreate && AppLifecycleListener.isPinEnabled && !SafeChatUtils.safeChatEnabled) pinForDashBoard()
+            else if (AppLifecycleListener.isForeground && shouldShowPinOrNot) checkBioMetricLock()
+            else if (AppLifecycleListener.pinActivityShowing ||
+                (AppLifecycleListener.isPinEnabled && (AppLifecycleListener.isForeground || isPinNotValidated)))
+                pinForDashBoard()
+        }
+    }
+
+    private fun checkBioMetricLock() {
+        SharedPreferenceManager.setString(Constants.APP_SESSION, System.currentTimeMillis().toString())
+        if (SharedPreferenceManager.getBoolean(Constants.BIOMETRIC)) {
+            val intent = Intent(this@DashboardActivity, BiometricActivity::class.java)
+            intent.putExtra(Constants.GO_TO, "DASHBOARD")
+            startActivity(intent)
+        } else pinForDashBoard()
+    }
+
+    private fun pinForDashBoard() {
+        if (SharedPreferenceManager.getBoolean(Constants.BIOMETRIC)) {
+            val intent = Intent(this, BiometricActivity::class.java)
+            intent.putExtra(Constants.GO_TO, "DASHBOARD")
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            ChatManager.applicationContext.startActivity(intent)
+        } else if (AppLifecycleListener.isPinEnabled) {
+            val intent = Intent(ChatManager.applicationContext, ChatManager.pinActivity)
+            intent.putExtra(Constants.GO_TO, "DASHBOARD")
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            ChatManager.applicationContext.startActivity(intent)
+        }
     }
 
     private fun checkEnableSafeChat() {
@@ -120,6 +162,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
 
     private fun setupTabPosition() {
         if (intent.getBooleanExtra(GroupCallUtils.IS_CALL_NOTIFICATION, false) || GroupCallUtils.isCallsTabToBeShown()) {
+            isLoadCallLogsOnMainThread = true
             callHistoryFragment.isLoadDataOnMainThread = true
             mViewPager.currentItem = 1
             GroupCallUtils.setCallsTabToBeShown(false)
@@ -230,6 +273,17 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         viewModel.setBlockUnBlockJID(userJid, blockType)
     }
 
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        adminBlockStatus = status
+        userJid = jid
+        LogMessage.d(TAG, "#onAdminBlockedStatus jid == $userJid status == $adminBlockStatus")
+        //To avoid multiple callbacks
+        handler?.postDelayed({
+            viewModel.setAdminBlockedStatus(userJid, adminBlockStatus)
+        }, 500)
+    }
+
     override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
         LogMessage.d(TAG, position.toString())
     }
@@ -320,6 +374,8 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         viewModel.getRecentChats()
         viewModel.getArchivedChatStatus()
         viewModel.updateUnReadChatCount()
+        callLogviewModel.getCallLogsList(isLoadCallLogsOnMainThread)
+        isLoadCallLogsOnMainThread = false
         if (SharedPreferenceManager.getBoolean(Constants.SHOW_LABEL))
             netConditionalCall({ dashboardBinding.dashboardXmppConnectionStatusLayout.gone() }, { dashboardBinding.dashboardXmppConnectionStatusLayout.show() })
         else dashboardBinding.dashboardXmppConnectionStatusLayout.gone()
@@ -355,6 +411,13 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
                 finishAffinity()
             }
         }
+    }
+
+    fun recentClickOnAdminBlockedUser() {
+        commonAlertDialog.showAlertDialog(getString(R.string.group_block_message_label),
+            getString(R.string.action_Ok),
+            getString(R.string.action_cancel),
+            CommonAlertDialog.DIALOGTYPE.DIALOG_SINGLE, false)
     }
 
     private fun menuValidationForSingleItem(recentList: List<RecentChat>, startActionMode: Boolean) {
@@ -509,7 +572,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
         if (!isSuccess)
             return
-        if (mRecentChatListType == RecentChatListType.RECENT)
+        if (dialogType == CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL && mRecentChatListType == RecentChatListType.RECENT)
             deleteSelectedRecent(getJidFromList(viewModel.selectedRecentChats))
     }
 
@@ -575,21 +638,4 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         viewModel.getRecentChatOfUser(groupJid, RecentChatEvent.GROUP_EVENT)
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (grantResults.isNotEmpty() && !grantResults.contains(PackageManager.PERMISSION_DENIED)) {
-            when (requestCode) {
-                RequestCode.CAMERA_PERMISSION_CODE -> { startActivity(Intent(this, QrCodeScannerActivity::class.java)) }
-            }
-        } else {
-            when (requestCode) {
-                RequestCode.CAMERA_PERMISSION_CODE -> {
-                    val showCameraRationale = MediaPermissions.canRequestPermission(this, Manifest.permission.CAMERA)
-                    if (!showCameraRationale) {
-                        SharedPreferenceManager.setBoolean(Constants.CAMERA_PERMISSION_ASKED, true)
-                    }
-                }
-            }
-        }
-    }
 }

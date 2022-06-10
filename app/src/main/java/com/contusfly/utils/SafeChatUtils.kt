@@ -40,7 +40,7 @@ object SafeChatUtils {
         if (safeChatEnabled) {
             updateSafeChat = SafeChatUpdate.DISABLE
         } else {
-            enableSafeChat(activity,callback)
+            enableSafeChat(activity)
         }
         AppShortCuts.dynamicAppShortcuts(activity)
     }
@@ -55,7 +55,7 @@ object SafeChatUtils {
         }
     }
 
-    private fun enableSafeChat(activity: Activity,callback:(()->Unit)?) {
+    private fun enableSafeChat(activity: Activity) {
         LogMessage.i("SAFECHAT", "enableSafeChat safeChatEnabled : $safeChatEnabled")
         if (appLockEnabled) {
             updateSafeChat = SafeChatUpdate.ENABLE

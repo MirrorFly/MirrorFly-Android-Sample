@@ -24,9 +24,7 @@ import com.contusfly.activities.*
 import com.contusfly.databinding.FragmentSettingsBinding
 import com.contusfly.utils.*
 import com.contusfly.views.CommonAlertDialog
-import com.contusfly.views.DoProgressDialog
 import com.contusflysdk.AppUtils
-import com.contusflysdk.FlyDatabaseManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.views.CustomToast
 import java.text.SimpleDateFormat
@@ -121,6 +119,10 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
 
         settingsBinding.layoutNotifications.setOnClickListener{
             settingsActivity!!.performFragmentTransaction(NotificationsFragment.newInstance())
+        }
+
+        settingsBinding.layoutDeleteMyAccount.setOnClickListener{
+            settingsActivity!!.performFragmentTransaction(DeleteMyAccountFragment.newInstance())
         }
 
         settingsBinding.layoutStarredMessages.setOnClickListener{

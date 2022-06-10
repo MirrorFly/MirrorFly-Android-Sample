@@ -101,6 +101,41 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
     }
 
     /**
+     * Set the updated data to ProfileDetails list and refresh the view
+     *
+     * @param shareModel the new data
+     */
+    fun insertProfileDetails(position: Int, shareModel: ProfileDetailsShareModel?) {
+        shareModel?.let {
+            if (this.profileDetailsList!!.none { it.profileDetails.jid == shareModel.profileDetails.jid})
+                this.profileDetailsList!!.add(position, shareModel)
+            if (searchKey.isNullOrBlank()) {
+                if (mTempData!!.none { it.profileDetails.jid == shareModel.profileDetails.jid})
+                    mTempData!!.add(position, shareModel)
+            } else {
+                filter(searchKey ?: Constants.EMPTY_STRING)
+            }
+            notifyDataSetChanged()
+        }
+    }
+
+    /**
+     * Remove the profile details from the adapter
+     *
+     * @param position the new data
+     * @param jid of the user
+     */
+    fun removeProfileDetails(position: Int, jid : String) {
+        this.profileDetailsList!!.removeAt(position)
+        val index = mTempData!!.indexOfFirst { it.profileDetails.jid == jid }
+        if (index.isValidIndex()) {
+            removeFromSelectedList(mTempData!![index])
+            mTempData!!.removeAt(index)
+            notifyDataSetChanged()
+        }
+    }
+
+    /**
      * Get the profileDetails from the Contacts adapter
      *
      * @param position Position of the ProfileDetails
@@ -138,12 +173,16 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
             holder.viewBinding.centerLayout.setOnClickListener(onClickListener)
             holder.viewBinding.contactItem.setOnClickListener(onClickListener)
             holder.viewBinding.checkSelection.setOnClickListener(onClickListener)
-            holder.viewBinding.checkSelection.isChecked = selectedList.contains(item)
+            holder.viewBinding.checkSelection.isChecked = getUserSelectedStatus(item)
             if (item.profileDetails.isBlocked)
                 holder.viewBinding.checkSelection.isClickable = false
         } catch (e: Exception) {
             LogMessage.e(e)
         }
+    }
+
+    private fun getUserSelectedStatus(item: ProfileDetailsShareModel): Boolean {
+        return selectedList.any { it.profileDetails.jid == item.profileDetails.jid }
     }
 
     /**
@@ -157,9 +196,9 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
             CustomToast.show(context, context.getString(R.string.user_no_longer_error_message))
             return
         }
-        if (!item.profileDetails.isGroupInOfflineMode && !item.profileDetails.isBlocked) {
-            if (selectedList.contains(item)) {
-                selectedList.remove(item)
+        if (!(item.profileDetails.isGroupProfile && item.profileDetails.isGroupInOfflineMode) && !item.profileDetails.isBlocked) {
+            if (getUserSelectedStatus(item)) {
+                removeFromSelectedList(item)
                 holder.viewBinding.checkSelection.isChecked = false
             } else {
                 if (selectedList.size >= Constants.MAX_FORWARD_USER_RESTRICTION) {
@@ -177,6 +216,12 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
                 context.getString(R.string.yes_label), context.getString(R.string.no_label),
                 CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, true)
         }
+    }
+
+    private fun removeFromSelectedList(item: ProfileDetailsShareModel) {
+        val index = selectedList.indexOfFirst { profileDetailsShareModel -> profileDetailsShareModel.profileDetails.jid == item.profileDetails.jid }
+        if (index.isValidIndex()) selectedList.removeAt(index) else selectedList.remove(item)
+
     }
 
     /**

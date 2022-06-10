@@ -777,16 +777,11 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             val starredContactSentHolder = holder as ContactSentViewHolder
             val contactMessage = item.getContactChatMessage()
             val contactName = contactMessage.getContactName()
-         //   val registeredJid: String = getJidFromSharedContact(contactMessage)!!
             val time: String = getChatMsgTime(item)!!
             starredContactSentHolder.txtSendName.text = contactName
             starredContactSentHolder.txtSendTime.text = time
             starredContactSentHolder.contactActionText.gone()
             starredContactSentHolder.contactSeparator?.hide()
-//            if (registeredJid != null) starredContactSentHolder.contactActionText.text = context!!.resources.getString(R.string.message) else {
-//                starredContactSentHolder.contactActionText.text = context!!.resources.getString(R.string.invite)
-//                setInviteClickListener(starredContactSentHolder.contactActionText, item, position, item.getChatUserJid())
-//            }
             replyViewUtils!!.showSenderReplyWindow(starredContactSentHolder, item, context!!)
             starredContactSentHolder.starredSentImage.visibility = View.VISIBLE
             setStatus(item, starredContactSentHolder.imgSenderStatus)
@@ -829,15 +824,10 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             val contactMessage = item.getContactChatMessage()
             val contactName = contactMessage.getContactName()
             val time: String = getChatMsgTime(item)!!
-          //  val registeredJid: String = getJidFromSharedContact(contactMessage)!!
             starredContactReceivedHolder.txtSendTime.text = time
             starredContactReceivedHolder.starredSentImage.visibility = View.VISIBLE
             starredContactReceivedHolder.txtSendName.text = contactName
             starredContactReceivedHolder.contactActionText.gone()
-//            if (registeredJid != null) starredContactReceivedHolder.contactActionText.text = context!!.resources.getString(R.string.message) else {
-//                starredContactReceivedHolder.contactActionText.text = context!!.resources.getString(R.string.invite)
-//                setInviteClickListener(starredContactReceivedHolder.contactActionText, item, position, item.getChatUserJid())
-//            }
             replyViewUtils!!.showReceiverReplyWindow(starredContactReceivedHolder, item, context!!)
             receiverItemClick(starredContactReceivedHolder.viewRowItem, item, position)
             setSelectedChatItem(starredContactReceivedHolder.itemView, item, starredMessageMessages, context)
@@ -848,14 +838,6 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
-        }
-    }
-
-    private fun setInviteClickListener(view: View, message: ChatMessage, position: Int, jid: String) {
-        view.setOnClickListener { v: View? ->
-            if (listener != null) {
-                listener!!.onContactClick(message, position, jid)
-            }
         }
     }
 
@@ -891,7 +873,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             if (!msgDate.contains("1970")) senderDateTextView.text = msgDate
             senderHeader.visibility = View.VISIBLE
             val starredSenderTextView: AppCompatTextView = senderHeader.findViewById(R.id.text_participant_name)
-            val receiverName: String = Utils.returnEmptyStringIfNull(profileDetails!!.nickName)
+            val receiverName: String = Utils.returnEmptyStringIfNull(profileDetails!!.name)
             val userDpName = "You --> $receiverName"
             starredSenderTextView.text = userDpName
             starredSenderTextView.isSelected = true
@@ -910,7 +892,6 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
         receiverHeader.visibility = View.VISIBLE
         val starredReceiverTextView: AppCompatTextView = receiverHeader.findViewById(R.id.text_participant_name)
         val adminJid = SharedPreferenceManager.getString(Constants.ADMIN_USER)
-        var profilePicture: String
         val profileNickName: String
         var groupUser = Constants.EMPTY_STRING
         val setDrawable: SetDrawable
@@ -931,13 +912,13 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
         val userDpName = if (item.getMessageChatType() == ChatTypeEnum.groupchat) "$groupUser --> $receiverName" else "$receiverName --> You"
         starredReceiverTextView.text = userDpName
         starredReceiverTextView.isSelected = true
-        check(profileDetails, holder)
+        check(holder)
     }
 
     private fun loadUserProfileImage(context: Context, profileDetails: ProfileDetails, imgView: ImageView, errorImg: Drawable) {
         var errorImg: Drawable? = errorImg
         var imageUrl = profileDetails.image
-        if (profileDetails.isBlockedMe) {
+        if (profileDetails.isAdminBlocked || profileDetails.isBlockedMe || profileDetails.isDeletedContact()) {
             imageUrl = Constants.EMPTY_STRING
             errorImg = ProfilePicUtil.getDefaultDrawable(context, ChatType.TYPE_CHAT)
         }
@@ -947,10 +928,9 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
     /**
      * Checking the contact type to make email icon visible and invisible
      *
-     * @param profileDetails profile data
      * @param holder     item holder
      */
-    private fun check(profileDetails: ProfileDetails, holder: RecyclerView.ViewHolder) {
+    private fun check(holder: RecyclerView.ViewHolder) {
         holder.itemView.findViewById<View>(R.id.header_starred_message_sender)
                 .findViewById<View>(R.id.email_contact_icon).visibility = View.GONE
     }
@@ -1092,17 +1072,6 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
             mMediaController!!.currentAudioPosition = position
             mMediaController!!.handlePlayer(doesSentMessage)
         }
-    }
-
-    private fun getJidFromSharedContact(contactMessage: ContactChatMessage): String? {
-        var registeredJid: String? = null
-        for (i in contactMessage.getIsChatAppUser().indices) {
-            if (contactMessage.getIsChatAppUser()[i] == java.lang.Boolean.TRUE) {
-                registeredJid = Utils.getJidFromPhoneNumber(context, contactMessage.getContactPhoneNumbers()[i], SharedPreferenceManager.getString(Constants.COUNTRY_CODE))
-                break
-            }
-        }
-        return registeredJid
     }
 
     override fun setChatStatus(item: ChatMessage?, viewHolder: ImageView?) {

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.ViewModelProviders
@@ -27,6 +28,7 @@ import com.contusfly.utils.*
 import com.contusfly.utils.Constants.Companion.CALLS_TAB_INDEX
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.*
 import com.contusflysdk.api.contacts.ContactManager
@@ -81,6 +83,16 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     }
 
     val callLogviewModel: CallLogViewModel by viewModels { dashboardViewModelFactory }
+
+    private val permissionAlertDialog : PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+
+        if(!permissions.containsValue(false)) {
+            startActivity(Intent(this, QrCodeScannerActivity::class.java))
+        }
+    }
 
     fun openOption(menu: Menu): Boolean {
         with(menu) {
@@ -205,7 +217,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
         get() = Dispatchers.IO + Job()
 
     override fun onConnectionNotAuthorized() {
-       showToast("Already logged in another device")
+       showToast("The session has been logged out")
     }
 
     /**
@@ -263,6 +275,14 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
      */
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
+        viewModel.profileUpdatedLiveData.value = jid
+    }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
         viewModel.profileUpdatedLiveData.value = jid
     }
 
@@ -388,13 +408,13 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
             }
             R.id.action_mute -> {
                 viewModel.updateMuteNotification(Constants.MUTE_NOTIFY)
-                recentChatFragment.updateRecentItem()
+                recentChatFragment.updateRecentItem(true)
                 actionMode?.finish()
                 return true
             }
             R.id.action_unmute -> {
                 viewModel.updateMuteNotification(Constants.UN_MUTE_NOTIFY)
-                recentChatFragment.updateRecentItem()
+                recentChatFragment.updateRecentItem(false)
                 actionMode?.finish()
                 return true
             }
@@ -451,13 +471,15 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     private fun openChatInfo() {
         var jid = Constants.EMPTY_STRING
         var chatType = Constants.EMPTY_STRING
+        var isAdminBlocked = false
 
         // Check if the user selecting from recent or searched list
         if (mRecentChatListType == RecentChatListType.RECENT && Utils.isListExist<RecentChat>(viewModel.selectedRecentChats)) {
             jid = viewModel.selectedRecentChats[0].jid
             chatType = viewModel.selectedRecentChats[0].getChatType()
+            isAdminBlocked = viewModel.selectedRecentChats[0].isAdminBlocked && chatType == ChatType.TYPE_GROUP_CHAT
         }
-        if (SharedPreferenceManager.getString(Constants.ADMIN_USER) != Utils.getTrimmedPhoneNumber(jid))
+        if (SharedPreferenceManager.getString(Constants.ADMIN_USER) != Utils.getTrimmedPhoneNumber(jid) && !isAdminBlocked)
             startInfoActivity(jid, chatType)
     }
 
@@ -504,7 +526,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     }
 
     private fun updateArchiveChatsData(selectedJids: MutableList<String>, failedCount: Int) {
-        recentChatFragment.updateArchiveChatsList(selectedJids)
+        viewModel.updateArchiveChatsList(selectedJids)
         val chatsSize = selectedJids.size
         if (chatsSize == 1)
             CustomToast.showShortToast(context, String.format(context!!.getString(R.string.msg_chat_archived), chatsSize))
@@ -516,7 +538,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     override fun updateArchiveUnArchiveChats(toUser: String?, archiveStatus: Boolean) {
         super.updateArchiveUnArchiveChats(toUser, archiveStatus)
         toUser?.let {
-            recentChatFragment.updateArchiveChatsStatus(toUser, archiveStatus)
+            viewModel.updateArchiveChatsStatus(toUser, archiveStatus)
             viewModel.getArchivedChatStatus()
             viewModel.unreadChatCountLiveData.value = FlyMessenger.getUnreadMessagesCount()
         }
@@ -536,7 +558,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
             if (MediaPermissions.isPermissionAllowed(this, Manifest.permission.CAMERA))
                 startActivity(Intent(this, QrCodeScannerActivity::class.java))
             else
-                MediaPermissions.requestCameraPermission(this, RequestCode.CAMERA_PERMISSION_CODE)
+                MediaPermissions.requestCameraPermission(this, permissionAlertDialog, cameraPermissionLauncher)
         } else
             startActivity(Intent(this, QrResultActivity::class.java))
     }

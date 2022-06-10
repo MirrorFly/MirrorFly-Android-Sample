@@ -45,7 +45,9 @@ class StarredMessagesInteractor : com.contusfly.starredMessages.presenter.IStarr
             for (message in iStarredMessagesInteractor!!.getSelectedStarredMessages()!!) {
                 deleteMessagesForMe(message.getChatUserJid(), listOf(message.getMessageId()),
                     message.getDeleteChatType(), isMediaDelete, object : ChatActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) { }
+                        override fun onResponse(isSuccess: Boolean, message: String) {
+                            //Do Nothing
+                        }
                     })
             }
             iStarredMessagesInteractor!!.getClickedStarredMessages().clear()

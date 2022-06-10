@@ -30,6 +30,7 @@ import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
@@ -72,6 +73,8 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
      * Temporary camera file for the image view in the group creation.
      */
     private var mFileCameraTemp: File? = null
+
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -360,7 +363,7 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
         if (MediaPermissions.isReadFilePermissionAllowed(this) &&
             MediaPermissions.isWriteFilePermissionAllowed(this))
             PickFileUtils.chooseImageFromGallery(this)
-        else MediaPermissions.requestStorageAccess(this, galleryPermissionLauncher)
+        else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
 
     }
 
@@ -373,7 +376,7 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
             takePhotoFromCamera(this, FilePathUtils.getExternalStorage().toString() + "/"
                     + getString(R.string.title_app_name) + "/" + MediaPaths.MEDIA_PATH_PROFILE_PHOTOS, true)
         } else {
-            MediaPermissions.requestCameraStoragePermissions(this, cameraPermissionLauncher)
+            MediaPermissions.requestCameraStoragePermissions(this, permissionAlertDialog, cameraPermissionLauncher)
         }
     }
 

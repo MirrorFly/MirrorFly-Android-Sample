@@ -145,4 +145,6 @@
     <color name="md_white_1000">#ffffff</color>
     <color name="color_dark_gray">#7C7C7C</color>
     <color name="color_transparent_bg">#23000000</color>
+
+    <color name="color_red_light">#FF3939</color>
 </resources>

@@ -21,12 +21,13 @@ class UserProfileUtils {
      * @param activity   Activity of the View
      * @param userImgUrl User profile image url
      */
-    fun previewUserImage(activity: Activity, userImgUrl: String?) {
+    fun previewUserImage(activity: Activity, userImgUrl: String?, currentUserJid: String) {
         val profilePhoto = activity.resources.getString(R.string.profile_photo_label)
         val imageChanged = userImgUrl?.contains(Constants.TEMP_PHOTO_FILE_NAME)
         activity.startActivity(Intent(activity, ImageViewActivity::class.java)
                 .putExtra(Constants.GROUP_OR_USER_NAME, profilePhoto)
                 .putExtra(com.contus.flycommons.Constants.MEDIA_URL, userImgUrl)
+                .putExtra(com.contus.flycommons.Constants.GROUP_ID, currentUserJid)
                 .putExtra(Constants.FROM_LOGIN_PROFILE,imageChanged))
 
     }

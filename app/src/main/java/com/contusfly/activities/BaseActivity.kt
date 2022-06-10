@@ -7,22 +7,33 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.StatusBarNotification
 import android.view.MenuItem
 import android.view.WindowManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.contus.call.utils.GroupCallUtils
 import com.contus.flycommons.LogMessage
+import com.contus.webrtc.api.CallActionListener
+import com.contus.webrtc.api.CallManager
 import com.contusfly.R
+import com.contusfly.TAG
+import com.contusfly.call.groupcall.isCallNotConnected
+import com.contusfly.call.groupcall.isInComingCall
+import com.contusfly.call.groupcall.isInPIPMode
 import com.contusfly.chat.AndroidUtils
 import com.contusfly.checkInternetAndExecute
 import com.contusfly.constants.MobileApplication
+import com.contusfly.showToast
 import com.contusfly.utils.*
 import com.contusflysdk.activities.FlyBaseActivity
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
+import java.util.*
 
 /**
  *
@@ -36,10 +47,19 @@ open class BaseActivity : FlyBaseActivity() {
      */
     private lateinit var broadcastReceiver: BroadcastReceiver
 
+    private var handler: Handler? = null
+
+    private var otherUserHandler: Handler? = null
+
+    private var adminBlockStatus = false
+
+    private var adminBlockedOtherUserStatus = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AndroidUtils.calculateAndStoreDeviceWidth(this)
-
+        handler = Handler(Looper.getMainLooper())
+        otherUserHandler = Handler(Looper.getMainLooper())
         if (com.contusfly.AppLifecycleListener.isPinEnabled) {
             window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         }
@@ -56,8 +76,8 @@ open class BaseActivity : FlyBaseActivity() {
         super.myProfileUpdated(isSuccess)
         if (isSuccess) {
             ContactManager.getUserProfile(SharedPreferenceManager.getString(Constants.SENDER_USER_JID),
-                    fetchFromServer = false,
-                    saveAsFriend = false) { success, _, data ->
+                fetchFromServer = false,
+                saveAsFriend = false) { success, _, data ->
                 if (success && data.isNotEmpty()) {
                     val profileDetails = data["data"] as ProfileDetails
                     SharedPreferenceManager.setString(Constants.USER_PROFILE_NAME, profileDetails.name)
@@ -181,5 +201,68 @@ open class BaseActivity : FlyBaseActivity() {
                     userDetailsUpdated()
             }
         }
+    }
+
+    override fun onAdminBlockedUser(jid: String, status: Boolean) {
+        adminBlockStatus = status
+        LogMessage.d(TAG, "#onAdminBlockedStatus == $adminBlockStatus")
+        //To avoid multiple callbacks
+        handler?.postDelayed({
+            if (adminBlockStatus) {
+                if (checkIsUserInCall()) {
+                    CallManager.disconnectCall(object : CallActionListener {
+                        override fun onResponse(isSuccess: Boolean, message: String) {
+                            startShowStopperActivity()
+                        }
+                    })
+                } else startShowStopperActivity()
+            }
+        }, 800)
+    }
+
+    private fun checkIsUserInCall(): Boolean {
+        return (GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall()) ||
+                (GroupCallUtils.isCallNotConnected() && GroupCallUtils.isInComingCall()) || isInPIPMode()
+    }
+
+    private fun startShowStopperActivity() {
+        val intent = Intent(this@BaseActivity, AdminBlockedActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.putExtra("EXIT", true)
+        startActivity(intent)
+        finish()
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        adminBlockedOtherUserStatus = status
+        //To avoid multiple callbacks
+        otherUserHandler?.postDelayed({
+            if (GroupCallUtils.getGroupId() == jid && adminBlockedOtherUserStatus && checkIsUserInCall()) {
+                CallManager.disconnectCall(object : CallActionListener {
+                    override fun onResponse(isSuccess: Boolean, message: String) {
+                        startDashboardActivity()
+                    }
+                })
+            }
+        }, 800)
+    }
+
+    /**
+     * Launches a new Dashboard activity. If the activity being launched is already running in the current task,
+     * then instead of launching a new instance of that activity, all of the other activities on top of it will be closed
+     * and this Intent will be delivered to the (now on top) old activity as a new Intent.
+     */
+    private fun startDashboardActivity() {
+        showToast(getString(R.string.group_block_message_label))
+        val dashboardIntent = Intent(this@BaseActivity, DashboardActivity::class.java)
+        dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+        dashboardIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        dashboardIntent.putExtra("EXIT", true)
+        startActivity(dashboardIntent)
+        finish()
     }
 }

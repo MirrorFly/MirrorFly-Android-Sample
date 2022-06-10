@@ -37,8 +37,8 @@ android {
         applicationId "com.mirrorfly.uikit"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 2
-        versionName "2.1.0"
+        versionCode 6
+        versionName "6.4.0"
         multiDexEnabled true
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true
@@ -59,6 +59,7 @@ android {
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
             buildConfigField 'String', 'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
+            buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
             resValue("string", "app_name", "UI Kit")
             shrinkResources false
             debuggable true
@@ -80,12 +81,37 @@ android {
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
             buildConfigField 'String', 'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
+            buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
             resValue("string", "app_name", "UI Kit")
             shrinkResources false
             debuggable true
             minifyEnabled false
             signingConfig signingConfigs.config
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Specifies one flavor dimension.
+    flavorDimensions "version"
+    productFlavors {
+        uikit {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
+        }
+
+        uikitdev {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
+        }
+
+        uikitqa {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
+        }
+
+        uikituat {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
         }
     }
 
@@ -193,11 +219,11 @@ dependencies {
     implementation 'io.michaelrocks:libphonenumber-android:8.10.1'
 
     //Dagger Dependencies
-    api 'com.google.dagger:dagger:2.35.1'
-    kapt 'com.google.dagger:dagger-compiler:2.27'
-    api 'com.google.dagger:dagger-android:2.35.1'
-    api 'com.google.dagger:dagger-android-support:2.27'
-    kapt 'com.google.dagger:dagger-android-processor:2.27'
+    api 'com.google.dagger:dagger:2.40.5'
+    kapt 'com.google.dagger:dagger-compiler:2.40.5'
+    api 'com.google.dagger:dagger-android:2.40.5'
+    api 'com.google.dagger:dagger-android-support:2.40.5'
+    kapt 'com.google.dagger:dagger-android-processor:2.40.5'
 
     //coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1'
@@ -235,6 +261,7 @@ dependencies {
     implementation project(':sdk:mediapicker')
     implementation project(':sdk:cameraview')
     implementation project(':sdk:zoomimageview')
+    implementation project(':sdk:spinnerview')
     implementation project(':sdk:imagecropper')
     implementation project(':sdk:pix')
     implementation project(':sdk:biometric-auth')

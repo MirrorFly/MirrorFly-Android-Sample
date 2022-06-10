@@ -137,4 +137,18 @@ object AndroidUtils {
         Log.d("getFileSizeInMb", "getFileSizeInMb : $fileSizeInMB")
         return fileSizeInMB
     }
+
+    fun getScreenWidth(activity: Activity): Int {
+        val displayMetrics = DisplayMetrics()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val display = activity.display
+            display?.getRealMetrics(displayMetrics)
+        } else {
+            @Suppress("DEPRECATION")
+            val display = activity.windowManager.defaultDisplay
+            @Suppress("DEPRECATION")
+            display.getMetrics(displayMetrics)
+        }
+        return displayMetrics.widthPixels
+    }
 }

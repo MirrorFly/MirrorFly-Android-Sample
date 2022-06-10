@@ -15,6 +15,7 @@ import com.contusfly.R
 import com.contusfly.activities.parent.BaseMessageInfoActivity
 import com.contusfly.adapters.MessageinfoExpandadapter
 import com.contusfly.interfaces.GetMessageStatusCallback
+import com.contusfly.showToast
 import com.contusfly.utils.ChatMessageUtils
 import com.contusfly.utils.ChatUserTimeUtils
 import com.contusfly.utils.GroupUtils.getMessageStatus
@@ -161,6 +162,12 @@ class GroupMessageInfoActivity : BaseMessageInfoActivity() {
         infoadapterdeliver?.notifyDataSetChanged()
     }
 
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        if (listdeliverDataChild?.any { it.value.any { it.userJid == jid } } == true || listreadDataChild?.any { it.value.any { it.userJid == jid } } == true)
+            loadGroupChatInfo()
+    }
+
     private fun onGroupMsgStatusUpdated() {
         img!!.visibility = View.GONE
         notxt!!.visibility = View.GONE
@@ -286,9 +293,19 @@ class GroupMessageInfoActivity : BaseMessageInfoActivity() {
             finish()
         }
     }
+
     private fun startDashboardActivity() {
-        val dashboardIntent = Intent(applicationContext, DashboardActivity::class.java)
+        val dashboardIntent = Intent(this, DashboardActivity::class.java)
         dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
         startActivity(dashboardIntent)
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (this.groupJid == jid && status) {
+            showToast(getString(R.string.group_block_message_label))
+            startDashboardActivity()
+            finish()
+        }
     }
 }

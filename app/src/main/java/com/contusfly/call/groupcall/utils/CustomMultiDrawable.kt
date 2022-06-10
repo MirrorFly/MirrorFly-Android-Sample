@@ -230,7 +230,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
                 .buildUpon().appendPath(Uri.parse(imgUrl).lastPathSegment).build().toString()
         val options = RequestOptions().priority(Priority.HIGH)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
-        if(profileDetails?.isBlockedMe!!)
+        if(profileDetails?.isBlockedMe!! || profileDetails?.isAdminBlocked!!)
             imgUrl=""
         Glide.with(context!!)
                 .asBitmap()

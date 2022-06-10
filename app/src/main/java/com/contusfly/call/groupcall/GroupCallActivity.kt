@@ -505,6 +505,13 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
             callViewHelper.setUpProfileDetails(GroupCallUtils.getAvailableCallUsersList())
     }
 
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        if (::participantListFragment.isInitialized && GroupCallUtils.isAddUsersToTheCall()) {
+            participantListFragment.removeUser(jid)
+        }
+    }
+
     override fun onContactSyncComplete(isSuccess: Boolean) {
         super.onContactSyncComplete(isSuccess)
         if (isSuccess && ::participantListFragment.isInitialized && GroupCallUtils.isAddUsersToTheCall()) {
@@ -904,5 +911,13 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
     override fun resetViewsUpdatedFlag() {
         durationHandler.removeCallbacks(resetViewUpdatesRunnable)
         durationHandler.postDelayed(resetViewUpdatesRunnable, 500)
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        LogMessage.d(TAG, "${CALL_UI} updated Admin Block status")
+        if (::participantListFragment.isInitialized && GroupCallUtils.isAddUsersToTheCall()) {
+            participantListFragment.onAdminBlockedStatus(jid, type, status)
+        }
     }
 }

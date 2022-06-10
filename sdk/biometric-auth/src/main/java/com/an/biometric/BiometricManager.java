@@ -81,7 +81,11 @@ public class BiometricManager extends BiometricManagerV23 {
         }
     }
 
-
+    public void closeBiometricDialogIfOpened() {
+        if (biometricDialogV23 != null) {
+            biometricDialogV23.closeBiometricDialog();
+        }
+    }
 
     private void displayBiometricDialog(BiometricCallback biometricCallback) {
         if(BiometricUtils.isBiometricPromptEnabled()) {

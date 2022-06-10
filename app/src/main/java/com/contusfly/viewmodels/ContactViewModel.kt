@@ -23,7 +23,7 @@ import javax.inject.Inject
 class ContactViewModel @Inject constructor() : ViewModel() {
 
     // = = = = = = = = Contact Data = = = = = = = =
-    private val contactDetailsList = MutableLiveData<List<ProfileDetails>>()
+    val contactDetailsList = MutableLiveData<List<ProfileDetails>>()
     val contactListAdapter: ArrayList<ProfileDetails> by lazy { ArrayList() }
     val contactDiffResult = MutableLiveData<DiffUtil.DiffResult>()
 
@@ -31,13 +31,13 @@ class ContactViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             if (fromGroupInfo && !groupId.isNullOrEmpty()) {
                 val profileDetails = GroupManager.getUsersListToAddMembersInOldGroup(groupId)
-                contactDetailsList.value = ProfileDetailsUtils.sortProfileList(profileDetails)
+                contactDetailsList.value = updateProfiles(profileDetails)
                 getContactDiffResult()
             } else {
                 FlyCore.getFriendsList(false) { isSuccess, throwable, data ->
                     if (isSuccess) {
                         val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
-                        contactDetailsList.value = ProfileDetailsUtils.sortProfileList(profileDetails)
+                        contactDetailsList.value = updateProfiles(profileDetails)
                         getContactDiffResult()
                     }
                 }
@@ -45,12 +45,21 @@ class ContactViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    private fun updateProfiles(profileDetails: List<ProfileDetails>): List<ProfileDetails> {
+        val filteredProfiles = mutableListOf<ProfileDetails>()
+        val profiles = ProfileDetailsUtils.sortProfileList(profileDetails)
+        profiles.forEach { profileDetail ->
+            if (!profileDetail.isAdminBlocked) filteredProfiles.add(profileDetail)
+        }
+        return filteredProfiles
+    }
+
     fun getUpdatedContactList(fromGroupInfo: Boolean, groupId: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             if (fromGroupInfo && !groupId.isNullOrEmpty()) {
                 val profileDetails = GroupManager.getUsersListToAddMembersInOldGroup(groupId)
                 viewModelScope.launch(Dispatchers.Main) {
-                    contactDetailsList.value = ProfileDetailsUtils.sortProfileList(profileDetails)
+                    contactDetailsList.value = updateProfiles(profileDetails)
                     getContactDiffResult()
                 }
             } else {
@@ -58,7 +67,7 @@ class ContactViewModel @Inject constructor() : ViewModel() {
                     if (isSuccess) {
                         val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
                         viewModelScope.launch(Dispatchers.Main) {
-                            contactDetailsList.value = ProfileDetailsUtils.sortProfileList(profileDetails)
+                            contactDetailsList.value = updateProfiles(profileDetails)
                             getContactDiffResult()
                         }
                     }

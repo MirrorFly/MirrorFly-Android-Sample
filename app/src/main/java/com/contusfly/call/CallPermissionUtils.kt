@@ -9,6 +9,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.*
@@ -39,7 +41,7 @@ import java.util.*
  * This class is used to start the video call audio call activity. Here checking the audio and video
  * permissions are checked before make a call.And also check whether the user is blocked or not.
  */
-class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: ArrayList<String>, groupId: String?, isCloseScreen: Boolean) : CommonDialogClosedListener {
+class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked: Boolean, jidList: ArrayList<String>, groupId: String?, isCloseScreen: Boolean) : CommonDialogClosedListener {
     /**
      * Instance for the activity
      */
@@ -49,6 +51,11 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
      * Instance of isBlocked
      */
     private var isBlocked: Boolean
+
+    /**
+     * Instance of isAdminBlocked
+     */
+    private var isAdminBlocked: Boolean
 
     /**
      * JID
@@ -83,7 +90,7 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
             showTelephonyCallAlert(activity)
         } else if ( /*LiveStreamUtils.isOnGoingLiveStream() ||*/isOnGoingAudioCall() || isOnGoingVideoCall()) {
             showOngoingCallAlert(activity)
-        } else {
+        } else if (!isAdminBlocked) {
             makeVoiceCall()
         }
     }
@@ -116,7 +123,7 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
             showTelephonyCallAlert(activity)
         } else if ( /*LiveStreamUtils.isOnGoingLiveStream() ||*/isOnGoingAudioCall() || isOnGoingVideoCall()) {
             showOngoingCallAlert(activity)
-        } else {
+        } else if (!isAdminBlocked) {
             makeVideoCall()
         }
     }
@@ -192,7 +199,12 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
                 }
             } else MediaPermissions.requestAudioCallPermissions(
                 (activity as Activity),
-                Constants.RECORD_AUDIO_CODE
+                (activity as ComponentActivity).registerForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                    if (!permissions.containsValue(false)) {
+                        makeVoiceCall()
+                    }
+                }
             )
         }
     }
@@ -227,7 +239,12 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
                 }
             } else MediaPermissions.requestVideoCallPermissions(
                 (activity as Activity),
-                Constants.VIDEO_CALL_PERMISSION_CODE
+                (activity as ComponentActivity).registerForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+                    if (!permissions.containsValue(false)) {
+                        makeVideoCall()
+                    }
+                }
             )
         }
     }
@@ -306,6 +323,7 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, jidList: Array
     init {
         this.activity = activity
         this.isBlocked = isBlocked
+        this.isAdminBlocked = isAdminBlocked
         this.jidList = jidList
         this.groupId = groupId
         this.isCloseScreen = isCloseScreen

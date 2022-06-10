@@ -44,7 +44,7 @@ public class BiometricManagerV23 {
     protected String subtitle;
     protected String description;
     protected String negativeButtonText;
-    private BiometricDialogV23 biometricDialogV23;
+    public BiometricDialogV23 biometricDialogV23;
     protected CancellationSignal mCancellationSignalV23 = new CancellationSignal();
 
 

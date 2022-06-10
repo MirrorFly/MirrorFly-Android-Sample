@@ -69,6 +69,9 @@ constructor() : ViewModel() {
     val recentDeleteChatPosition = MutableLiveData<Int>()
     val archiveChatStatus = MutableLiveData<Triple<Boolean, Boolean, Int>>()
     val archivedSettingsStatus = MutableLiveData<Boolean>()
+    val archiveChatUpdated = MutableLiveData<Pair<String, Boolean>>()
+    val selectedArchiveChats = MutableLiveData<MutableList<String>>()
+
 
     /**
      * Selected recent chats when long press
@@ -113,6 +116,7 @@ constructor() : ViewModel() {
     val filterProfileList = MutableLiveData<List<ProfileDetails>>()
 
     val isUserBlockedUnblockedMe = MutableLiveData<Pair<String, Boolean>>()
+    val isUserBlockedByAdmin = MutableLiveData<Pair<String, Boolean>>()
 
     init {
         viewModelScope.launch {
@@ -133,6 +137,9 @@ constructor() : ViewModel() {
         isUserBlockedUnblockedMe.value = Pair(jid, isBlocked)
     }
 
+    fun setAdminBlockedStatus(jid: String, isAdminBlocked: Boolean) {
+        isUserBlockedByAdmin.value = Pair(jid, isAdminBlocked)
+    }
 
     // = = = = = = = = CallLogs Data = = = = = = = =
     val callLogList = MutableLiveData<List<CallLog>>()
@@ -620,5 +627,13 @@ constructor() : ViewModel() {
         viewModelScope.launch {
             archivedSettingsStatus.value = status
         }
+    }
+
+    fun updateArchiveChatsStatus(toUser: String, archiveStatus: Boolean) {
+        archiveChatUpdated.value = Pair(toUser, archiveStatus)
+    }
+
+    fun updateArchiveChatsList(selectedJids: MutableList<String>) {
+        selectedArchiveChats.value = selectedJids
     }
 }

@@ -20,6 +20,7 @@ import com.contus.call.utils.CallTimeFormatter
 import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.gone
+import com.contusfly.isDeletedContact
 import com.contusfly.setOnClickListener
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.ChatMessageUtils
@@ -29,7 +30,7 @@ import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import java.util.*
 
-class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallLog>, val selectedCallLogs: ArrayList<String>, private var listener: OnItemClickListener)
+class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayList<CallLog>, private val selectedCallLogs: ArrayList<String>, private var listener: OnItemClickListener)
     : RecyclerView.Adapter<CallHistoryAdapter.CallHistoryViewHolder>() {
 
     override fun onViewRecycled(holder: CallHistoryViewHolder) {
@@ -63,7 +64,8 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
         setCallStatusIcon(holder, callLog)
         updateSelectedItem(holder.itemView, selectedCallLogs.contains(callLog.roomId))
         holder.imageViewCallIcon.setOnClickListener(1000) {
-            listener.onItemClick(holder.imageViewCallIcon, callLogsList.indexOf(callLog))
+            if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+                listener.onItemClick(holder.imageViewCallIcon, callLogsList.indexOf(callLog))
         }
     }
 
@@ -86,6 +88,10 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
                 AppConstants.NOTIFY_SELECTION -> {
                     updateSelectedItem(holder.itemView, bundle.getBoolean(AppConstants.NOTIFY_IS_SELECTED))
                 }
+                AppConstants.NOTIFY_ADMIN_BLOCK -> {
+                    setUserView(holder, position)
+                    setCallType(holder, callLogsList[position])
+                }
                 else -> {
                     LogMessage.e("ContactAdapter", "$CALL_UI Do Nothing")
                 }
@@ -101,7 +107,7 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
      * Selected view when long press it
      *
      * @param view     Instance of the view
-     * @param callLogs Recent chat item
+     * @param isSelected item selected or not
      */
     private fun updateSelectedItem(view: View, isSelected: Boolean) {
         if (isSelected)
@@ -123,8 +129,8 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
     /**
      * This method is getting the caller name and profile picture
      *
-     * @param holder holer instance
-     * @param toUser User JId
+     * @param holder holder instance
+     * @param position adapter position
      */
     private fun setUserView(holder: CallHistoryViewHolder, position: Int) {
 
@@ -141,9 +147,9 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
             profileIconForManyUsers(holder, position)
         }
         if (position == callLogsList.size - 1) {
-            holder.viewDiver?.setVisibility(View.GONE);
+            holder.viewDiver?.visibility = View.GONE
         }else{
-            holder.viewDiver?.setVisibility(View.VISIBLE);
+            holder.viewDiver?.visibility = View.VISIBLE
         }
     }
 
@@ -160,7 +166,7 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
             }
         } else {
             holder.txtChatPersonName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            holder.imgRoster.addImage(GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as ArrayList<String>)
+            holder.imgRoster.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as ArrayList<String>)
         }
         holder.emailContactIcon.gone()
     }
@@ -172,11 +178,30 @@ class CallHistoryAdapter(val context: Context, val callLogsList: ArrayList<CallL
 
     // here shows the icon whether the call is missed call or attended call
     private fun setCallType(holder: CallHistoryViewHolder, callLogs: CallLog) {
+        setIconAlpha(holder, callLogs)
         // Display the icon whether the call is audio or video
         if (callLogs.callType == CallType.AUDIO_CALL) {
             holder.imageViewCallIcon.setImageResource(R.drawable.ic_call_log_voice_call)
         } else if (callLogs.callType == CallType.VIDEO_CALL) {
             holder.imageViewCallIcon.setImageResource(R.drawable.ic_call_log_video_call)
+        }
+    }
+
+    private fun setIconAlpha(holder: CallHistoryViewHolder, callLogs: CallLog) {
+        try {
+            val profile = if (callLogs.callMode == CallMode.ONE_TO_ONE && (callLogs.userList == null || callLogs.userList!!.size < 2)) {
+                ContactManager.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
+            } else if (!callLogs.groupId.isNullOrBlank()) {
+                ContactManager.getProfileDetails(callLogs.groupId!!)
+            } else null
+
+            val adminBlockedStatus = profile?.isAdminBlocked ?: false
+            val isDeletedUser = profile?.isDeletedContact() ?: false
+            holder.imageViewCallIcon.alpha = if (adminBlockedStatus || isDeletedUser) 0.3f else 1f
+            holder.imageViewCallIcon.isEnabled = !isDeletedUser
+        } catch (e: Exception) {
+            holder.imageViewCallIcon.alpha = 1f
+            holder.imageViewCallIcon.isEnabled = true
         }
     }
 

@@ -1,32 +1,20 @@
 package com.contusfly.fragments
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.telephony.TelephonyManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.contus.flycommons.Constants
 import com.contusfly.R
 import com.contusfly.activities.SettingsActivity
 import com.contusfly.checkInternetAndExecute
 import com.contusfly.databinding.FragmentContactUsBinding
-import com.contusfly.utils.MediaPermissions.isPermissionAllowed
-import com.contusfly.utils.MediaPermissions.requestTelephoneCallPermissions
-import com.contusfly.views.CommonAlertDialog
+import com.contusfly.utils.Constants
+import com.contusfly.views.DoProgressDialog
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.views.CustomToast
 
-/**
- * This fragment used to display the contact list with Contus information and contus website and
- * Contus Email.
- *
- */
-class ContactUsFragment : Fragment(),View.OnClickListener,CommonAlertDialog.CommonDialogClosedListener {
-
+class ContactUsFragment : Fragment(), View.OnClickListener {
     /**
      * The Activity to which this fragment is currently associated with.
      */
@@ -35,14 +23,15 @@ class ContactUsFragment : Fragment(),View.OnClickListener,CommonAlertDialog.Comm
     private lateinit var binding: FragmentContactUsBinding
 
     /**
-     * The first number of the contact.
+     * The progress dialog to display the progress bar When the background operations has been
+     * doing
      */
-    private var isFirstNo = false
+    private lateinit var progressDialog: DoProgressDialog
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settingsActivity = activity as SettingsActivity?
-        settingsActivity!!.setActionBarTitle(resources.getString(R.string.about_us))
+        settingsActivity!!.setActionBarTitle(resources.getString(R.string.contact_us))
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -53,118 +42,57 @@ class ContactUsFragment : Fragment(),View.OnClickListener,CommonAlertDialog.Comm
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        progressDialog = DoProgressDialog(settingsActivity!!)
         setClickListeners()
     }
 
     private fun setClickListeners() {
-        binding.textCallOne.setOnClickListener(this)
-        binding.textCallTwo.setOnClickListener(this)
-        binding.textMail.setOnClickListener(this)
-        binding.textLink.setOnClickListener(this)
+        binding.sendButton.setOnClickListener(this)
     }
 
-    override fun onClick(v: View?) {
-        when (v!!.id) {
-            R.id.text_call_one -> {
-                isFirstNo = true
-                makeCallWithConfirmation()
+    override fun onClick(view: View) {
+        when(view){
+            binding.sendButton -> {
+                validateAndSendFeedback()
             }
-            R.id.text_call_two -> {
-                isFirstNo = false
-                makeCallWithConfirmation()
+            else -> {
+                  //Not Needed
             }
-            R.id.text_mail -> showEmail()
-            R.id.text_link -> {
-                requireContext().checkInternetAndExecute {
-                    showWebView()
+        }
+    }
+
+    private fun validateAndSendFeedback() {
+        binding.titleEditText.clearFocus()
+        binding.descriptionEditText.clearFocus()
+        val title = binding.titleEditText.text.toString()
+        val description = binding.descriptionEditText.text.toString()
+        if (validateUserInputs(title, description)) {
+            requireContext().checkInternetAndExecute(true) {
+                progressDialog.showProgress()
+                ContactManager.sendContactUsInfo(title, description) { isSuccess, throwable, _ ->
+                    progressDialog.dismiss()
+                    if (isSuccess) {
+                        CustomToast.show(context, getString(R.string.feedback_sent))
+                        binding.titleEditText.setText(Constants.EMPTY_STRING)
+                        binding.descriptionEditText.setText(Constants.EMPTY_STRING)
+                    } else
+                        CustomToast.show(context, throwable.toString())
                 }
             }
-            else -> {
-            }
         }
     }
 
-    /**
-     * Make call with confirmation.
-     */
-    private fun makeCallWithConfirmation() {
-        val dialog = CommonAlertDialog(context)
-        dialog.setOnDialogCloseListener(this)
-        dialog.showAlertDialog(
-            getString(R.string.message_call_cofirm), getString(R.string.action_yes),
-            getString(R.string.action_no), CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false
-        )
-    }
-
-    /**
-     * Show web view of the ContusFly  site
-     */
-    private fun showWebView() {
-        val webView = Intent(Intent.ACTION_VIEW)
-        webView.data = Uri.parse(getString(R.string.website_mirrorfly))
-        startActivity(webView)
-    }
-
-    /**
-     * Show email of the ContusFly
-     */
-    private fun showEmail() {
-        val intent = Intent(Intent.ACTION_SEND)
-        intent.type = "message/rfc822"
-        intent.putExtra(Intent.EXTRA_EMAIL, arrayOf(getString(R.string.app_email)))
-        startActivity(intent)
-    }
-
-    override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
-        if (isSuccess) {
-            if (checkSimCardStatus(requireContext())) {
-                makeCall()
-            } else CustomToast.show(context, getString(R.string.error_no_sim))
+    private fun validateUserInputs(title: String, description: String): Boolean {
+        if (title.isBlank()) {
+            CustomToast.show(context, getString(R.string.error_empty_title))
+            return false
         }
-    }
-
-    override fun listOptionSelected(position: Int) {
-        TODO("Not yet implemented")
-    }
-
-    /**
-     * Make call to marketing team. Here upon clicking the given mobile number the action call
-     * intent is called.
-     */
-    private fun makeCall() {
-        if (isPermissionAllowed(context, Manifest.permission.CALL_PHONE)) {
-            /*
-              Redirect to call intent to make call
-             */
-            val callIntent = Intent(Intent.ACTION_CALL)
-            var contactNo = getString(R.string.title_call_no_two)
-            if (isFirstNo) contactNo = getString(R.string.title_call_no_one)
-            callIntent.data = Uri.parse("tel:$contactNo")
-            startActivity(callIntent)
-        } else {
-            requestTelephoneCallPermissions(requireActivity(), Constants.CALL_PHONE_PERMISSION_CODE)
+        if (description.isBlank()) {
+            CustomToast.show(context, getString(R.string.error_empty_description))
+            return false
         }
+        return true
     }
-
-    /**
-     * Check sim card status.
-     *
-     * @param context the startupActivityContext
-     * @return boolean True if successful
-     */
-    private fun checkSimCardStatus(context: Context): Boolean {
-        val telMgr = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        val simState = telMgr.simState
-        var status = true
-        when (simState) {
-            TelephonyManager.SIM_STATE_ABSENT, TelephonyManager.SIM_STATE_NETWORK_LOCKED, TelephonyManager.SIM_STATE_UNKNOWN -> status =
-                false
-            else -> {
-            }
-        }
-        return status
-    }
-
 
     companion object {
         /**
@@ -178,6 +106,4 @@ class ContactUsFragment : Fragment(),View.OnClickListener,CommonAlertDialog.Comm
             return ContactUsFragment()
         }
     }
-
-
 }

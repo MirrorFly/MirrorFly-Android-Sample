@@ -91,6 +91,14 @@ object AppChatShortCuts {
                         .putExtra(Constants.IS_FROM_CHAT_SHORTCUT, chatType).putExtra(LibConstants.JID, toUser))
                 .build()
 
+        pinShortCut(context, shortcut, getPendingIntent(context).intentSender)
+    }
+
+    private fun getPendingIntent(context: Context): PendingIntent {
+        return PendingIntent.getBroadcast(context, 100, getAppShortCutIntent(context), 0)
+    }
+
+    private fun getAppShortCutIntent(context: Context): Intent? {
         val chatShortCutSuccessIntent: Intent
         if (Build.VERSION.SDK_INT > 25) {
 
@@ -109,9 +117,8 @@ object AppChatShortCuts {
             chatShortCutSuccessIntent = Intent("com.android.launcher.action.INSTALL_SHORTCUT")
 
         }
-        val successCallback = PendingIntent.getBroadcast(context, 100,
-                chatShortCutSuccessIntent, 0)
-        pinShortCut(context, shortcut, successCallback.intentSender)
+
+        return chatShortCutSuccessIntent
     }
 
     @TargetApi(26)

@@ -12,13 +12,13 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.R
-import com.contusfly.activities.parent.ChatParent
 import com.contusfly.adapters.SectionedShareAdapter
 import com.contusfly.chat.MessageUtils
 import com.contusfly.databinding.ActivityForwardMessageBinding
 import com.contusfly.emptyString
 import com.contusfly.getChatType
 import com.contusfly.interfaces.RecyclerViewItemClick
+import com.contusfly.isValidIndex
 import com.contusfly.utils.Constants
 import com.contusfly.viewmodels.ForwardMessageViewModel
 import com.contusfly.views.CommonAlertDialog
@@ -92,7 +92,7 @@ class ForwardMessageActivity : BaseActivity(), CoroutineScope, RecyclerViewItemC
 
         shareDialog = ShareDialog(this)
 
-        viewModel.loadForwardChatList()
+        viewModel.loadForwardChatList(null)
     }
 
     private fun setClickListeners() {
@@ -164,14 +164,18 @@ class ForwardMessageActivity : BaseActivity(), CoroutineScope, RecyclerViewItemC
 
     private fun setObservers() {
 
-        viewModel.profileDetailsShareModelList.observe(this, {
+        viewModel.profileDetailsShareModelList.observe(this) {
             it?.let {
                 mContactsAdapter.setProfileDetails(it)
                 binding.viewListRecent.adapter = mContactsAdapter
                 mContactsAdapter.notifyDataSetChanged()
             }
+        }
 
-        })
+        viewModel.newIndex.observe(this) {
+            if (it.first.isValidIndex())
+                mContactsAdapter.insertProfileDetails(it.first, it.second)
+        }
     }
 
     /**
@@ -181,6 +185,18 @@ class ForwardMessageActivity : BaseActivity(), CoroutineScope, RecyclerViewItemC
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
         updateProfileDetails(jid)
+    }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        val position = getPositionOfProfile(jid)
+        if (position.isValidIndex()) {
+            mContactsAdapter.removeProfileDetails(position, jid)
+            binding.selectedUsers.text = selectedUserNames
+        }
     }
 
     private fun getPositionOfProfile(jid: String): Int {
@@ -338,10 +354,21 @@ class ForwardMessageActivity : BaseActivity(), CoroutineScope, RecyclerViewItemC
         if (position >= 0) {
             val profileDetails = ContactManager.getProfileDetails(userJid)
             mContactsAdapter.updateProfileDetails(position, profileDetails)
-        }
+        } else
+            viewModel.loadForwardChatList(userJid)
     }
 
     override fun listOptionSelected(position: Int) {
         //Do nthg
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (status && mContactsAdapter.selectedList.any { it.profileDetails.jid == jid }) {
+            val index = mContactsAdapter.selectedList.indexOfFirst { profileDetailsShareModel -> profileDetailsShareModel.profileDetails.jid == jid }
+            if (index.isValidIndex()) mContactsAdapter.selectedList.removeAt(index)
+        }
+        viewModel.loadForwardChatList(null)
+        binding.selectedUsers.text = selectedUserNames
     }
 }

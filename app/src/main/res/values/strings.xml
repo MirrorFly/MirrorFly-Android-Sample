@@ -12,12 +12,14 @@
     <string name="yes_label">Yes</string>
     <string name="no_label">No</string>
     <string name="ok_label">OK</string>
+    <string name="not_now_label">Not Now</string>
     <string name="logout_message_label">Are you sure you want to logout from the app?</string>
     <string name="error_no_contacts_label">No contacts found</string>
     <string name="error_any_contacts_label">Any new contacts will appear here</string>
     <string name="register_number_label">Please choose your country code and enter your mobile number to get the verification code.</string>
     <string name="enter_mobile_number_label">Enter Mobile Number</string>
     <string name="get_otp_label">Get OTP</string>
+    <string name="continue_label">Continue</string>
     <string name="verify_otp_label">Verify OTP</string>
     <string name="resend_otp_label">Resend OTP</string>
     <string name="change_number_label">Change Number</string>
@@ -54,6 +56,13 @@
     <string name="toolbar_search_label">Search&#8230;</string>
     <string name="chats_label">Chats</string>
     <string name="calls_label">Calls</string>
+
+    <string name="terms_and_condition_description_label">By clicking continue you agree to MirrorFly</string>
+    <string name="terms_and_condition_label">Terms and Conditions</string>
+    <string name="privacy_policy_label">Privacy Policy.</string>
+    <string name="terms_and_privacy_policy_label">%s, %s</string>
+    <string name="terms_and_conditions_link">https://www.mirrorfly.com/terms-and-conditions.php</string>
+    <string name="privacy_policy_link">https://www.mirrorfly.com/privacy-policy.php</string>
 
     <!-- Permissions Strings -->
     <string name="storage_permission_label">Storage permissions are needed for this action</string>
@@ -357,6 +366,8 @@
     <string name="biometric_error_sdk_not_supported">Sdk version not supported</string>
     <string name="enable_label_text">Connection Label</string>
     <string name="about_help">About and Help</string>
+    <string name="delete_my_account">Delete My Account</string>
+    <string name="contact_us">Contact Us</string>
     <string name="no_media">No Media</string>
     <string name="app_lock">App Lock</string>
     <string name="archived_chats">Archived Chats</string>
@@ -778,4 +789,66 @@
     <string name="label_no_contacts_found">No Contacts found</string>
     <string name="label_send_contacts">Send contacts</string>
     <string name="label_mobile">Mobile</string>
+
+    <!-- Permission Popup Description -->
+    <string name="contact_and_media_permission_alert_label">MirrorFly needs the contacts and media permission to help you connect with friends and send messages. Your contacts are uploaded using MirrorFly private contact discovery, which means they are end-to-end encrypted and never visible to the MirrorFly service.</string>
+    <string name="contact_permission_alert_label">To help you connect with friends and family, allow MirrorFly access to your contacts.</string>
+    <string name="contact_permission_denied_alert_label">MirrorFly need the Contacts Permission in order to help you connect with friends and family, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Contacts\".</string>
+    <string name="location_permission_alert_label">MirrorFly needs access to your location in order to share your current location.</string>
+    <string name="location_permission_denied_alert_label">MirrorFly need the Location Permission in order to attach a location, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Location\".</string>
+    <string name="camera_permission_alert_label">To capture photos and video, allow MirrorFly access to the camera and storage.</string>
+    <string name="camera_permission_denied_alert_label">MirrorFly need the Camera and Storage Permission in order to capture photos and video, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Camera\" and \"Storage\".</string>
+    <string name="media_permission_alert_label">To send media, allow MirrorFly access to your device\'s photos, media, and files.</string>
+    <string name="media_permission_denied_alert_label">MirrorFly need the Storage Permission in order to attach photos, media, and files, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Storage\".</string>
+    <string name="mic_permission_alert_label">To send audio messages, allow MirrorFly access to your Microphone.</string>
+    <string name="mic_permission_denied_alert_label">MirrorFly need the Microphone Permission in order to send audio messages, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Microphone\".</string>
+    <string name="audio_call_permission_alert_label">MirrorFly need the Microphone Permissions in order to call Family</string>
+    <string name="audio_call_permission_denied_alert_label">MirrorFly need the Microphone Permission in order to call Family, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Microphone\".</string>
+    <string name="video_call_permission_alert_label">MirrorFly need the Microphone and Camera Permissions in order to call Family</string>
+    <string name="video_call_permission_denied_alert_label">MirrorFly need the Microphone and Camera Permissions in order to call Family, but they have been permanently denied. Please continue to app settings, select \"Permissions\", and enable \"Microphone\" and \"Camera\".</string>
+
+    <!-- Contact Us Screen -->
+    <string name="label_title">Title</string>
+    <string name="feedback_description">Description</string>
+    <string name="error_empty_title">Title is required</string>
+    <string name="error_empty_description">Description is required</string>
+    <string name="feedback_sent">Thank you for contacting us!</string>
+
+    <!-- Moderation Admin Blocked/UnBlocked and Report Messages -->
+    <string name="admin_block_message">This application is no longer available for you.</string>
+    <string name="admin_block_message_label">Please contact admin if you have any query.</string>
+    <string name="group_block_message_label">This group is no longer available</string>
+    <string name="user_block_message_label">This user is no longer available</string>
+    <string name="action_report">Report</string>
+    <string name="label_report_sent">Report sent</string>
+    <string name="label_report">Report</string>
+    <string name="label_report_group">Report Group</string>
+    <string name="label_report_message">This message will be forwarded to admin. This contact will not be notified.</string>
+    <string name="label_user_report_5_message">The last 5 messages from this contact will be forwarded to admin. This contact will not be notified.</string>
+    <string name="label_group_report_5_message">The last 5 messages from this group will be forwarded to admin. No one in this group will be notified.</string>
+    <string name="label_deleted_user_report_message">Cannot report deleted user</string>
+    <string name="label_deleted_user_messages_report_message">Cannot report deleted user\'s message</string>
+
+    <!-- Delete my account screen -->
+    <string name="delete_account_desc_title">Deleting your account will:</string>
+    <string name="delete_account_desc_label_1">Delete your account from MirrorFly</string>
+    <string name="delete_account_desc_label_2">Erase your message history</string>
+    <string name="delete_account_desc_label_3">Delete you from all of your MirrorFly groups</string>
+    <string name="delete_account_country_desc">To delete your account, confirm your country and enter your phone number.</string>
+    <string name="country_label">Country</string>
+    <string name="choose_country_label">Choose a country</string>
+    <string name="mobile_number_hint_label">Mobile number</string>
+    <string name="plus_label">+</string>
+    <string name="error_mobile_number_not_matched">The mobile number you entered doesn\'t match your account</string>
+
+    <!-- Delete my account feedback screen -->
+    <string name="feedback_description_label">We hate to see you leave! Tell us why you are deleting your account:</string>
+    <string name="select_reason_label">Select a reason</string>
+    <string name="reason_description_label">Tell us how we can improve</string>
+    <string name="info_about_description_label">We will store your feedback for future purpose.</string>
+    <string name="delete_account_label">Delete My Account</string>
+    <string name="delete_account_popup_title">Proceed to delete your account?</string>
+    <string name="delete_account_popup_description">Deleting your account is permanent. Your data cannot be recovered if you reactivate your MirrorFly account in future.</string>
+    <string name="delete_account_success">Your MirrorFly account has been deleted.</string>
+
 </resources>

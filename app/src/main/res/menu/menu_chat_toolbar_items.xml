@@ -97,6 +97,12 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/action_report"
+        android:orderInCategory="110"
+        android:title="@string/action_report"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_copy"
         android:orderInCategory="110"
         android:title="@string/action_copy"
@@ -106,6 +112,7 @@
         android:id="@+id/action_info"
         android:orderInCategory="111"
         android:title="@string/msg_info"
+        android:visible="false"
         app:showAsAction="never" />
 
     <item

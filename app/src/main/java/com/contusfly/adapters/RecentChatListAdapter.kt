@@ -1,9 +1,7 @@
 package com.contusfly.adapters
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.BitmapFactory
-import android.graphics.PorterDuff
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -18,7 +16,6 @@ import androidx.core.content.ContextCompat
 import com.contusfly.*
 
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.contusfly.adapters.holders.ArchiveChatViewHolder
 import com.contusfly.databinding.RowLayoutArchivedBinding
 import com.contusfly.databinding.RowRecentChatItemBinding
@@ -110,9 +107,9 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
               setPinnedIcon(item, binding.viewBinding)
               switchBetweenMuteUnmute(item, binding.viewBinding)
               if (position == mainlist.size - 1) {
-                  holder.viewBinding.viewDivider.visibility = View.GONE;
+                  holder.viewBinding.viewDivider.visibility = View.GONE
               } else {
-                  holder.viewBinding.viewDivider.visibility = View.VISIBLE;
+                  holder.viewBinding.viewDivider.visibility = View.VISIBLE
               }
           }
     }
@@ -155,7 +152,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
             if (holder is RecentChatViewHolder) {
                 val item = mainlist[position]
                 val bundle = payloads[0] as Bundle
-                handlePayloads(bundle, holder as RecentChatViewHolder, item, position)
+                handlePayloads(bundle, holder, item, position)
             }
         }
     }
@@ -303,14 +300,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
                 messageContent = recent.lastMessageContent
                 if (chatMessage!!.messageChatType.name == Constants.GROUP_CHAT && !isFromSender && recent.profileName != chatMessage.senderUserName &&
                         !recent.lastMessageType.equals(Constants.MSG_TYPE_NOTIFICATION, ignoreCase = true)) {
-                    holder.textChatPerson.visibility = View.VISIBLE
-                    if((Utils.returnEmptyStringIfNull(chatMessage.senderUserName)).split(" ").size ==1)
-                        holder.textChatPerson.text = Utils.returnEmptyStringIfNull(chatMessage.senderUserName) + ":"
-                    else{
-                        val userName = Utils.returnEmptyStringIfNull(chatMessage.senderUserName).split(" ").get(0) +" "+
-                                Utils.returnEmptyStringIfNull(chatMessage.senderUserName).split(" ").get(1)
-                        holder.textChatPerson.text = Utils.returnEmptyStringIfNull(userName) + ":"
-                    }
+                    setGroupMessageSenderName(holder, chatMessage)
                 } else holder.textChatPerson.visibility = View.GONE
                 msgType = chatMessage.messageType.name
             }
@@ -343,12 +333,30 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
                     setImageStatus(holder, msgType!!.toLowerCase(Locale.getDefault()), messageContent, chatMessage?.mediaChatMessage?.isAudioRecorded() ?: false)
                 }
             }
-            if (isFromSender && !isRecall && !Constants.MSG_TYPE_NOTIFICATION.equals(msgType, ignoreCase = true)) {
-                holder.imageChatStatus.show()
-                ChatMessageUtils.setChatStatus(holder.imageChatStatus, chatMessage!!.messageStatus.status)
-            } else {
-                holder.imageChatStatus.gone()
-            }
+            setChatStatus(holder, chatMessage, isFromSender, isRecall)
+        }
+    }
+
+    private fun setGroupMessageSenderName(
+        holder: RowRecentChatItemBinding,
+        chatMessage: ChatMessage
+    ) {
+        holder.textChatPerson.visibility = View.VISIBLE
+        if((Utils.returnEmptyStringIfNull(chatMessage.senderUserName)).split(" ").size ==1)
+            holder.textChatPerson.text = Utils.returnEmptyStringIfNull(chatMessage.senderUserName) + ":"
+        else{
+            val userName = Utils.returnEmptyStringIfNull(chatMessage.senderUserName).split(" ")[0] +" "+
+                    Utils.returnEmptyStringIfNull(chatMessage.senderUserName).split(" ")[1]
+            holder.textChatPerson.text = Utils.returnEmptyStringIfNull(userName) + ":"
+        }
+    }
+
+    private fun setChatStatus(holder: RowRecentChatItemBinding, chatMessage:ChatMessage?, isFromSender: Boolean, isRecall: Boolean) {
+        if (isFromSender && !isRecall && !Constants.MSG_TYPE_NOTIFICATION.equals(msgType, ignoreCase = true)) {
+            holder.imageChatStatus.show()
+            ChatMessageUtils.setChatStatus(holder.imageChatStatus, chatMessage!!.messageStatus.status)
+        } else {
+            holder.imageChatStatus.gone()
         }
     }
 
@@ -377,12 +385,11 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
         holder.textChatPerson.visibility = View.GONE
         if (recent.isGroup) {
             val typingUser = ContactManager.getProfileDetails(typingAndGoneStatus[indexOfTypingStatus].second)
-            var userName:String? = null
-            if((Utils.returnEmptyStringIfNull(typingUser?.name)).split(" ").size ==1)
-                userName = Utils.returnEmptyStringIfNull(typingUser?.name) + ":"
+            val userName = if((Utils.returnEmptyStringIfNull(typingUser?.name)).split(" ").size ==1)
+                Utils.returnEmptyStringIfNull(typingUser?.name) + ":"
             else{
-                userName = Utils.returnEmptyStringIfNull(typingUser?.name).split(" ").get(0) +" "+
-                        Utils.returnEmptyStringIfNull(typingUser?.name).split(" ").get(1)
+                Utils.returnEmptyStringIfNull(typingUser?.name).split(" ")[0] +" "+
+                        Utils.returnEmptyStringIfNull(typingUser?.name).split(" ")[1]
 
             }
             val typingText = (userName + " " + context.resources.getString(R.string.msg_typing))
@@ -419,7 +426,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
             val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
             val newlyCreatedJid = SharedPreferenceManager.getString(Constants.NEW_GROUP_JID)
             val imageBitmap = SharedPreferenceManager.getString(Constants.NEW_GROUP_IMAGE)
-            if (recent.profileImage.isNotEmpty() && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && recent.jid.equals(newlyCreatedJid)) {
+            if (!recent.isAdminBlocked && recent.profileImage.isNotEmpty() && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && recent.jid.equals(newlyCreatedJid)) {
                 holder.imageChatPicture.setImageDrawable(
                     ContextCompat.getDrawable(
                         context,

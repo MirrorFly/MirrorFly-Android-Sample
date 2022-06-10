@@ -40,6 +40,7 @@
     <dimen name="padding_16">16dp</dimen>
     <dimen name="padding_17">17dp</dimen>
     <dimen name="padding_18">18dp</dimen>
+    <dimen name="padding_19">19dp</dimen>
     <dimen name="padding_20">20dp</dimen>
     <dimen name="padding_25">25dp</dimen>
     <dimen name="padding_30">30dp</dimen>

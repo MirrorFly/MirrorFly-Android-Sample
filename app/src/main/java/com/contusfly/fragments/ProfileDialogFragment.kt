@@ -11,29 +11,26 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import com.contus.flycommons.ChatType
 import com.contus.flycommons.ContactType
 import com.contus.flycommons.LogMessage
-import com.contus.flycommons.TAG
 import com.contus.webrtc.CallType
 import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.api.CallManager
 import com.contus.xmpp.chat.utils.LibConstants
-import com.contusfly.R
-import com.contusfly.TAG
+import com.contusfly.*
 import com.contusfly.activities.ChatActivity
 import com.contusfly.activities.GroupInfoActivity
 import com.contusfly.activities.UserInfoActivity
 import com.contusfly.activities.UserProfileImageViewActivity
 import com.contusfly.call.CallPermissionUtils
 import com.contusfly.databinding.FragmentProfileDialogBinding
-import com.contusfly.getChatType
-import com.contusfly.loadUserProfileImage
-import com.contusfly.utils.AppConstants
-import com.contusfly.utils.Constants
-import com.contusfly.utils.MediaUtils
-import com.contusfly.utils.SharedPreferenceManager
+import com.contusfly.utils.*
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.Utils
@@ -57,6 +54,23 @@ class ProfileDialogFragment : DialogFragment() {
     lateinit var callPermissionUtils: CallPermissionUtils
     lateinit var profileDetails: ProfileDetails
     lateinit var rosterImage: String
+
+    private var lastCallAction = ""
+
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(requireActivity()) }
+
+    private val requestCallPermissions: ActivityResultLauncher<Array<String>> =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            // Do something if some permissions granted or denied
+            if (!permissions.containsValue(false)) {
+                if (lastCallAction == CallType.AUDIO_CALL) {
+                    callPermissionUtils.audioCall()
+                } else {
+                    callPermissionUtils.videoCall()
+                }
+                dismissDialog()
+            }
+        }
 
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
@@ -91,7 +105,7 @@ class ProfileDialogFragment : DialogFragment() {
     private fun setData() {
         profileDialogBinding.userProfileImageViewer.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.color_light_gray))
         var name = ""
-        if (!profileDetails.isItSavedContact && profileDetails.getChatType() != ChatType.TYPE_GROUP_CHAT)
+        if (!profileDetails.isItSavedContact() && profileDetails.getChatType() != ChatType.TYPE_GROUP_CHAT)
             name = Utils.getFormattedPhoneNumber(profileDetails.jid.split("@".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()[0])
         else
             name = ContactManager.getProfileDetails(profileDetails.jid)!!.name
@@ -136,11 +150,18 @@ class ProfileDialogFragment : DialogFragment() {
                 )
             }
         }
-        callPermissionUtils = activity?.let { CallPermissionUtils(it, profileDetails.isBlocked, arrayListOf(profileDetails.jid),"",false) }!!
+        callPermissionUtils = activity?.let { CallPermissionUtils(it, profileDetails.isBlocked,
+            profileDetails.isAdminBlocked, arrayListOf(profileDetails.jid),"",false) }!!
 
-        if (profileDetails.getChatType() == ChatType.TYPE_GROUP_CHAT) {
+        hideCallIcons()
+    }
+
+    private fun hideCallIcons() {
+        val isAdminBlocked = profileDetails.isAdminBlocked
+        if (profileDetails.getChatType() == ChatType.TYPE_GROUP_CHAT || profileDetails.isDeletedContact()) {
             profileDialogBinding.videoCallLinearlayout.visibility = View.GONE
             profileDialogBinding.audioCallLinearlayout.visibility = View.GONE
+            profileDialogBinding.openUserProfile.isEnabled = !isAdminBlocked
         }
     }
 
@@ -159,7 +180,6 @@ class ProfileDialogFragment : DialogFragment() {
                 .putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(profileDetails.jid)))
         } else {
             startActivity(Intent(context, UserInfoActivity::class.java)
-                .putExtra(ContactType.CONTUS_CONTACT, profileDetails.isItSavedContact)
                 .putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(profileDetails.jid)))
         }
 
@@ -167,26 +187,45 @@ class ProfileDialogFragment : DialogFragment() {
     }
 
     private fun navigateToProfileImageScreen() {
-        var title: String? = ContactManager.getProfileDetails(profileDetails.jid)!!.name
+        val profile = ContactManager.getProfileDetails(profileDetails.jid)
+        var title: String? = profile!!.name
         if (title == null || title.isEmpty())
             title = resources.getString(R.string.action_delete)
 
         startActivity(Intent(context, UserProfileImageViewActivity::class.java)
-            .putExtra(com.contusfly.utils.Constants.GROUP_OR_USER_NAME, title)
-            .putExtra("PROFILE", rosterImage))
+            .putExtra(Constants.GROUP_OR_USER_NAME, title)
+            .putExtra("PROFILE", if (!profile.isAdminBlocked) rosterImage else ""))
         dismissDialog()
     }
 
     private fun makeAudioCall() {
         GroupCallUtils.setIsCallStarted(CallType.AUDIO_CALL)
-        callPermissionUtils.audioCall()
-        dismissDialog()
+        if (CallManager.isAudioCallPermissionsGranted()) {
+            callPermissionUtils.audioCall()
+            dismissDialog()
+        } else {
+            lastCallAction = CallType.AUDIO_CALL
+            MediaPermissions.requestAudioCallPermissions(
+                requireActivity(),
+                permissionAlertDialog,
+                requestCallPermissions
+            )
+        }
     }
 
     private fun makeVideoCall() {
         GroupCallUtils.setIsCallStarted(CallType.VIDEO_CALL)
-        callPermissionUtils.videoCall()
-        dismissDialog()
+        if (CallManager.isVideoCallPermissionsGranted()) {
+            callPermissionUtils.videoCall()
+            dismissDialog()
+        } else {
+            lastCallAction = CallType.VIDEO_CALL
+            MediaPermissions.requestVideoCallPermissions(
+                requireActivity(),
+                permissionAlertDialog,
+                requestCallPermissions
+            )
+        }
     }
 
 

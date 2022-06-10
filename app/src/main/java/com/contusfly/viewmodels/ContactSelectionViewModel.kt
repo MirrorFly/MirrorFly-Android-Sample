@@ -53,8 +53,6 @@ class ContactSelectionViewModel : ViewModel() {
                     val indexOfDisplayNumber = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
                     val indexOfLabel = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE)
                     val indexOfContactId = cursor.getColumnIndex( ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
-                    val phoneNumberUtil = PhoneNumberUtil.createInstance(context)
-                    val countryCode = SharedPreferenceManager.getString(Constants.COUNTRY_CODE)
 
                     while (cursor.moveToNext()) {
                         val normalizedNumber = cursor.getString(indexOfNormalizedNumber)
@@ -63,7 +61,7 @@ class ContactSelectionViewModel : ViewModel() {
                             val displayNumber = cursor.getString(indexOfDisplayNumber)
                             val contactId = cursor.getString(indexOfContactId)
                             val label = getTypeLabel(context.resources, cursor.getInt(indexOfLabel), Constants.EMPTY_STRING)
-                            checkAndAddContact(countryCode, phoneNumberUtil, displayName, displayNumber, contactId, label)
+                            checkAndAddContact(displayName, displayNumber, contactId, label)
                         }
                     }
                 } finally {
@@ -75,7 +73,7 @@ class ContactSelectionViewModel : ViewModel() {
         }
     }
 
-    private fun checkAndAddContact(countryCode: String, phoneNumberUtil: PhoneNumberUtil, displayName: String, displayNumber: String, contactId: String, label: CharSequence) {
+    private fun checkAndAddContact(displayName: String, displayNumber: String, contactId: String, label: CharSequence) {
         val deviceContactModel = if (deviceContactsList.containsKey(contactId)) deviceContactsList[contactId] else DeviceContactModel(contactId, displayName)
         deviceContactModel!!.mobileNumbers.add(PhoneNumber(displayNumber, label.toString(), true))
         deviceContactsList[contactId] = deviceContactModel

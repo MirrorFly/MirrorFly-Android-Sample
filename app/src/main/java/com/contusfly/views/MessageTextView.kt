@@ -21,13 +21,7 @@ class MessageTextView : EmojiconTextView {
      * @param context The Context the view is running in, through which it can
      * access the current theme, resources, etc.
      */
-    constructor(context: Context?) : super(context) {
-        this(context)
-    }
-
-    private operator fun invoke(context: Context?) {
-        //nthg do
-    }
+    constructor(context: Context?) : super(context)
 
     /**
      * The default constructor to be invoked when initializing the instance of this
@@ -38,7 +32,6 @@ class MessageTextView : EmojiconTextView {
      * @param attrs   The attributes of the XML tag that is inflating the view.
      */
     constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs) {
-        this(context)
         CustomFontUtil.setTextViewFont(context, attrs, this)
         attrs?.let { setTextViewAttributes(it) }
     }
@@ -55,7 +48,6 @@ class MessageTextView : EmojiconTextView {
      * the view.
      */
     constructor(context: Context?, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr) {
-        this(context)
         CustomFontUtil.setTextViewFont(context, attrs, this)
         attrs?.let { setTextViewAttributes(it) }
     }
@@ -72,7 +64,6 @@ class MessageTextView : EmojiconTextView {
     private fun setTextViewAttributes(set: AttributeSet) {
         val a = context.obtainStyledAttributes(set, R.styleable.Emojicon)
         a.recycle()
-        text = text
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

@@ -1,12 +1,13 @@
 package com.contusfly.call.calllog
 
+import android.app.Activity
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.flycommons.Constants
 import com.contus.flycommons.TAG
@@ -19,16 +20,16 @@ import com.contus.webrtc.api.CallLogManager
 import com.contus.call.database.model.CallLog
 import com.contus.call.utils.CallConstants
 import com.contus.call.utils.GroupCallUtils
-import com.contusfly.R
+import com.contus.webrtc.api.CallManager
+import com.contusfly.*
 import com.contusfly.activities.BaseActivity
-import com.contusfly.applySrcInColorFilter
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallPermissionUtils
 import com.contusfly.databinding.ActivityCallHistoryDetailBinding
 import com.contusfly.di.factory.AppViewModelFactory
-import com.contusfly.gone
-import com.contusfly.setVisibile
+import com.contusfly.utils.MediaPermissions
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.utils.ChatTimeFormatter
@@ -39,7 +40,7 @@ import kotlin.coroutines.CoroutineContext
 
 class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDialog.CommonDialogClosedListener, CallLogManager.CallLogActionListener {
 
-    private val exceptionHandler = CoroutineExceptionHandler { context, exception ->
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         println("Coroutine Exception ${TAG}:  ${exception.printStackTrace()}")
     }
 
@@ -63,6 +64,22 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
     lateinit var dashboardViewModelFactory: AppViewModelFactory
     val viewModel: CallLogViewModel by viewModels { dashboardViewModelFactory }
     private lateinit var callHistoryDetailBinding: ActivityCallHistoryDetailBinding
+
+    private lateinit var callPermissionUtils: CallPermissionUtils
+
+    var callType = ""
+
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
+    private val callPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(!permissions.containsValue(false)) {
+            if (callType == CallType.AUDIO_CALL)
+                callPermissionUtils.audioCall()
+            else
+                callPermissionUtils.videoCall()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
@@ -113,9 +130,9 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
     }
 
     private fun startObservingViewModel() {
-        viewModel.callLog.observe(this, Observer {
+        viewModel.callLog.observe(this) {
             updateCallLogData(it)
-        })
+        }
     }
 
     private fun handleMainIntent() {
@@ -135,7 +152,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             setCallStatusIcon(callLog)
 
             mUsersList.clear()
-            mUsersList.addAll(GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
+            mUsersList.addAll(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
             mUserAdapter.notifyDataSetChanged()
         }
     }
@@ -155,11 +172,12 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
         commonAlertDialog = CommonAlertDialog(this)
         commonAlertDialog.setOnDialogCloseListener(this)
 
-        callHistoryDetailBinding.imgCallType.setVisibile(CallConfiguration.isGroupCallEnabled())
+        callHistoryDetailBinding.imgCallType.setVisible(CallConfiguration.isGroupCallEnabled())
         callHistoryDetailBinding.imgCallType.setOnClickListener {
             callLogDetails?.let { callLog ->
                 if (!callLog.groupId.isNullOrEmpty() || (!callLog.userList.isNullOrEmpty() && callLog.userList!!.filter { it != GroupCallUtils.getLocalUserJid() }.size > 1)) {
-                    makeGroupCall(callLog)
+                    if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+                        makeGroupCall(callLog)
                 } else {
                     makeOneToOneCall(callLog)
                 }
@@ -174,15 +192,24 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
         else
             callLog.toUser
         val profileDetails = ContactManager.getProfileDetails(toUser!!)
-        if (profileDetails != null) {
+        if (profileDetails != null && profileDetails.isAdminBlocked) return
+        profileDetails?.let {
+            callType = callLog.callType ?: CallType.AUDIO_CALL
             if (callLog.callType == CallType.AUDIO_CALL) {
                 GroupCallUtils.setIsCallStarted(CallType.AUDIO_CALL)
-                CallPermissionUtils(activity!!, profileDetails.isBlocked, arrayListOf(profileDetails.jid), callLog.groupId
-                        ?: "", true).audioCall()
+                callPermissionUtils = CallPermissionUtils(activity!!, profileDetails.isBlocked, profileDetails.isAdminBlocked,
+                    arrayListOf(profileDetails.jid),
+                    callLog.groupId ?: "", true
+                )
+                checkAudioCallPermissions()
             } else if (callLog.callType == CallType.VIDEO_CALL) {
                 GroupCallUtils.setIsCallStarted(CallType.VIDEO_CALL)
-                CallPermissionUtils(activity!!, profileDetails.isBlocked, arrayListOf(profileDetails.jid), callLog.groupId
-                        ?: "", true).videoCall()
+                callPermissionUtils = CallPermissionUtils(activity!!, profileDetails.isBlocked, profileDetails.isAdminBlocked,
+                    arrayListOf(profileDetails.jid),
+                    callLog.groupId ?: "",
+                    true
+                )
+                checkVideoCallPermissions()
             }
             //if it is not a blocked contact , clear the value. so that we can avoid unknown calls
             //happening due to onBlockListCallBack() callback from CfBaseActivity.
@@ -191,17 +218,80 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
         }
     }
 
+    private fun checkAudioCallPermissions() {
+        if (CallManager.isAudioCallPermissionsGranted()) {
+            callPermissionUtils.audioCall()
+        } else {
+            MediaPermissions.requestAudioCallPermissions(
+                this,
+                permissionAlertDialog,
+                callPermissionLauncher
+            )
+        }
+    }
+
+    private fun checkVideoCallPermissions() {
+        if (CallManager.isVideoCallPermissionsGranted()) {
+            callPermissionUtils.videoCall()
+        } else {
+            MediaPermissions.requestVideoCallPermissions(
+                (activity as Activity),
+                permissionAlertDialog,
+                callPermissionLauncher
+            )
+        }
+    }
+
     private fun makeGroupCall(callLog: CallLog) {
+        if (isAdminBlocked(callLog)) return
+
+        callType = callLog.callType ?: CallType.AUDIO_CALL
         if (callLog.callType == CallType.AUDIO_CALL) {
             GroupCallUtils.setIsCallStarted(CallType.AUDIO_CALL)
-            CallPermissionUtils(activity!!, false, GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>, callLog.groupId
-                    ?: "", true).audioCall()
+            callPermissionUtils = CallPermissionUtils(
+                activity!!,
+                false, false,
+                GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>,
+                callLog.groupId ?: "",
+                true
+            )
+            if (CallManager.isAudioCallPermissionsGranted()) {
+                callPermissionUtils.audioCall()
+            } else {
+                MediaPermissions.requestAudioCallPermissions(
+                    this,
+                    permissionAlertDialog,
+                    callPermissionLauncher
+                )
+            }
         } else if (callLog.callType == CallType.VIDEO_CALL) {
             GroupCallUtils.setIsCallStarted(CallType.VIDEO_CALL)
-            CallPermissionUtils(activity!!, false, GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>, callLog.groupId
-                    ?: "", true).videoCall()
+            callPermissionUtils =   CallPermissionUtils(
+                activity!!,
+                false, false,
+                GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>,
+                callLog.groupId ?: "",
+                true
+            )
+            if (CallManager.isVideoCallPermissionsGranted()) {
+                callPermissionUtils.videoCall()
+            }  else {
+                MediaPermissions.requestVideoCallPermissions(
+                    (activity as Activity),
+                    permissionAlertDialog,
+                    callPermissionLauncher
+                )
+            }
         }
         GroupCallUtils.setIsCallStarted(null)
+    }
+
+    private fun isAdminBlocked(callLog: CallLog): Boolean {
+        return if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
+            ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
+        } else if (callLog.groupId!!.isNotEmpty()) {
+            ContactManager.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
+        } else false
     }
 
     /**
@@ -234,25 +324,39 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             }
         } else {
             callHistoryDetailBinding.textChatName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            callHistoryDetailBinding.imageChatPicture.addImage(GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
+            callHistoryDetailBinding.imageChatPicture.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
         }
         callHistoryDetailBinding.emailContactIcon.gone()
     }
 
     private fun profileIcon(profileDetails: ProfileDetails) {
 
-        callHistoryDetailBinding.textChatName.text = profileDetails.nickName
+        callHistoryDetailBinding.textChatName.text = profileDetails.name
         callHistoryDetailBinding.imageChatPicture.addImage(arrayListOf(profileDetails.jid))
     }
 
     // here shows the icon whether the call is missed call or attended call
     private fun setCallType(callLogs: CallLog) {
+        setIconAlpha(callLogs)
         // Display the icon whether the call is audio or video
         if (callLogs.callType == CallType.AUDIO_CALL) {
             callHistoryDetailBinding.imgCallType.setImageResource(R.drawable.ic_call_log_voice_call)
         } else if (callLogs.callType == CallType.VIDEO_CALL) {
             callHistoryDetailBinding.imgCallType.setImageResource(R.drawable.ic_call_log_video_call)
         }
+    }
+
+    private fun setIconAlpha(callLogs: CallLog) {
+        val profileDetails = if (callLogs.callMode == CallMode.ONE_TO_ONE && (callLogs.userList == null || callLogs.userList!!.size < 2)) {
+            ContactManager.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
+        } else if (!callLogs.groupId.isNullOrBlank()) {
+            ContactManager.getProfileDetails(callLogs.groupId!!)
+        } else null
+
+        val adminBlockedStatus = profileDetails?.isAdminBlocked ?: false
+        val isDeletedUser = profileDetails?.isDeletedContact() ?: false
+        callHistoryDetailBinding.imgCallType.alpha = if (adminBlockedStatus || isDeletedUser) 0.3f else 1f
+        callHistoryDetailBinding.imgCallType.isEnabled = !isDeletedUser
     }
 
     private fun setCallStatusIcon(callLogs: CallLog) {
@@ -283,4 +387,9 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.Default + Job()
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        viewModel.getCallLog(roomId)
+    }
 }

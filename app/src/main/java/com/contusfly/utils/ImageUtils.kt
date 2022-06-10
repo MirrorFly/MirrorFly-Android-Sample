@@ -71,6 +71,7 @@ object ImageUtils {
                 bitmap = rotateImage(bitmap, fil.absolutePath)
                 return bitmap
             } catch (e: Exception) {
+                LogMessage.e(e)
             }
         }
         return null
@@ -92,6 +93,7 @@ object ImageUtils {
                 ei = ExifInterface(imageUrl)
                 orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
             } catch (e: IOException) {
+                LogMessage.e(e)
             }
             val bmpWidth = bmp.width
             val bmpHeight = bmp.height

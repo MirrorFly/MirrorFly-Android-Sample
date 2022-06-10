@@ -180,7 +180,7 @@ object ChatUtils {
         }
     }
 
-    fun navigateToOnGoingCallPreviewScreen(context: Context, url: String): Boolean {
+    fun navigateToOnGoingCallPreviewScreen(context: Context, userJid: String, url: String): Boolean {
         val callLink = url.replace(BuildConfig.WEB_CHAT_LOGIN, "")
         if (AppUtils.isNetConnected(context)) {
             return if (GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall()) {
@@ -197,11 +197,8 @@ object ChatUtils {
                 false
             } else {
                 context.startActivity(
-                    Intent(context, OnGoingCallPreviewActivity::class.java).putExtra(
-                        CallConstants.CALL_LINK,
-                        callLink
-                    )
-                )
+                    Intent(context, OnGoingCallPreviewActivity::class.java).putExtra(CallConstants.CALL_LINK, callLink)
+                        .putExtra(Constants.USER_JID, userJid))
                 true
             }
         } else {

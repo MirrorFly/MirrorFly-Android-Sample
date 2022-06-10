@@ -147,6 +147,7 @@ class PinActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener
         AndroidInjection.inject(this)
         callAppListener(true)
         super.onCreate(savedInstanceState)
+        SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.IS_PIN_VALIDATED, true)
         binding = ActivityPinBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initViews()
@@ -252,7 +253,8 @@ class PinActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener
             finish()
         else {
             SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.BACK_PRESS, false)
-            callAppListener(true)
+            SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.IS_PIN_VALIDATED, true)
+            callAppListener(false)
             ChatManager.closeXMPPConnection()
             ActivityCompat.finishAffinity(this)
         }
@@ -276,6 +278,7 @@ class PinActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener
                 isEnableBiometric -> SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.BIOMETRIC, !SharedPreferenceManager.getBoolean(com.contusfly.utils.Constants.BIOMETRIC))
                 isFromDisableBio -> SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.BIOMETRIC, false)
             }
+            SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.IS_PIN_VALIDATED, false)
             callAppListener(false)
             SharedPreferenceManager.setInt(WRONG_CODE, 0)
             hideKeyboard()

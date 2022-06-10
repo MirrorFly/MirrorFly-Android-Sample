@@ -67,7 +67,7 @@ class KeyboardHeightProvider(private val activity: Activity) : PopupWindow(activ
             KeyboardInfo.keyboardHeight = keyboardHeight
         }
         if (keyboardHeight != lastKeyboardHeight)
-            notifyKeyboardHeightChanged(keyboardHeight, orientation)
+            notifyKeyboardHeightChanged(keyboardHeight)
         lastKeyboardHeight = keyboardHeight
     }
 
@@ -101,7 +101,7 @@ class KeyboardHeightProvider(private val activity: Activity) : PopupWindow(activ
         keyboardListeners.remove(listener)
     }
 
-    private fun notifyKeyboardHeightChanged(height: Int, orientation: Int) {
+    private fun notifyKeyboardHeightChanged(height: Int) {
         keyboardListeners.forEach {
             it.onHeightChanged(height)
         }

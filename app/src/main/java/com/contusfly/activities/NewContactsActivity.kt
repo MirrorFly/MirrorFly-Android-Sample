@@ -16,6 +16,7 @@ import androidx.core.graphics.BlendModeCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.flycommons.ChatType
+import com.contus.flycommons.LogMessage
 import com.contus.flycommons.emptyStringFE
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
@@ -25,6 +26,7 @@ import com.contusfly.adapters.ContactsAdapter
 import com.contusfly.databinding.ActivityNewContactsBinding
 import com.contusfly.fragments.ProfileDialogFragment
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.viewmodels.ContactViewModel
 import com.contusfly.views.CommonAlertDialog
@@ -161,8 +163,8 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
             emptyView.text = getString(R.string.msg_no_results)
             emptyView.setTextColor(ResourcesCompat.getColor(resources, R.color.color_text_no_list, null))
             newContactsBinding.viewListContacts.setEmptyView(emptyView)
-
         } else {
+            newContactsBinding.emptyList.textEmptyView.gone()
             newContactsBinding.viewListContacts.setEmptyView(newContactsBinding.noContactsView.root)
         }
     }
@@ -267,12 +269,34 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
     }
 
     private fun setObservers() {
-        viewModel.contactDiffResult.observe(this, {
+        viewModel.contactDiffResult.observe(this) {
+            // Retrieve the selected profiles state
+            retrievedSelectedProfilesState()
+
             // Save Current Scroll state to retain scroll position after DiffUtils Applied
             val previousState = newContactsBinding.viewListContacts.layoutManager?.onSaveInstanceState() as Parcelable
             it.dispatchUpdatesTo(mAdapter)
             newContactsBinding.viewListContacts.layoutManager?.onRestoreInstanceState(previousState)
-        })
+
+            //To handle search result while user profiles updated
+            newContactsBinding.viewListContacts.post {
+                if (searchKey.isNotEmpty()) {
+                    mAdapter.filter.filter(searchKey)
+                }
+            }
+        }
+    }
+
+    private fun retrievedSelectedProfilesState() {
+        if (selectedUsersJid.isNotEmpty()) {
+            selectedUsersJid.forEach {
+                val isJidSelected = viewModel.contactListAdapter.any { profileDetails -> profileDetails.jid == it }
+                val index = viewModel.contactListAdapter.indexOfFirst { profileDetails -> profileDetails.jid == it }
+                if (isJidSelected && index.isValidIndex()) {
+                    viewModel.contactListAdapter[index].isSelected = true
+                }
+            }
+        }
     }
 
     private fun updateContactsList() {
@@ -314,11 +338,15 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
         } else {
             selectedUsersJid.add(profile.jid)
         }
+        updateSelectedUserCallView(profile.jid)
+    }
+
+    private fun updateSelectedUserCallView(jid: String? = Constants.EMPTY_STRING) {
         if (isMakeCall) {
             newContactsBinding.buttonMakeCall.show()
             newContactsBinding.buttonMakeCall.isEnabled = selectedUsersJid.size > 0
             if ((selectedUsersJid.size + 1) > CallManager.getMaxCallUsersCount()) {
-                selectedUsersJid.remove(profile.jid)
+                if (jid!!.isNotEmpty()) selectedUsersJid.remove(jid)
                 newContactsBinding.buttonMakeCall.text =
                     String.format(getString(R.string.action_call_now), selectedUsersJid.size)
                 newContactsBinding.buttonMakeCall.isEnabled = false
@@ -334,11 +362,29 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
         } else newContactsBinding.buttonMakeCall.gone()
     }
 
-
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
         updateUserProfileInfo(jid)
     }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        removeUserProfile(jid)
+    }
+
+    private fun removeUserProfile(jid: String) {
+        val userIndex = viewModel.contactListAdapter.indexOfFirst { profile -> profile.jid == jid }
+        if (userIndex.isValidIndex()) {
+            selectedUsersJid.remove(jid)
+            viewModel.contactListAdapter.removeAt(userIndex)
+            mAdapter.notifyItemRemoved(userIndex)
+            mAdapter.filter.filter(searchKey)
+        }
+    }
+
     override fun userDetailsUpdated() {
         super.userDetailsUpdated()
         updateContactsList()
@@ -355,16 +401,29 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
     }
 
     private fun updateUserProfileInfo(jid: String) {
-        val userIndex = viewModel.contactListAdapter.indexOfFirst { profile -> profile.jid == jid }
-        if (userIndex.isValidIndex()) {
-            val oldProfile = viewModel.contactListAdapter[userIndex]
-            val updatedProfile = ContactManager.getProfileDetails(jid)!!
-            updatedProfile.isSelected = oldProfile.isSelected
-            viewModel.contactListAdapter[userIndex] = updatedProfile
-            mAdapter.notifyItemChanged(userIndex)
-            mAdapter.filter.filter(searchKey)
+       try {
+           val userIndex = viewModel.contactListAdapter.indexOfFirst { profile -> profile.jid == jid }
+           if (userIndex.isValidIndex()) {
+               val oldProfile = viewModel.contactListAdapter[userIndex]
+               val updatedProfile = ContactManager.getProfileDetails(jid)!!
+               updatedProfile.isSelected = oldProfile.isSelected
+               viewModel.contactListAdapter[userIndex] = updatedProfile
+               mAdapter.notifyItemChanged(userIndex)
+               mAdapter.filter.filter(searchKey)
+           } else {
+               val updatedProfile = ContactManager.getProfileDetails(jid)!!
+               val list = viewModel.contactDetailsList.value?.toMutableList() ?: mutableListOf()
+               list.add(updatedProfile)
+               val sortedList = ProfileDetailsUtils.sortProfileList(list)
+               val newIndex = sortedList.indexOfFirst { profile -> profile.jid == jid }
+               viewModel.contactListAdapter.add(newIndex, updatedProfile)
+               mAdapter.notifyItemInserted(newIndex)
+               mAdapter.filter.filter(searchKey)
+           }
+       } catch (e: Exception) {
+           LogMessage.e(e)
+       }
 
-        }
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
@@ -393,5 +452,34 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
 
     override fun listOptionSelected(position: Int) {
         //Do nothing
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateContactsList()
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        if (jid == groupId && status && fromGroupInfo && type == ChatType.TYPE_GROUP_CHAT) {
+            showToast(getString(R.string.group_block_message_label))
+            startDashboardActivity()
+        } else {
+            if (status && selectedUsersJid.contains(jid)) {
+                selectedUsersJid.remove(jid)
+                updateSelectedUserCallView()
+            }
+            updateContactsList()
+            for (selectedJid in selectedUsersJid) {
+                updateUserProfileInfo(selectedJid)
+            }
+        }
+    }
+
+    private fun startDashboardActivity() {
+        val dashboardIntent = Intent(this, DashboardActivity::class.java)
+        dashboardIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(dashboardIntent)
+        finish()
     }
 }

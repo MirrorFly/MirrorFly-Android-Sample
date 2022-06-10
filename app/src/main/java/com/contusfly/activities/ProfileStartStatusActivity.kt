@@ -147,7 +147,7 @@ class ProfileStartStatusActivity : BaseActivity(), View.OnClickListener, CommonA
                 var profileStatus: ProfileStatus
                 for ((index, staticStatus) in staticStatusList.withIndex()) {
                     profileStatus = ProfileStatus(index.toLong(), staticStatus, false)
-                    if(!statusList.contains(profileStatus) && statusList.filter { it.status == profileStatus.status }.size == 0)
+                    if(!statusList.contains(profileStatus) && statusList.none { it.status == profileStatus.status })
                         statusList.add(profileStatus)
                     FlyCore.insertDefaultStatus(staticStatus)
                 }

@@ -107,6 +107,8 @@ class OtpPresenter(private var otpBinding: ActivityOtpBinding) : IOtpPresenter {
         otpBinding.divider.visibility = View.GONE
         otpBinding.mobileNumber.visibility = View.GONE
         otpBinding.viewGetOtp.visibility = View.GONE
+        otpBinding.txtTermsAndConditions.visibility = View.GONE
+        otpBinding.txtTermsAndConditionsDescription.visibility = View.GONE
         otpBinding.otpView.visibility = View.VISIBLE
         otpBinding.editNumber.visibility = View.VISIBLE
     }
@@ -152,6 +154,8 @@ class OtpPresenter(private var otpBinding: ActivityOtpBinding) : IOtpPresenter {
         otpBinding.divider.visibility = View.VISIBLE
         otpBinding.mobileNumber.visibility = View.VISIBLE
         otpBinding.viewGetOtp.visibility = View.VISIBLE
+        otpBinding.txtTermsAndConditions.visibility = View.VISIBLE
+        otpBinding.txtTermsAndConditionsDescription.visibility = View.VISIBLE
         otpBinding.otpView.visibility = View.GONE
         otpBinding.editNumber.visibility = View.GONE
         otpBinding.edtMobileNo.isEnabled = true

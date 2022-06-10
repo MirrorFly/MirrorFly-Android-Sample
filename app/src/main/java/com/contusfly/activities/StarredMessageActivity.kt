@@ -38,10 +38,10 @@ import com.contusfly.utils.FirebaseUtils.Companion.setAnalytics
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CommonAlertDialog.CommonDialogClosedListener
 import com.contusfly.views.CustomRecyclerView
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager.updateFavouriteStatus
-import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyCore.isBusyStatusEnabled
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.FlyMessenger.downloadMedia
@@ -165,9 +165,10 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
      */
     private var mManager: LinearLayoutManager? = null
 
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
     private val downloadPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-    }
+        ActivityResultContracts.RequestMultiplePermissions()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -209,6 +210,14 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
      */
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
+        updateAdapter()
+    }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
         updateAdapter()
     }
 
@@ -488,7 +497,7 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
                 downloadMedia(item.getMessageId())
                 starredMessagesViewPresenter!!.updateList(item.getMessageId())
             } else CustomToast.show(this, getString(R.string.msg_no_internet))
-        } else MediaPermissions.requestStorageAccess(this, downloadPermissionLauncher)
+        } else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
     }
 
     override fun onCancelDownloadClicked(messageItem: ChatMessage) {
@@ -639,7 +648,7 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
     }
 
     override fun onContactClick(item: ChatMessage, position: Int, registeredJid: String?) {
-
+        //Do nthg
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
@@ -730,12 +739,6 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
         commonAlertDialog!!.dialogAction = CommonAlertDialog.DialogAction.STATUS_BUSY
         commonAlertDialog!!.showAlertDialog(getString(R.string.msg_disable_busy_status), getString(R.string.action_yes),
                 getString(R.string.action_no), CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false)
-    }
-
-    private fun inviteUserDialog(contactMessage: ContactChatMessage) {
-        selectedContactMessage = contactMessage
-        commonAlertDialog!!.dialogAction = CommonAlertDialog.DialogAction.INVITE
-        commonAlertDialog!!.showListDialog(getString(R.string.title_invite_friend), resources.getStringArray(R.array.array_invite_contact))
     }
 
     /**
@@ -829,6 +832,11 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
 
     override fun userUnBlockedMe(jid: String) {
         super.userUnBlockedMe(jid)
+        updateAdapter()
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
         updateAdapter()
     }
 }

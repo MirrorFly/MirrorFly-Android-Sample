@@ -1,11 +1,9 @@
 package com.contusfly.utils
 
-import android.app.Activity
 import android.content.Context
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.activity.result.ActivityResultLauncher
 import com.contusfly.R
 import com.contusfly.adapters.holders.BaseReceivedViewHolder
 import com.contusfly.adapters.holders.BaseSentViewHolder
@@ -15,7 +13,6 @@ import com.contusfly.gone
 import com.contusfly.isGroupMessage
 import com.contusfly.show
 import com.contusflysdk.api.ChatManager.applicationContext
-import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.MessageStatus
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.helpers.ResourceHelper
@@ -123,18 +120,6 @@ object ChatMessageUtils {
             } else imgViewHolder.replyMessageReceivedView?.gone()
         } else imgViewHolder.replyMessageReceivedView?.gone()
         if (messageItem.isMessageStarred()) imgViewHolder.imgStarred.visibility = View.VISIBLE else imgViewHolder.imgStarred.visibility = View.GONE
-    }
-
-    /**
-     * Download the media from the s3 bucket
-     *
-     * @param activity The instance of Activity
-     * @param permissionsLauncher permission launcher to request Permission
-     * @param message  Media available for this message
-     */
-    fun downloadMedia(activity: Activity, permissionsLauncher: ActivityResultLauncher<Array<String>>, message: ChatMessage) {
-        if (MediaPermissions.isWriteFilePermissionAllowed(activity)) FlyMessenger.downloadMedia(message.getMessageId())
-        else MediaPermissions.requestStorageAccess(activity, permissionsLauncher)
     }
 
     /**

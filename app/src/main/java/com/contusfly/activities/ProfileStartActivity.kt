@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.Build
 import com.contus.flycommons.Prefs
@@ -29,7 +28,6 @@ import com.contus.xmpp.chat.models.Profile
 import com.contusfly.*
 import com.contusfly.databinding.ActivityProfileStartBinding
 import com.contusfly.di.factory.AppViewModelFactory
-import com.contusfly.network.RetrofitClientNetwork
 import com.contusfly.utils.*
 import com.contusfly.utils.CommonUtils.Companion.showBottomSheetView
 import com.contusfly.viewmodels.RegisterViewModel
@@ -54,10 +52,6 @@ import com.contusflysdk.utils.VideoRecUtils
 import com.contusflysdk.views.CustomToast
 import dagger.android.AndroidInjection
 import kotlinx.coroutines.*
-import org.json.JSONObject
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -139,6 +133,8 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private var isFromSettingsProfile = true
 
     private var isProfileChanged: Boolean = false
+
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -470,7 +466,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             startActivity(Intent(context, UserProfileImageViewActivity::class.java)
                 .putExtra(Constants.GROUP_OR_USER_NAME, profileName).putExtra("PROFILE", userImgUrl))
         } else {
-            if (userImgUrl.isNotEmpty()) UserProfileUtils().previewUserImage(this, userImgUrl)
+            if (userImgUrl.isNotEmpty()) UserProfileUtils().previewUserImage(this, userImgUrl, SharedPreferenceManager.getCurrentUserJid())
             else {
                 if (SystemClock.elapsedRealtime() - lastClickTime > 1000)
                     if (isImageSelected) showBottomSheetView(this, true, this)
@@ -485,24 +481,8 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             if (MediaPermissions.isReadFilePermissionAllowed(this) &&
                 MediaPermissions.isWriteFilePermissionAllowed(this))
                 PickFileUtils.chooseImageFromGallery(this)
-            else MediaPermissions.requestStorageAccess(this, galleryPermissionLauncher)
+            else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
         } else CustomToast.show(this, getString(R.string.error_check_internet))
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (grantResults.isNotEmpty())
-            when (requestCode) {
-                RequestCode.CAMERA_PERMISSION_CODE -> {
-                    if (grantResults[0] == 0 && grantResults[1] == 0 && grantResults[2] == 0){
-                        ImageUtils.takePhotoFromCamera(this, VideoRecUtils.getPath(this, getString(R.string.profile_photos_label)), true)
-                    }
-                }
-                RequestCode.STORAGE_PERMISSION_CODE -> {
-                    if (grantResults.contains(PackageManager.PERMISSION_GRANTED))
-                        PickFileUtils.chooseImageFromGallery(this)
-                }
-            }
     }
 
     /*
@@ -549,7 +529,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             if (MediaPermissions.isPermissionAllowed(this, Manifest.permission.CAMERA) &&
                 MediaPermissions.isWriteFilePermissionAllowed(this))
                 ImageUtils.takePhotoFromCamera(this, VideoRecUtils.getPath(this, getString(R.string.profile_photos_label)), true)
-            else MediaPermissions.requestCameraStoragePermissions(this, cameraPermissionLauncher)
+            else MediaPermissions.requestCameraStoragePermissions(this, permissionAlertDialog, cameraPermissionLauncher)
         } else CustomToast.show(this, getString(R.string.error_check_internet))
     }
 
@@ -736,10 +716,13 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     /*
     * Response Toast */
     private fun showResponseToast(success: Boolean) {
-        if (success && isUserProfileRemoved) {
-            CustomToast.show(this, getString(R.string.msg_profile_image_removed))
-            isUserProfileRemoved = false
-        } else if (success) CustomToast.show(this, getString(R.string.msg_profile_updated))
+        if (success) {
+            if (isUserProfileRemoved) {
+                CustomToast.show(this, getString(R.string.msg_profile_image_removed))
+                isUserProfileRemoved = false
+            } else if (!FlyCore.getIsProfileBlockedByAdmin())
+                CustomToast.show(this, getString(R.string.msg_profile_updated))
+        }
     }
 
     open fun updateProfile(inProgress: Boolean) {
@@ -779,18 +762,13 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         SharedPreferenceManager.setString(Constants.USER_EMAIL, profileStartBinding.textEmail.text.toString())
         SharedPreferenceManager.setString(Constants.USER_MOBILE_NUMBER, mobileNumber)
         SharedPreferenceManager.setString(Constants.USER_STATUS, mStatus)
+        FlyCore.setMyProfileStatus(mStatus!!, FlyCallback { _, _, _ -> })
         showResponseToast(true)
         if (intent.getBooleanExtra(Constants.IS_FIRST_LOGIN, false) && isUpdateClickedOnStart) {
             updateArchiveChatsSettings()
-            /* Make ContactSync API Call */
-            val postBody = HashMap<String, String>()
-            postBody[Constants.LICENSE_KEY] = BuildConfig.LICENSE
-            postBody[Constants.USERNAME] = SharedPreferenceManager.getString(Constants.USERNAME)
-
-            launch(exceptionHandler) {
-                withContext(Dispatchers.Main) {
-                    callContactSyncApiCall(postBody)
-                }
+            FlyCore.syncContacts(true) { isSuccess, _, _ ->
+                LogMessage.e(TAG, "ContactSync Response: $isSuccess")
+                navigateToMainPage()
             }
         } else if (isFromSettingsProfile) updateProfileImageIfUrlEmpty()
     }
@@ -816,23 +794,8 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         }
     }
 
-    /*
-    * ContactSync API Call */
-    private fun callContactSyncApiCall(postBody: HashMap<String, String>) {
-        RetrofitClientNetwork.retrofit.getContactSync(postBody).enqueue(object :
-            Callback<JSONObject?> {
-            override fun onResponse(call: Call<JSONObject?>, response: Response<JSONObject?>) {
-                LogMessage.e("ContactSync Response", response.toString())
-                navigateToMainPage()
-            }
-            override fun onFailure(call: Call<JSONObject?>, t: Throwable) {
-                LogMessage.e("ContactSync Failure", t.message)
-                navigateToMainPage()
-            }
-        })
-    }
-
     private fun navigateToMainPage() {
+        if (FlyCore.getIsProfileBlockedByAdmin()) return
         FlyCore.getFriendsList(true) { isSuccess, _, _ ->
             if (isSuccess)
                 FlyCore.getUsersIBlocked(true) { _, _, _ -> }
@@ -908,7 +871,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     }
     override fun userProfileFetched(jid: String, profileDetails: ProfileDetails) {
         super.userProfileFetched(jid, profileDetails)
-        if (this.isFinishing) return
+        if (this.isFinishing || !isFromSettingsProfile) return
         isProfileUpdated = false
         fromBackground = false
         this.profileDetails = ProfileDetails()

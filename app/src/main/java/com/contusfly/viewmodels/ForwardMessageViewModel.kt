@@ -3,6 +3,7 @@ package com.contusfly.viewmodels
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.contusfly.getChatType
+import com.contusfly.isDeletedContact
 import com.contusfly.isValidIndex
 import com.contusfly.models.ProfileDetailsShareModel
 import com.contusfly.utils.Constants
@@ -20,30 +21,31 @@ class ForwardMessageViewModel @Inject constructor() : ViewModel() {
     private var recentList: MutableList<ProfileDetails>? = null
     private var friendsList: MutableList<ProfileDetails>? = null
     val profileDetailsShareModelList = MutableLiveData<List<ProfileDetailsShareModel>>()
+    val newIndex = MutableLiveData<Pair<Int, ProfileDetailsShareModel?>>()
 
 
-    fun loadForwardChatList() {
+    fun loadForwardChatList(jid: String?) {
 
         GroupManager.getAllGroups(false) { isSuccess, throwable, data ->
             groupList = mutableListOf()
             if (isSuccess) {
                 groupList!!.addAll(ProfileDetailsUtils.sortProfileList(data[Constants.SDK_DATA] as ArrayList<ProfileDetails>))
             }
-            isForwardChatListLoaded()
+            isForwardChatListLoaded(jid)
         }
 
         FlyCore.getRecentChatList { isSuccess, throwable, data ->
             recentList = mutableListOf()
             if (isSuccess) {
                 val recentChatList = data[Constants.SDK_DATA] as MutableList<RecentChat>
-                recentChatList.take(3).forEach {
+                recentChatList.filter { !it.isDeletedContact() }.take(3).forEach {
                     val profileDetails = FlyCore.getUserProfile(it.jid)
                     profileDetails?.let {
                         recentList!!.add(it)
                     }
                 }
             }
-            isForwardChatListLoaded()
+            isForwardChatListLoaded(jid)
         }
 
         FlyCore.getFriendsList(false) { isSuccess, throwable, data ->
@@ -52,20 +54,20 @@ class ForwardMessageViewModel @Inject constructor() : ViewModel() {
                 val profileDetails = data[Constants.SDK_DATA] as MutableList<ProfileDetails>
                 friendsList!!.addAll(ProfileDetailsUtils.sortProfileList(profileDetails))
             }
-            isForwardChatListLoaded()
+            isForwardChatListLoaded(jid)
         }
     }
 
-    private fun isForwardChatListLoaded() {
+    private fun isForwardChatListLoaded(jid: String?) {
         if (groupList != null && recentList != null && friendsList != null)
-            loadProfileDetailsShareModel()
+            loadProfileDetailsShareModel(jid)
     }
 
-    private fun loadProfileDetailsShareModel() {
+    private fun loadProfileDetailsShareModel(jid: String?) {
         val profileShareModelList = mutableListOf<ProfileDetailsShareModel>()
         recentList!!.forEach { profileDetail ->
             val profileDetailsShareModel = ProfileDetailsShareModel("recentChat", profileDetail)
-            profileShareModelList.add(profileDetailsShareModel)
+            if (!profileDetail.isAdminBlocked) profileShareModelList.add(profileDetailsShareModel)
             val index = friendsList!!.indexOfFirst { it.jid == profileDetail.jid }
             if (index.isValidIndex())
                 friendsList!!.removeAt(index)
@@ -76,13 +78,18 @@ class ForwardMessageViewModel @Inject constructor() : ViewModel() {
 
         friendsList!!.forEach { profileDetail ->
             val profileDetailsShareModel = ProfileDetailsShareModel(profileDetail.getChatType(), profileDetail)
-            profileShareModelList.add(profileDetailsShareModel)
+            if (!profileDetail.isAdminBlocked) profileShareModelList.add(profileDetailsShareModel)
         }
         groupList!!.forEach { profileDetail ->
             val profileDetailsShareModel = ProfileDetailsShareModel(profileDetail.getChatType(), profileDetail)
-            profileShareModelList.add(profileDetailsShareModel)
+            if (!profileDetail.isAdminBlocked) profileShareModelList.add(profileDetailsShareModel)
         }
 
-        profileDetailsShareModelList.postValue(profileShareModelList)
+        if (jid == null)
+            profileDetailsShareModelList.postValue(profileShareModelList)
+        else {
+            val index = profileShareModelList.indexOfFirst { it.profileDetails.jid == jid }
+            newIndex.postValue(Pair(index, if (index.isValidIndex()) profileShareModelList[index] else null))
+        }
     }
 }

@@ -133,6 +133,10 @@ class AudioRecordView(val chatParent: ChatParent) : AudioRecorder.AudioRecording
         }
     }
 
+    fun getAudioRecordingStatus() : Boolean {
+        return isRecordingStarted
+    }
+
     fun startRecordClickListener() {
         if (!isRecordingStarted)
             onClickStartRecording()

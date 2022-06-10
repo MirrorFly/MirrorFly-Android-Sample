@@ -18,7 +18,7 @@ import java.net.HttpURLConnection
 import java.net.MalformedURLException
 import java.net.URL
 
-class ModifiedlinkMovementMethod(var context: Context) : LinkMovementMethod() {
+class ModifiedlinkMovementMethod(var context: Context, var userJid: String) : LinkMovementMethod() {
     override fun onTouchEvent(widget: TextView, buffer: Spannable, event: MotionEvent): Boolean {
         val action = event.action
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_DOWN) {
@@ -36,7 +36,7 @@ class ModifiedlinkMovementMethod(var context: Context) : LinkMovementMethod() {
             if (link.isNotEmpty()) {
                 if (action == MotionEvent.ACTION_UP) {
                     if ((link[0] as URLSpan).url.contains(BuildConfig.WEB_CHAT_LOGIN))
-                        return ChatUtils.navigateToOnGoingCallPreviewScreen(context, (link[0] as URLSpan).url)
+                        return ChatUtils.navigateToOnGoingCallPreviewScreen(context, userJid, (link[0] as URLSpan).url)
                     else link[0].onClick(widget)
                 }
                 return true

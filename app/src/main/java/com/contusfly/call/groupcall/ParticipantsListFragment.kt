@@ -184,6 +184,15 @@ class ParticipantsListFragment : Fragment(), CoroutineScope {
         onGngCallParticipantsListFragment.refreshUser(jid)
     }
 
+    fun removeUser(jid: String) {
+        LogMessage.d(TAG, "${com.contus.call.CallConstants.CALL_UI} removeUser == $jid")
+        addParticipantsListFragment.removeUser(jid)
+    }
+
+    fun onAdminBlockedStatus(jid: String, type: String, status: Boolean) {
+        addParticipantsListFragment.onAdminBlockedStatus(jid, type, status)
+    }
+
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.menu_search_group_call, menu)
         if (tabPosition == 0) hideMenu(menu!!.findItem(R.id.action_search))

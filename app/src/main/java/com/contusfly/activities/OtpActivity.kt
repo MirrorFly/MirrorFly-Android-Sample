@@ -6,6 +6,7 @@ import android.app.ProgressDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,10 +19,12 @@ import android.widget.Toast
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.lifecycle.ViewModelProviders
 import com.contus.flycommons.*
+import com.contus.flycommons.TAG
 import com.contus.flynetwork.ApiCalls
-import com.contusfly.BuildConfig
 import com.contus.webrtc.api.CallManager
 import com.contusfly.R
+import com.contusfly.*
+import com.contusfly.BuildConfig
 import com.contusfly.databinding.ActivityOtpBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.helpers.OtpInteractor
@@ -29,14 +32,8 @@ import com.contusfly.helpers.OtpPresenter
 import com.contusfly.interfaces.IOtpInteractor
 import com.contusfly.interfaces.IOtpPresenter
 import com.contusfly.interfaces.IOtpView
-import com.contusfly.models.ErrorResponse
-import com.contusfly.models.RegisterData
-import com.contusfly.network.RetrofitClientNetwork
-import com.contusfly.showSoftKeyboard
-import com.contusfly.showToast
 import com.contusfly.utils.*
 import com.contusfly.utils.Constants
-import com.contusfly.utils.Constants.Companion.GCM_REG_ID
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.viewmodels.RegisterViewModel
@@ -48,15 +45,10 @@ import com.contusflysdk.utils.ChatUtilsOperations
 import com.contusflysdk.utils.UserUtils
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dagger.android.AndroidInjection
 import io.michaelrocks.libphonenumber.android.PhoneNumberUtil
 import kotlinx.coroutines.*
 import org.json.JSONObject
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import java.lang.Runnable
 import java.math.BigInteger
 import java.util.*
@@ -140,17 +132,17 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     /**
      * Store the account management option to manage account
      */
-    private var manageAccount: MANAGE_ACCOUNT? = null
+    private var manageAccount: ManageAccount? = null
 
     /**
      * handler for posting runnable
      */
-    protected var handler: Handler? = null
+    private var handler: Handler? = null
 
     /**
      * This runnable is used to close the progress after a {@value LOGIN_TIME_OUT} milliseconds
      */
-    protected var progressTimeoutRunnable: Runnable? = null
+    private var progressTimeoutRunnable: Runnable? = null
 
     @Inject
     lateinit var registerViewModelFactory: AppViewModelFactory
@@ -158,7 +150,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         ViewModelProviders.of(this, registerViewModelFactory).get(RegisterViewModel::class.java)
     }
 
-    protected val exceptionHandler = CoroutineExceptionHandler { context, exception ->
+    private val exceptionHandler = CoroutineExceptionHandler { context, exception ->
         println("Coroutine Exception :  ${exception.printStackTrace()}")
     }
 
@@ -210,6 +202,16 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         setOtpEditText()
         clickListener()
         handler = Handler(Looper.getMainLooper())
+
+        otpBinding.txtTermsAndConditions.text = String.format(getString(R.string.terms_and_privacy_policy_label), getString(R.string.terms_and_condition_label), getString(R.string.privacy_policy_label))
+        otpBinding.txtTermsAndConditions.makeLinks(
+            Pair(getString(R.string.terms_and_condition_label), View.OnClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.terms_and_conditions_link))))
+            }),
+            Pair(getString(R.string.privacy_policy_label), View.OnClickListener {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.privacy_policy_link))))
+            })
+        )
     }
 
     /*
@@ -441,7 +443,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     /**
      * Manage register/blocked user options
      */
-    private enum class MANAGE_ACCOUNT {
+    private enum class ManageAccount {
         REGISTER, ON_REGISTER, BLOCK_ACCOUNT, LOGIN
     }
 
@@ -451,11 +453,11 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         /**
          * login time out in milliseconds to close progress dialog
          */
-        protected const val LOGIN_TIME_OUT: Long = 20000 //20 seconds(20000ms)
+        private const val LOGIN_TIME_OUT: Long = 20000 //20 seconds(20000ms)
     }
 
     override fun showUserAccountDeviceStatus() {
-        manageAccount = MANAGE_ACCOUNT.REGISTER
+        manageAccount = ManageAccount.REGISTER
         FlyCore.logoutOfChatSDK(FlyCallback { _, _, _ -> })
         mDialog!!.showAlertDialog(activityContext.getString(R.string.already_logged),
             activityContext.getString(R.string.yes_label), activityContext.getString(R.string.no_label),
@@ -463,7 +465,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     }
 
     override fun showUserBlockedDialog() {
-        manageAccount = MANAGE_ACCOUNT.BLOCK_ACCOUNT
+        manageAccount = ManageAccount.BLOCK_ACCOUNT
         mDialog!!.showAlertDialog(activityContext.getString(R.string.account_blocked_label),
             activityContext.getString(R.string.ok_label), Constants.EMPTY_STRING,
             CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false)
@@ -588,20 +590,30 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
             val regId = SharedPreferenceManager.getString(Constants.FIRE_BASE_TOKEN)
             mobile = getDialNumber().replace("+", "") + getMobileNumber()
 
-            manageAccount = MANAGE_ACCOUNT.ON_REGISTER
+            manageAccount = ManageAccount.ON_REGISTER
 
             FlyCore.registerUser(mobile!!, regId) { isSuccess, _, data ->
                 if (isSuccess){
                     renderUserRegistrationResponseData(data.getData() as JSONObject)
                 } else {
-                    showToast(data.getMessage())
-                    dismissProgress()
+                    showErrorResponse(data)
                 }
             }
 
         } else {
             dismissProgress()
             CustomToast.show(this, getString(R.string.error_check_internet))
+        }
+    }
+
+    private fun showErrorResponse(data: HashMap<String, Any>) {
+        dismissProgress()
+        if (data.getHttpStatusCode() == 403) {
+            startActivity(Intent(this, AdminBlockedActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+            finish()
+        } else {
+            otpBinding.viewVerify.visibility = View.VISIBLE
+            showToast(data.getMessage())
         }
     }
 
@@ -640,7 +652,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
         if (isSuccess) {
-            if (manageAccount == MANAGE_ACCOUNT.REGISTER) {
+            if (manageAccount == ManageAccount.REGISTER) {
                 progress.show()
                 registerAccount()
             }
@@ -648,7 +660,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         /*
           Delete the user account if the account has been blocked by admin
          */
-        if (manageAccount == MANAGE_ACCOUNT.BLOCK_ACCOUNT) deleteUserAccount()
+        if (manageAccount == ManageAccount.BLOCK_ACCOUNT) deleteUserAccount()
     }
 
     /**

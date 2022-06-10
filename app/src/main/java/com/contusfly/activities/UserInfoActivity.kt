@@ -8,14 +8,14 @@ import android.view.View
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
-import com.contus.flycommons.Constants
-import com.contus.flycommons.emptyStringFE
-import com.contus.flycommons.getData
+import com.contus.flycommons.*
 import com.contusfly.*
+import com.contusfly.R
 import com.contusfly.databinding.ActivityUserInfoBinding
 import com.contusfly.network.NetworkConnection
 import com.contusfly.utils.AppConstants
-import com.contusflysdk.api.ChatManager
+import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.DoProgressDialog
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
@@ -25,7 +25,7 @@ import com.google.android.material.appbar.AppBarLayout
 import net.opacapp.multilinecollapsingtoolbar.CollapsingToolbarLayout
 import java.io.File
 
-class UserInfoActivity : BaseActivity() {
+class UserInfoActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener {
 
     private lateinit var binding: ActivityUserInfoBinding
 
@@ -37,6 +37,13 @@ class UserInfoActivity : BaseActivity() {
 
     private lateinit var userProfileDetails: ProfileDetails
 
+    private var commonAlertDialog: CommonAlertDialog? = null
+
+    /**
+     * The instance of the DoProgressDialog
+     */
+    lateinit var progressDialog: DoProgressDialog
+
     /**
      * check weather the collapsed or not
      */
@@ -47,6 +54,8 @@ class UserInfoActivity : BaseActivity() {
         binding = ActivityUserInfoBinding.inflate(layoutInflater)
         setContentView(binding.root)
         userProfileDetails = intent.getParcelableExtra(AppConstants.PROFILE_DATA)!!
+        commonAlertDialog = CommonAlertDialog(this)
+        commonAlertDialog!!.setOnDialogCloseListener(this)
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
@@ -61,6 +70,22 @@ class UserInfoActivity : BaseActivity() {
             launchActivity<ViewAllMediaActivity> {
                 putExtra(Constants.ROSTER_JID, userProfileDetails.jid)
             }
+        }
+        binding.reportUser.setOnClickListener {
+            val isUserNotAvailable = userProfileDetails.isAdminBlocked || userProfileDetails.isDeletedContact()
+            if (isUserNotAvailable) {
+                val errorMessage = if (userProfileDetails.isAdminBlocked) getString(R.string.user_block_message_label)
+                else getString(R.string.label_deleted_user_report_message)
+                runOnUiThread {
+                    showToast(errorMessage)
+                }
+                return@setOnClickListener
+            }
+            commonAlertDialog!!.dialogAction = CommonAlertDialog.DialogAction.REPORT_MESSAGES
+            val reportLabel = getString(R.string.label_report)
+            val userName = "$reportLabel ${userProfileDetails.name}?"
+            commonAlertDialog!!.showAlertDialog(userName, getString(R.string.label_user_report_5_message), reportLabel,
+                getString(R.string.action_cancel), CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL)
         }
         observeNetworkListener()
         mediaValidation()
@@ -120,13 +145,9 @@ class UserInfoActivity : BaseActivity() {
                 })
     }
 
-    private fun setProfileImage(image: String) {
-
-        if (image.startsWith("/storage/emulated/") && File(Utils.returnEmptyStringIfNull(image)).exists()) {
-            MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
-        } else {
-            MediaUtils.loadImageWithGlideSecure(this, if (image.isBlank()) null else image, binding.profileImage, null)
-        }
+    private fun setProfileImage(userProfileDetails: ProfileDetails) {
+        binding.profileImage.setImageDrawable(null)
+        binding.profileImage.loadUserProfileImage(this, userProfileDetails)
     }
 
     private fun setMuteNotificationStatus(isMute: Boolean) {
@@ -148,10 +169,20 @@ class UserInfoActivity : BaseActivity() {
             binding.statusText.visibility = View.GONE
             binding.statusTitle.visibility = View.GONE
             binding.statusDivider.visibility = View.GONE
-            setProfileImage(emptyStringFE())
         } else {
-            setProfileImage(userProfileDetails.image ?: emptyStringFE())
             binding.profileImage.setOnClickListener { redirectToImageView() }
+        }
+        setProfileImage(userProfileDetails)
+        if (userProfileDetails.isDeletedContact()){
+            binding.mobileNumberText.visibility = View.GONE
+            binding.mobileNumberTitle.visibility = View.GONE
+            binding.mobileNumberDivider.visibility = View.GONE
+            binding.emailText.visibility = View.GONE
+            binding.emailTitle.visibility = View.GONE
+            binding.emailDivider.visibility = View.GONE
+            binding.statusText.visibility = View.GONE
+            binding.statusTitle.visibility = View.GONE
+            binding.statusDivider.visibility = View.GONE
         }
     }
 
@@ -176,9 +207,9 @@ class UserInfoActivity : BaseActivity() {
         if (Utils.returnEmptyStringIfNull(userProfileDetails.image).isNotEmpty()) {
             startActivity(
                     Intent(this, ImageViewActivity::class.java)
-                            .putExtra(com.contusfly.utils.Constants.GROUP_OR_USER_NAME, userProfileDetails.name)
-                            .putExtra(Constants.MEDIA_URL, Utils.returnEmptyStringIfNull(userProfileDetails.image)
-                            )
+                        .putExtra(com.contusfly.utils.Constants.GROUP_OR_USER_NAME, userProfileDetails.name)
+                        .putExtra(Constants.MEDIA_URL, Utils.returnEmptyStringIfNull(userProfileDetails.image))
+                        .putExtra(Constants.USER_JID,userProfileDetails.jid)
             )
         }
     }
@@ -218,6 +249,28 @@ class UserInfoActivity : BaseActivity() {
 
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
+        userProfileUpdated(jid)
+    }
+
+    /**
+     * To handle callback of any user's profile deleted
+     */
+    override fun userDeletedHisProfile(jid: String) {
+        super.userDeletedHisProfile(jid)
+        userProfileUpdated(jid)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        userProfileUpdated(userProfileDetails.jid)
+    }
+
+    override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+        super.onAdminBlockedOtherUser(jid, type, status)
+        userProfileUpdated(jid)
+    }
+
+    private fun userProfileUpdated(jid: String) {
         if (jid == userProfileDetails.jid) {
             ContactManager.getUserProfile(jid, fetchFromServer = false, saveAsFriend = false) { isSuccess, _, data ->
                 if (isSuccess) {
@@ -261,5 +314,31 @@ class UserInfoActivity : BaseActivity() {
      */
     private fun mediaValidation() {
         binding.textMedia.visibility = View.VISIBLE
+    }
+
+    override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
+        val action: CommonAlertDialog.DialogAction? = commonAlertDialog!!.dialogAction
+        action?.let {
+            if (isSuccess && action == CommonAlertDialog.DialogAction.REPORT_MESSAGES) {
+                if (userProfileDetails.isAdminBlocked) {
+                    showToast(getString(R.string.user_block_message_label))
+                    return
+                }
+                progressDialog = DoProgressDialog(this)
+                progressDialog.showProgress()
+                FlyCore.reportUserOrMessages(userProfileDetails.jid, ChatType.TYPE_CHAT) { isSuccess, _, data ->
+                    if (isSuccess) {
+                        showToast(getString(R.string.label_report_sent))
+                    } else {
+                        showToast(data.getMessage())
+                    }
+                    progressDialog.dismiss()
+                }
+            }
+        }
+    }
+
+    override fun listOptionSelected(position: Int) {
+        //"Not yet implemented"
     }
 }
