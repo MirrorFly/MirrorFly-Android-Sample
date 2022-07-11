@@ -122,7 +122,7 @@ object RealPathUtil {
         val docId = DocumentsContract.getDocumentId(uri)
         val split = docId.split(":".toRegex()).toTypedArray()
         val type = split[0]
-        if ("primary".equals(type, ignoreCase = true)) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q && "primary".equals(type, ignoreCase = true)) {
             return FilePathUtils.getExternalStorage().toString() + "/" + split[1]
         }
         var realPath: String?

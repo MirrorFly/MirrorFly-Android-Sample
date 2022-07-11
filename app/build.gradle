@@ -37,8 +37,8 @@ android {
         applicationId "com.mirrorfly.uikit"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 6
-        versionName "6.4.0"
+        versionCode 8
+        versionName "6.6.2"
         multiDexEnabled true
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true
@@ -50,15 +50,9 @@ android {
         debug {
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
             buildConfigField 'String', 'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
-            buildConfigField 'String', 'XMPP_PORT', '"5222"'
-            buildConfigField 'String', 'XMPP_DOMAIN', '"xmpp-preprod-sandbox.mirrorfly.com"'
-            buildConfigField 'String', 'XMPP_HOST', '"xmpp-preprod-sandbox.mirrorfly.com"'
-            buildConfigField 'String', 'IV_KEY', '"ddc0f15cc2c90fca"'
             buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
-            buildConfigField 'String', 'SIGNAL_SERVER', '"https://signal-preprod-sandbox.mirrorfly.com"'
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
-            buildConfigField 'String', 'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
             buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
             resValue("string", "app_name", "UI Kit")
             shrinkResources false
@@ -72,15 +66,9 @@ android {
             initWith debug
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
             buildConfigField 'String', 'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
-            buildConfigField 'String', 'XMPP_PORT', '"5222"'
-            buildConfigField 'String', 'XMPP_DOMAIN', '"xmpp-preprod-sandbox.mirrorfly.com"'
-            buildConfigField 'String', 'XMPP_HOST', '"xmpp-preprod-sandbox.mirrorfly.com"'
-            buildConfigField 'String', 'IV_KEY', '"ddc0f15cc2c90fca"'
             buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
-            buildConfigField 'String', 'SIGNAL_SERVER', '"https://signal-preprod-sandbox.mirrorfly.com"'
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
-            buildConfigField 'String', 'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
             buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
             resValue("string", "app_name", "UI Kit")
             shrinkResources false
@@ -88,30 +76,6 @@ android {
             minifyEnabled false
             signingConfig signingConfigs.config
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    // Specifies one flavor dimension.
-    flavorDimensions "version"
-    productFlavors {
-        uikit {
-            dimension "version"
-            applicationId "com.mirrorfly.uikit"
-        }
-
-        uikitdev {
-            dimension "version"
-            applicationId "com.mirrorfly.uikit"
-        }
-
-        uikitqa {
-            dimension "version"
-            applicationId "com.mirrorfly.uikit"
-        }
-
-        uikituat {
-            dimension "version"
-            applicationId "com.mirrorfly.uikit"
         }
     }
 
@@ -145,6 +109,7 @@ android {
 
     buildTypes.each {
         it.buildConfigField 'String', 'GOOGLE_TRANSLATE_KEY', GOOGLE_TRANSLATE_KEY
+        it.buildConfigField 'Boolean', 'HIPAA_COMPLIANCE_ENABLED', HIPAA_COMPLIANCE_ENABLED
     }
 }
 
@@ -300,6 +265,9 @@ dependencies {
     implementation 'com.google.zxing:core:3.3.2'
     //shortcut badger
     implementation "me.leolin:ShortcutBadger:1.1.22@aar"
+
+    implementation 'androidx.security:security-crypto:1.1.0-alpha03'
+
 }
 repositories {
     mavenCentral()

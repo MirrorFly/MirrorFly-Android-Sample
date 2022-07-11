@@ -6,6 +6,7 @@ import android.os.Vibrator
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import com.contus.webrtc.api.CallManager
 import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.TAG
@@ -55,7 +56,7 @@ class QrCodeScannerActivity : BaseActivity(), BarcodeCallback {
         qrCodeScannerBinding = ActivityQrCodeScannerBinding.inflate(layoutInflater)
         setContentView(qrCodeScannerBinding.root)
         try {
-            mSocket = IO.socket(BuildConfig.SIGNAL_SERVER)
+            mSocket = IO.socket(CallManager.getSignalServerUrl())
         } catch (e: URISyntaxException) {
             LogMessage.e(TAG, e)
         }

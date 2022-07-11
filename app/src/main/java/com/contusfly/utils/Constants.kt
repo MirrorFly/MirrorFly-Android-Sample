@@ -16,6 +16,7 @@ class Constants {
         /*
         * Below Keys are using in App level */
         const val SHAREDPREFERENCE_STORAGE_NAME = "Contus"
+        const val SHAREDPREFERENCE_ENCRYPTED_STORAGE_NAME = "Contus Encrypted"
         const val EMPTY_STRING = ""
         const val APP_VERSION = "app_version"
         const val FIRE_BASE_TOKEN = "firebase_token"
