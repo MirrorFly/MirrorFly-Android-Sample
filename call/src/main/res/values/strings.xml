@@ -15,6 +15,10 @@
     <string name="call_try_again_info">"Unavailable, Try again later"</string>
     <string name="start_timer">00:00</string>
     <string name="you_missed_call">You missed&#160;</string>
+    <string name="new_missed_call">New Missed Call</string>
+    <string name="new_incoming_call">New Incoming Call</string>
+    <string name="new_outgoing_call">Outgoing Call</string>
+    <string name="new_ongoing_call">Ongoing Call</string>
     <string name="call_you">You</string>
     <string name="group_call">Group Call</string>
     <string name="call_link">Call Link</string>

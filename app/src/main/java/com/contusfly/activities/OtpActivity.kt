@@ -622,7 +622,6 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     private fun renderUserRegistrationResponseData(decodedResponseObject: JSONObject) {
         try {
             LogMessage.d(TAG, decodedResponseObject.toString())
-            val password: String = decodedResponseObject.getString(Constants.SECRET_KEY)
             val username: String = decodedResponseObject.getString(Constants.USERNAME)
 
             SharedPreferenceManager.setString(Constants.USERNAME, username)
@@ -630,7 +629,6 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
             SharedPreferenceManager.setBoolean(Constants.IS_MESSAGE_MIGRATION_DONE, true)
 
             checkCurrentUser()
-            ChatConnectionManager.initialize(username, password, BuildConfig.XMPP_DOMAIN, BuildConfig.XMPP_HOST, BuildConfig.XMPP_PORT.toInt())
             CallManager.setCurrentUserId(FlyUtils.getJid(username))
             SharedPreferenceManager.setString(Constants.SENDER_USER_JID, FlyUtils.getJid(username))
             SharedPreferenceManager.setString(Constants.USER_JID, FlyUtils.getJid(username))
@@ -674,7 +672,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     }
 
     private fun sendLoginRequest() {
-        ChatManager.makeXMPPConnection()
+        ChatManager.connect()
         isLoginRequestSent = true
     }
 

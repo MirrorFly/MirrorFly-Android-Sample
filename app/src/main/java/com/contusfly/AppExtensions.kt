@@ -387,6 +387,8 @@ fun String.startsWithTextInWords(text: String): Boolean {
     }
 }
 
+fun Context.getAppName(): String = applicationInfo.loadLabel(packageManager).toString()
+
 fun String.checkIndexes(searchedKey: String): Int {
     var i = -1
     while (this.indexOf(searchedKey, i + 1, ignoreCase = true).also { i = it } != -1) {

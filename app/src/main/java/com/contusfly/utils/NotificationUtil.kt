@@ -20,9 +20,11 @@ import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.bumptech.glide.Glide
+import com.contus.flycommons.PendingIntentHelper
 import com.contus.flycommons.models.MessageType
 import com.contusfly.R
 import com.contusfly.BuildConfig
+import com.contusfly.getAppName
 import com.contusfly.views.SetDrawable
 import com.contusflysdk.api.ChatManager.startActivity
 import com.contusflysdk.api.FlyMessenger
@@ -69,6 +71,9 @@ class NotificationUtil(private val context: Context) {
      */
     private var unreadMessages = 0
 
+    private val notificationMessage = " message): "
+    private val notificationMessages = " messages): "
+
     /**
      * to get the count of unreadChats
      */
@@ -93,16 +98,23 @@ class NotificationUtil(private val context: Context) {
      * Creates a notification for the unread messages to notify the events in your app while it's not in use..
      */
     fun createNotification() {
-        val notificationMessages = FlyMessenger.getNUnreadMessagesOfEachUsers(100)
-        unreadChats = notificationMessages.size
-        unreadMessages = 0
-        notificationIds.clear()
-        for (jid in notificationMessages.keys) {
-            profileDetails = getProfileDetails(jid)
-            if (profileDetails != null) {
-                if (!profileDetails!!.isMuted)
-                    createMessagingStyleNotification(jid, notificationMessages[jid]!!)
-            } else createInboxStyleNotification(jid, notificationMessages[jid]!!)
+        if (BuildConfig.HIPAA_COMPLIANCE_ENABLED){
+            unreadMessages = FlyMessenger.getUnreadMessageCountExceptMutedChat()
+            unreadChats = FlyMessenger.getUnreadMessagesCount()
+            notificationIds.clear()
+            createSecuredNotification(FlyMessenger.getLastUnreadMessage())
+        } else {
+            val notificationMessages = FlyMessenger.getNUnreadMessagesOfEachUsers(100)
+            unreadChats = notificationMessages.size
+            unreadMessages = 0
+            notificationIds.clear()
+            for (jid in notificationMessages.keys) {
+                profileDetails = getProfileDetails(jid)
+                if (profileDetails != null) {
+                    if (!profileDetails!!.isMuted)
+                        createMessagingStyleNotification(jid, notificationMessages[jid]!!)
+                } else createInboxStyleNotification(jid, notificationMessages[jid]!!)
+            }
         }
         if (notificationIds.isNotEmpty()) displaySummaryNotification()
     }
@@ -155,7 +167,7 @@ class NotificationUtil(private val context: Context) {
                 .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY)
         notificationCompatBuilder.setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setPriority(NotificationCompat.PRIORITY_HIGH).setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-        val inlineMessageBuilder = title + " (" + messages.size + (if (messages.size == 1) " message): " else " messages): ") + lastMessage
+        val inlineMessageBuilder = title + " (" + messages.size + (if (messages.size == 1) notificationMessage else notificationMessages) + lastMessage
         notificationInlineMessages.add(inlineMessageBuilder)
         notifications.add(notificationCompatBuilder.build())
     }
@@ -247,7 +259,7 @@ class NotificationUtil(private val context: Context) {
         } else {
             notificationCompatBuilder.setVibrate(null)
         }
-        val inlineMessageBuilder = title + " (" + messages.size + (if (messages.size == 1) " message): " else " messages): ") + lastMessage
+        val inlineMessageBuilder = title + " (" + messages.size + (if (messages.size == 1) notificationMessage else notificationMessages) + lastMessage
         notificationInlineMessages.add(inlineMessageBuilder)
         notifications.add(notificationCompatBuilder.build())
     }
@@ -323,6 +335,88 @@ class NotificationUtil(private val context: Context) {
             val requestID = System.currentTimeMillis().toInt()
             return PendingIntent.getActivity(context, requestID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT)
         }
+
+    /**
+     * Creates a MESSAGING_STYLE Notification for the devices starting on API level 24, otherwise, displays a basic BIG_TEXT_STYLE notification.
+     *
+     * @param message The most recent received message
+     */
+    private fun createSecuredNotification(message: ChatMessage?) {
+        if (message == null)
+            return
+        val name = context.getAppName()
+        notificationIds.add(message.chatUserJid.hashCode().toLong().toInt())
+        val lastMessage: String
+        val messagingStyle = NotificationCompat.MessagingStyle(Person.Builder()
+            .setName("Me").build())
+        var lastMessageTime: Long = 0
+        val contentBuilder = StringBuilder()
+        contentBuilder.append("New Message")
+        secureNotificationMessageStyle(messagingStyle, contentBuilder, message, getSummaryTitle(name, unreadMessages, unreadChats))
+        lastMessage = contentBuilder.toString()
+        lastMessageTime = if (message.getMessageSentTime().toString().length > 13) message.getMessageSentTime() / 1000 else message.getMessageSentTime()
+        val notificationIntent = Intent(context, startActivity)
+        notificationIntent.flags = (Intent.FLAG_ACTIVITY_CLEAR_TASK
+                or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        notificationIntent.putExtra(Constants.IS_FROM_NOTIFICATION, true)
+        notificationIntent.putExtra(Constants.JID, "")
+        val requestID = System.currentTimeMillis().toInt()
+        val mainPendingIntent = PendingIntentHelper.getActivity(context, requestID, notificationIntent)
+        val notificationCompatBuilder = NotificationCompat.Builder(context, notificationChannelId!!)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationChannelId != null) notificationCompatBuilder.setChannelId(notificationChannelId!!)
+        } else NotifyRefererUtils.setNotificationSound(notificationCompatBuilder)
+        notificationCompatBuilder
+            .setStyle(messagingStyle)
+            .setContentTitle(name)
+            .setContentText(lastMessage)
+            .setAutoCancel(true)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentIntent(mainPendingIntent) // Adds the notification to the group sharing the specified key.
+            .setGroup(GROUP_KEY_MESSAGE)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_SUMMARY) //.setSubText(String.valueOf("Subtext"))
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        if (lastMessageTime > 0) notificationCompatBuilder.setWhen(lastMessageTime)
+
+        // if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
+        if (SharedPreferenceManager.getBoolean(Constants.VIBRATION)) {
+            notificationCompatBuilder.setVibrate(NotifyRefererUtils.defaultVibrationPattern)
+        } else {
+            notificationCompatBuilder.setVibrate(null)
+        }
+        val inlineMessageBuilder = name + " (" + unreadMessages + (if (unreadMessages == 1) notificationMessage else notificationMessages) + lastMessage
+        notificationInlineMessages.add(inlineMessageBuilder)
+        notifications.add(notificationCompatBuilder.build())
+    }
+
+    fun getSummaryTitle(name : String, unreadMessageCount: Int, unreadChatCount: Int): String {
+        var summary = name
+        summary = if (unreadMessageCount == 1)
+            "$summary ($unreadMessageCount message"
+        else
+            "$summary ($unreadMessageCount messages"
+        summary = if (unreadChatCount == 1)
+            "$summary)"
+        else
+            "$summary from $unreadChatCount chats)"
+        return summary
+    }
+
+    private fun secureNotificationMessageStyle(
+        messagingStyle: NotificationCompat.MessagingStyle,
+        contentBuilder: StringBuilder,
+        message: ChatMessage,
+        name: String
+    ) {
+        messagingStyle.addMessage(contentBuilder, message.getMessageSentTime(),
+            Person.Builder()
+                .setName(name)
+                .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
+                .build())
+    }
+
 
     @SuppressLint("UseCompatLoadingForDrawables")
     private fun getUserProfileImage(profileDetails: ProfileDetails?): Bitmap? {

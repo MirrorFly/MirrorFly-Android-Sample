@@ -14,7 +14,9 @@ import androidx.core.content.ContextCompat
 import com.contus.flycommons.ChatTypeEnum
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.models.MessageType
+import com.contusfly.BuildConfig
 import com.contusfly.R
+import com.contusfly.getAppName
 import com.contusflysdk.api.ChatManager.startActivity
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager
@@ -59,7 +61,7 @@ object NotificationUtils {
                             R.mipmap.ic_launcher))
                     notBuilder.color = ContextCompat.getColor(context, R.color.colorPrimary)
                     notBuilder.setOnlyAlertOnce(true)
-                    val jid: String = addUnseenMessagesToNotification(context, notBuilder)
+                    val jid: String = buildNotificationContent(context, notBuilder)
                     val isMute = getProfileMuteDetails(jid)
                     notBuilder.setAutoCancel(true)
                     NotifyRefererUtils.setNotificationSound(notBuilder)
@@ -83,6 +85,13 @@ object NotificationUtils {
         }
     }
 
+    private fun buildNotificationContent(
+        context: Context,
+        notBuilder: NotificationCompat.Builder
+    ): String {
+        return if (BuildConfig.HIPAA_COMPLIANCE_ENABLED) addSecureNotification(context, notBuilder) else addUnseenMessagesToNotification(context, notBuilder)
+    }
+
     private fun getProfileMuteDetails(jid: String): Boolean {
         if (!TextUtils.isEmpty(jid)) {
             return getProfileDetails(jid)!!.isMuted
@@ -92,6 +101,19 @@ object NotificationUtils {
         return false
     }
 
+    private fun addSecureNotification(context: Context,
+                                      notBuilder: NotificationCompat.Builder) : String {
+        when (FlyMessenger.getLastUnreadMessage()) {
+            null -> Constants.EMPTY_STRING
+            else -> {
+                val name = context.getAppName()
+                notBuilder.setContentText("New Message")
+                notBuilder.setDefaults(Notification.DEFAULT_SOUND)
+                notBuilder.setContentTitle(NotificationUtil(context).getSummaryTitle(name, FlyMessenger.getUnreadMessageCountExceptMutedChat(), FlyMessenger.getUnreadMessagesCount()))
+            }
+        }
+        return Constants.EMPTY_STRING
+    }
     /**
      * Adds unseen messages to the notification
      *

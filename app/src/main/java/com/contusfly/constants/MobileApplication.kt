@@ -10,22 +10,20 @@ import androidx.core.provider.FontRequest
 import androidx.emoji.text.EmojiCompat
 import androidx.emoji.text.FontRequestEmojiCompatConfig
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.contus.flycommons.SharedPreferenceManager
-import com.contus.webrtc.CallType
-import com.contus.webrtc.GroupCallDetails
-import com.contus.webrtc.Logger
-import com.contus.webrtc.WebRtcCallService
+import com.contus.call.utils.CallNotificationHelper
 import com.contus.webrtc.api.CallHelper
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.MissedCallListener
 import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.*
 import com.contusfly.*
+import com.contusfly.R
+import com.contusfly.BuildConfig
 import com.contusfly.activities.BiometricActivity
 import com.contusfly.activities.PinActivity
 import com.contusfly.activities.StartActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallNotificationUtils
-import com.contusfly.call.WebRtcUtils
 import com.contusfly.call.groupcall.GroupCallActivity
 import com.contusfly.di.components.DaggerAppComponent
 import com.contusfly.utils.*
@@ -98,15 +96,14 @@ class MobileApplication : Application(), HasAndroidInjector {
                 .build()
 
         ChatSDK.Builder()
-            .useProfileName(true)
             .setIsTrialLicenceKey(BuildConfig.IS_TRIAL_LICENSE)
             .setDomainBaseUrl(BuildConfig.SDK_BASE_URL)
-            .enableMobileNumberLogin(true)
             .setGroupConfiguration(groupConfiguration)
-            .setMediaFolderName(Constants.LOCAL_PATH)
             .setLicenseKey(BuildConfig.LICENSE)
-            .setIVKey(BuildConfig.IV_KEY)
             .build()
+
+        ChatManager.enableMobileNumberLogin(true)
+        ChatManager.setMediaFolderName(Constants.LOCAL_PATH)
 
         //activity to open when use clicked from notification
         //activity to open when a user logout from the app.
@@ -115,6 +112,8 @@ class MobileApplication : Application(), HasAndroidInjector {
         ChatManager.pinActivity = PinActivity::class.java
 
         ChatManager.biometricActivty = BiometricActivity::class.java
+
+        ChatManager.setMediaEncryption(true)
 
         ChatManager.setMediaNotificationHelper(object : MediaNotificationHelper {
             override fun setMediaNotificationIntentAction(
@@ -136,7 +135,7 @@ class MobileApplication : Application(), HasAndroidInjector {
         })
 
         //initialize call sdk
-        initialsizeCallSdk()
+        initializeCallSdk()
         Logger.enableDebugLogging(true)
         setupFirebaseRemoteConfig()
     }
@@ -161,13 +160,9 @@ class MobileApplication : Application(), HasAndroidInjector {
             }
     }
 
-    private fun initialsizeCallSdk(){
+    private fun initializeCallSdk(){
         CallManager.init(this)
-        CallManager.setCurrentUserId(SharedPreferenceManager.instance.currentUserJid)
-        CallManager.setSignalServerUrl(BuildConfig.SIGNAL_SERVER)
-        CallManager.setJanusWebSocketServerUrl(BuildConfig.JANUS_WEB_SOCKET_SERVER)
         CallManager.setCallActivityClass(GroupCallActivity::class.java)
-        CallManager.setIceServers(WebRtcUtils.getTempIceServers())
         CallManager.setMissedCallListener(object : MissedCallListener {
             override fun onMissedCall(
                 isOneToOneCall: Boolean, userJid: String, groupId: String?, callType: String,
@@ -175,30 +170,11 @@ class MobileApplication : Application(), HasAndroidInjector {
             ) {
                 //show missed call notification
                 com.contus.flycommons.LogMessage.d(TAG, "onMissedCall")
-                val missedCallMessage = StringBuilder()
-                missedCallMessage.append(resources.getString(R.string.you_missed_call))
-                val messageContent: String
-                if (isOneToOneCall && groupId.isNullOrEmpty()) {
-                    if (callType == CallType.AUDIO_CALL) {
-                        missedCallMessage.append("an ")
-                    } else {
-                        missedCallMessage.append("a ")
-                    }
-                    missedCallMessage.append(callType).append(" call")
-                    messageContent = ContactManager.getProfileDetails(userJid)?.name!!
-                } else {
-                    missedCallMessage.append("a group ").append(callType).append(" call")
-                    messageContent = if (!groupId.isNullOrBlank()) {
-                        ContactManager.getProfileDetails(groupId)?.name!!
-                    } else {
-                        GroupCallUtils.getCallUsersName(userList).toString()
-                    }
-                }
-
+                val notificationContent = getMissedCallNotificationContent(isOneToOneCall, userJid, groupId, callType, userList)
                 CallNotificationUtils.createNotification(
                     getContext(),
-                    missedCallMessage.toString(),
-                    messageContent
+                    notificationContent.first, //Title Missed call Notification
+                    notificationContent.second //Message Content Missed call from whom
                 )
             }
         })
@@ -206,6 +182,17 @@ class MobileApplication : Application(), HasAndroidInjector {
         CallManager.setCallHelper(object : CallHelper {
             override fun getDisplayName(jid: String): String {
                 return if (ContactManager.getProfileDetails(jid) != null) ContactManager.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
+            }
+
+            override fun getNotificationContent(callDirection: String): String {
+                return if (BuildConfig.HIPAA_COMPLIANCE_ENABLED) {
+                    when (callDirection) {
+                        CallDirection.INCOMING_CALL -> resources.getString(R.string.new_incoming_call)
+                        CallDirection.OUTGOING_CALL -> resources.getString(R.string.new_outgoing_call)
+                        else -> resources.getString(R.string.new_ongoing_call)
+                    }
+                } else
+                    CallNotificationHelper.getNotificationMessage()
             }
 
             override fun isDeletedUser(jid: String): Boolean {
@@ -216,7 +203,32 @@ class MobileApplication : Application(), HasAndroidInjector {
                 CallMessenger.sendCallMessage(details, users, invitedUsers)
             }
         })
-        ChatManager.callService = WebRtcCallService::class.java
+    }
+
+    private fun getMissedCallNotificationContent( isOneToOneCall: Boolean, userJid: String, groupId: String?, callType: String,
+                                                  userList: ArrayList<String>): Pair<String, String> {
+        var messageContent : String
+        val missedCallMessage = StringBuilder()
+        missedCallMessage.append(resources.getString(R.string.you_missed_call))
+        if (isOneToOneCall && groupId.isNullOrEmpty()) {
+            if (callType == CallType.AUDIO_CALL) {
+                missedCallMessage.append("an ")
+            } else {
+                missedCallMessage.append("a ")
+            }
+            missedCallMessage.append(callType).append(" call")
+            messageContent = ContactManager.getProfileDetails(userJid)?.name!!
+        } else {
+            missedCallMessage.append("a group ").append(callType).append(" call")
+            messageContent = if (!groupId.isNullOrBlank()) {
+                ContactManager.getProfileDetails(groupId)?.name!!
+            } else {
+                GroupCallUtils.getCallUsersName(userList).toString()
+            }
+        }
+        if (BuildConfig.HIPAA_COMPLIANCE_ENABLED)
+            messageContent = resources.getString(R.string.new_missed_call)
+        return Pair(missedCallMessage.toString(), messageContent)
     }
 
     private fun getPendingIntent(toUsers: List<String>): PendingIntent? {

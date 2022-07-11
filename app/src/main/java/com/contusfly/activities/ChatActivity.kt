@@ -537,6 +537,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 menu.get(R.id.action_block).isVisible = !profileDetails.isBlocked
                 menu.get(R.id.action_unblock).isVisible = profileDetails.isBlocked
             }
+            menu.get(R.id.action_email).isVisible = !BuildConfig.HIPAA_COMPLIANCE_ENABLED
             updateMenuItemsClicks(menu)
             setCallButtonVisibility()
         }
