@@ -203,8 +203,8 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     }
 
     private fun profileImageUrlUpdate() {
-        val profile = if (groupId != null && groupId!!.isNotEmpty()) ContactManager.getProfileDetails(groupId!!)
-        else ContactManager.getProfileDetails(userId!!)
+        val profile = if (groupId != null && groupId!!.isNotEmpty()) ProfileDetailsUtils.getProfileDetails(groupId!!)
+        else ProfileDetailsUtils.getProfileDetails(userId!!)
         if (profile!!.isAdminBlocked) imageUrl = Constants.EMPTY_STRING
     }
 
@@ -223,7 +223,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
 
     private fun updateUserProfile(jid: String) {
         if(userId == jid) {
-            val profileDetail = ContactManager.getProfileDetails(jid)
+            val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
             if (profileDetail?.image!!.startsWith(storagePath))
                 com.contusfly.utils.MediaUtils.loadImageWithGlide(this, profileDetail.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
             else
@@ -516,7 +516,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     }
 
     private fun setUserProfileImage(jid: String, status: Boolean) {
-        val profileDetail = ContactManager.getProfileDetails(jid)
+        val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
         if (profileDetail != null) {
             profileDetail.image = if (status) Constants.EMPTY_STRING else profileDetail.image
             if (profileDetail.image!!.startsWith(storagePath))

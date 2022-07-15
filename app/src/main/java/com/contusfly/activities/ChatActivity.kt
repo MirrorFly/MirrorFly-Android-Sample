@@ -792,19 +792,24 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun sendDocumentsMessage(filePathUri: Uri?) {
         filePathUri.let {
-            val fileRealPath = RealPathUtil.getRealPath(this, filePathUri)
-            if (fileRealPath == null)
-                showDriveFileValidation()
-            else if (fileRealPath.isNotEmpty()) {
-                val fileMessage = messagingClient.composeDocumentsMessage(chat.toUser, fileRealPath, selectedMessageIdForReply)
-                if (!fileMessage.first)
+            try{
+                val fileRealPath = RealPathUtil.getRealPath(this, filePathUri)
+                if (fileRealPath == null)
+                    showDriveFileValidation()
+                else if (fileRealPath.isNotEmpty()) {
+                    val fileMessage = messagingClient.composeDocumentsMessage(chat.toUser, fileRealPath, selectedMessageIdForReply)
+                    if (!fileMessage.first)
+                        showFileValidation()
+                    else if (!fileMessage.second)
+                        showUploadAlert(Constants.MAX_DOCUMENT_UPLOAD_SIZE)
+                    else
+                        validateAndSendMessage(fileMessage.third!!)
+                } else
                     showFileValidation()
-                else if (!fileMessage.second)
-                    showUploadAlert(Constants.MAX_DOCUMENT_UPLOAD_SIZE)
-                else
-                    validateAndSendMessage(fileMessage.third!!)
-            } else
-                showFileValidation()
+            } catch (e: Exception) {
+                LogMessage.e(e)
+            }
+
         }
     }
 
@@ -1265,7 +1270,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             doProgressDialog!!.showProgress()
             hideKeyboard()
             if (selectedMessageIdForReply != Constants.EMPTY_STRING) makeViewsGone(replyMessageSentView, closeReplyMessage)
-            FlyCore.blockUser(chat.toUser) { isSuccess, _, _ ->
+            FlyCore.blockUser(chat.toUser) { isSuccess, _, data ->
+                val jid = data["data"] as String
+                UIKitContactUtils.checkContactForBlockAndUnblockUser(jid, true)
                 runOnUiThread {
                     onBlockUserResponse(!isSuccess, true)
                 }
@@ -1285,7 +1292,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 showViews(replyMessageSentView, closeReplyMessage)
                 replyViewHandler.showReplyMessageToSend(selectedMessageIdForReply, parentViewModel, suggestionLayout, chat.toUser)
             }
-            FlyCore.unblockUser(chat.toUser) { isSuccess, _, _ ->
+            FlyCore.unblockUser(chat.toUser) { isSuccess, _, data ->
+                val jid = data["data"] as String
+                UIKitContactUtils.checkContactForBlockAndUnblockUser(jid, false)
                 runOnUiThread {
                     onBlockUserResponse(!isSuccess, false)
                 }

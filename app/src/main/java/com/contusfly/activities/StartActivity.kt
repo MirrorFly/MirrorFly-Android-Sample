@@ -18,7 +18,6 @@ import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.utils.*
 import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.FlyCore
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import com.contus.call.CallConstants
@@ -27,7 +26,6 @@ import com.contus.webrtc.api.CallManager
 import com.contusfly.*
 import com.contusfly.call.groupcall.GroupCallActivity
 import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
-import com.contusflysdk.api.contacts.ContactManager
 
 
 class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
@@ -103,7 +101,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
             clearNotification()
             val jid = intent.getStringExtra(LibConstants.JID)
             if (!jid.isNullOrBlank()) {
-                val profileDetail = FlyCore.getUserProfile(jid)
+                val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
                 if (profileDetail != null) {
                     val chatType = profileDetail.getChatType()
                     goToChatView(jid, chatType)
@@ -165,7 +163,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
 
     private fun checkAndNavigateToDashboard(jid: String, chatType: String) {
         if (intent.hasExtra(Constants.IS_FROM_CHAT_SHORTCUT)) {
-            val profileDetails = ContactManager.getProfileDetails(jid)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
             Log.d(TAG, getString(R.string.is_from_chat_shortcut))
             if (ChatType.TYPE_GROUP_CHAT == chatType && profileDetails != null && profileDetails.isAdminBlocked) {
                 startActivity(Intent(this, DashboardActivity::class.java)

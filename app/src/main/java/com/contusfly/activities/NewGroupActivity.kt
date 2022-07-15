@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.emoji.widget.EmojiAppCompatEditText
 import com.contus.flycommons.*
 import com.contus.flycommons.LogMessage
 import com.contus.xmpp.chat.models.CreateGroupModel
@@ -59,6 +60,8 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
     private var fileTemp: File? = null
 
     private var progressDialog: DoProgressDialog? = null
+
+    private var emojiAppEditText: EmojiAppCompatEditText? = null
 
     /**
      * Instance of the EmojiHandler to access the emoji and text keypad
@@ -117,17 +120,17 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
 
 
     private fun setListeners() {
-
+        emojiAppEditText = binding.editNewGroupName
         emojiHandler = EmojiHandler(this)
         emojiHandler.setIconImageView(binding.imgSmiley)
-        emojiHandler.attachKeyboardListeners(binding.editNewGroupName)
+        emojiHandler.attachKeyboardListeners(emojiAppEditText!!)
         emojiHandler.setHandledFrom(TAG)
 
         binding.toolbarInclude.toolbarAction.setOnClickListener {
 
-            if (binding.editNewGroupName.text.toString().trim().isNotEmpty()) {
+            if (emojiAppEditText!!.text.toString().trim().isNotEmpty()) {
                 if (emojiHandler.isEmojiShowing) emojiHandler.hideEmoji()
-                val intent = Intent(this, NewContactsActivity::class.java).apply {
+                val intent = Intent(this, UserListActivity::class.java).apply {
                     putExtra(Constants.ADD_PARTICIAPANTS, true)
                     putExtra(Constants.TITLE, getString(R.string.add_participants))
                 }
@@ -148,7 +151,7 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
                 showBottomMenu(it)
         }
 
-        binding.editNewGroupName.addTextChangedListener(object : TextWatcher {
+        emojiAppEditText!!.addTextChangedListener(object : TextWatcher {
             var beforeChanged: String? = null
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -160,18 +163,18 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
             }
 
             override fun afterTextChanged(s: Editable?) {
-                val length = 25 - EmojiUtils.getGraphemeLength(binding.editNewGroupName.text.toString())
+                val length = 25 - EmojiUtils.getGraphemeLength(emojiAppEditText!!.text.toString())
                 binding.txtSize.text = length.toString()
-                if (EmojiUtils.getGraphemeLength(binding.editNewGroupName.text.toString()) > 25) {
-                    binding.editNewGroupName.setText(beforeChanged)
-                    binding.editNewGroupName.setSelection(binding.editNewGroupName.text.toString().length)
+                if (EmojiUtils.getGraphemeLength(emojiAppEditText!!.text.toString()) > 25) {
+                    emojiAppEditText!!.setText(beforeChanged)
+                    emojiAppEditText!!.setSelection(emojiAppEditText!!.text.toString().length)
                 }
             }
 
         })
 
         binding.imgSmiley.setOnClickListener {
-            emojiHandler.setKeypad(binding.editNewGroupName)
+            emojiHandler.setKeypad(emojiAppEditText!!)
         }
     }
 
@@ -237,7 +240,7 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
     private fun handleAddParticipant(data: Intent?) {
         progressDialog = DoProgressDialog(this)
         progressDialog!!.showProgress()
-        GroupManager.createGroup(binding.editNewGroupName.text.toString(), data!!.getStringArrayListExtra(Constants.USERS_JID)!!,
+        GroupManager.createGroup(emojiAppEditText!!.text.toString(), data!!.getStringArrayListExtra(Constants.USERS_JID)!!,
             fileTemp, { isSuccess, throwable, hashmap ->
             progressDialog!!.dismiss()
             if (isSuccess) {
@@ -326,15 +329,15 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (newConfig.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_YES) emojiHandler.setKeypad(binding.editNewGroupName)
+        if (newConfig.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_YES) emojiHandler.setKeypad(emojiAppEditText!!)
     }
 
     override fun onEmojiconBackspaceClicked(v: View?) {
-        EmojiconsFragment.backspace(binding.editNewGroupName)
+        EmojiconsFragment.backspace(emojiAppEditText!!)
     }
 
     override fun onEmojiconClicked(emojicon: Emojicon?) {
-        EmojiconsFragment.input(binding.editNewGroupName, emojicon)
+        EmojiconsFragment.input(emojiAppEditText!!, emojicon)
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {

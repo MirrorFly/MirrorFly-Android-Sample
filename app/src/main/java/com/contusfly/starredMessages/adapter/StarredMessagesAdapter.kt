@@ -60,10 +60,8 @@ import com.contusfly.views.SetDrawable
 import com.contusflysdk.api.ChatManager.getUserProfileName
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.MessageStatus
-import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.api.models.ContactChatMessage
 import com.contusflysdk.api.utils.ImageUtils.loadMapWithGlide
 import com.contusflysdk.utils.Utils
 import io.github.rockerhieu.emojicon.EmojiconTextView
@@ -860,7 +858,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
      * @param item   message item
      */
     private fun setHeader(holder: RecyclerView.ViewHolder, type: Int, item: ChatMessage) {
-        val profileDetails = getProfileDetails(item.getChatUserJid())
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(item.getChatUserJid())
         if (type == SENDER_HEADER) {
             val userName = getUserProfileName()
             val setDrawable = SetDrawable(context!!, profileDetails)
@@ -896,7 +894,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
         var groupUser = Constants.EMPTY_STRING
         val setDrawable: SetDrawable
         if (item.getMessageChatType() == ChatTypeEnum.groupchat) {
-            val profileGroupUser = getProfileDetails(item.senderUserJid)
+            val profileGroupUser = ProfileDetailsUtils.getProfileDetails(item.senderUserJid)
             groupUser = if (profileGroupUser != null && profileGroupUser.name != null && profileGroupUser.name.isNotEmpty()) profileGroupUser.name
             else Utils.getFormattedPhoneNumber(getUserFromJid(profileGroupUser!!.jid))
             profileNickName = profileGroupUser.name

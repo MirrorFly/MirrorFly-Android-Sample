@@ -13,7 +13,6 @@ import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.LayoutPipModeBinding
 import com.contusfly.utils.*
 import com.contusfly.views.SetDrawable
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ChatUtils
 import com.contusflysdk.utils.Utils
@@ -93,7 +92,7 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
         if (lastUserJid != userJid)
             CallManager.getRemoteProxyVideoSink(lastUserJid)?.setTarget(null)
         lastUserJid = userJid
-        val profileDetails = ContactManager.getProfileDetails(userJid)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(userJid)
         val name = getProfileName(profileDetails, userJid)
         binding.userProfileName1.text = name
         binding.viewSpeakingIndicator1.onUserStoppedSpeaking(null)
@@ -127,7 +126,7 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
         binding.userVideoSurface1.gone()
         var drawable = ContextCompat.getDrawable(context, R.drawable.ic_pip_default_profile)
         if (profileDetails != null) {
-            if (!profileDetails.isBlockedMe && profileDetails.isItSavedContact())
+            if (!profileDetails.isBlockedMe)
                 drawable = SetDrawable(context, profileDetails).setDrawable(profileDetails.name)
 
             var imageUrl = profileDetails.image ?: Constants.EMPTY_STRING

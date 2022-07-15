@@ -25,6 +25,7 @@ import com.contusfly.activities.StartActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallNotificationUtils
 import com.contusfly.call.groupcall.GroupCallActivity
+import com.contusfly.database.UIKitDatabase
 import com.contusfly.di.components.DaggerAppComponent
 import com.contusfly.utils.*
 import com.contusflysdk.ChatSDK
@@ -126,11 +127,12 @@ class MobileApplication : Application(), HasAndroidInjector {
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleListener())
 
         initEmojiCompat()
+        UIKitDatabase.initDatabase(this)
 
         //Set Name based on the Profile data
         GroupManager.setNameHelper(object  : NameHelper {
             override fun getDisplayName(jid: String): String {
-                return if (ContactManager.getProfileDetails(jid) != null) ContactManager.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
+                return if (ProfileDetailsUtils.getProfileDetails(jid) != null) ProfileDetailsUtils.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
             }
         })
 
@@ -181,7 +183,7 @@ class MobileApplication : Application(), HasAndroidInjector {
 
         CallManager.setCallHelper(object : CallHelper {
             override fun getDisplayName(jid: String): String {
-                return if (ContactManager.getProfileDetails(jid) != null) ContactManager.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
+                return if (ProfileDetailsUtils.getProfileDetails(jid) != null) ProfileDetailsUtils.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
             }
 
             override fun getNotificationContent(callDirection: String): String {
@@ -196,7 +198,7 @@ class MobileApplication : Application(), HasAndroidInjector {
             }
 
             override fun isDeletedUser(jid: String): Boolean {
-                return ContactManager.getProfileDetails(jid)?.isDeletedContact() ?: false
+                return ProfileDetailsUtils.getProfileDetails(jid)?.isDeletedContact() ?: false
             }
 
             override fun sendCallMessage(details: GroupCallDetails, users: List<String>, invitedUsers: List<String>) {
@@ -217,11 +219,11 @@ class MobileApplication : Application(), HasAndroidInjector {
                 missedCallMessage.append("a ")
             }
             missedCallMessage.append(callType).append(" call")
-            messageContent = ContactManager.getProfileDetails(userJid)?.name!!
+            messageContent = ProfileDetailsUtils.getProfileDetails(userJid)?.name!!
         } else {
             missedCallMessage.append("a group ").append(callType).append(" call")
             messageContent = if (!groupId.isNullOrBlank()) {
-                ContactManager.getProfileDetails(groupId)?.name!!
+                ProfileDetailsUtils.getProfileDetails(groupId)?.name!!
             } else {
                 GroupCallUtils.getCallUsersName(userList).toString()
             }

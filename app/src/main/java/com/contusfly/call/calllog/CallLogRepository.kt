@@ -6,6 +6,7 @@ import com.contus.flycommons.Constants
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallLogManager
 import com.contus.call.database.model.CallLog
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.model.CallLogs
@@ -68,7 +69,7 @@ class CallLogRepository @Inject constructor() {
         var mobile: String = Constants.EMPTY_STRING
         var rosterInfo: ProfileDetails?
         try {
-            rosterInfo = ContactManager.getProfileDetails(toUser)
+            rosterInfo = ProfileDetailsUtils.getProfileDetails(toUser)
         } catch (e: Exception) {
             rosterInfo = null
         }
@@ -97,7 +98,7 @@ class CallLogRepository @Inject constructor() {
         var name = ChatUtils.getUserFromJid(toUser)
         var profileImage: String = Constants.EMPTY_STRING
         var mobile: String = Constants.EMPTY_STRING
-        val rosterInfo = ContactManager.getProfileDetails(toUser)
+        val rosterInfo = ProfileDetailsUtils.getProfileDetails(toUser)
         if (rosterInfo != null) {
             with(rosterInfo) {
                 name = getName() ?: Constants.EMPTY_STRING

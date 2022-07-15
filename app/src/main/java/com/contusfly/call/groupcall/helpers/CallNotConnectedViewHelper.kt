@@ -10,7 +10,7 @@ import com.contusfly.call.groupcall.isCallNotConnected
 import com.contusfly.call.groupcall.isOutgoingCall
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.LayoutCallNotConnectedBinding
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusflysdk.utils.Utils
 
 class CallNotConnectedViewHelper(
@@ -81,7 +81,7 @@ class CallNotConnectedViewHelper(
         showCallerImage()
         if (GroupCallUtils.isOneToOneCall()) {
             val profileDetails = if (GroupCallUtils.getEndCallerJid().contains("@"))
-                ContactManager.getProfileDetails(GroupCallUtils.getEndCallerJid())
+                ProfileDetailsUtils.getProfileDetails(GroupCallUtils.getEndCallerJid())
             else null
 
             profileDetails?.let {

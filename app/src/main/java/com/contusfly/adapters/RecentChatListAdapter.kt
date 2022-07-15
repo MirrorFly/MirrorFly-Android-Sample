@@ -22,7 +22,6 @@ import com.contusfly.databinding.RowRecentChatItemBinding
 import com.contusfly.utils.*
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.utils.Utils
@@ -384,7 +383,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
     private fun setUserTypingStatus(holder: RowRecentChatItemBinding, recent: RecentChat, indexOfTypingStatus: Int) {
         holder.textChatPerson.visibility = View.GONE
         if (recent.isGroup) {
-            val typingUser = ContactManager.getProfileDetails(typingAndGoneStatus[indexOfTypingStatus].second)
+            val typingUser = ProfileDetailsUtils.getProfileDetails(typingAndGoneStatus[indexOfTypingStatus].second)
             val userName = if((Utils.returnEmptyStringIfNull(typingUser?.name)).split(" ").size ==1)
                 Utils.returnEmptyStringIfNull(typingUser?.name) + ":"
             else{

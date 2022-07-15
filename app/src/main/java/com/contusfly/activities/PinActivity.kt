@@ -596,53 +596,11 @@ class PinActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener
      * to send the otp
      */
     private fun sendOtp() {
-        if (AppUtils.isNetConnected(applicationContext)) {
-            progressDialog!!.setMessage(getString(R.string.sending_otp))
-            progressDialog!!.isIndeterminate = true
-            progressDialog!!.setCancelable(false)
-            progressDialog!!.show()
-
-            launch(exceptionHandler) {
-
-                val mobileNUmber = Prefs.getString(com.contusfly.utils.Constants.USER_MOBILE_NUMBER).replace(" ", "").replace("+", "")
-
-                val otpResponse = apiCalls.pinGetOtp(mobileNUmber).await()
-
-                if (otpResponse.isSuccessful) {
-
-                    val response = otpResponse.body()!!
-
-                    when {
-                        Constants.STATUS_CODE_SUCCESS == response.status.toString() -> {
-                            sendVerificationCode()
-                        }
-                        Constants.STATUS_CODE_SECURITY_TOKEN_ERROR == response.status.toString() -> {
-                            LogMessage.e("TAG", "Token refresh error")
-                            withContext(Dispatchers.Main.immediate) {
-                                showToast(response.message)
-                            }
-                        }
-                        else -> {
-                            withContext(Dispatchers.Main.immediate) {
-                                setOnClickListerForSendOTP()
-                                showToast(response.message)
-                            }
-                        }
-                    }
-
-                } else {
-                    withContext(Dispatchers.Main.immediate) {
-                        setOnClickListerForSendOTP()
-                        dismissProgress()
-                        showToast(Constants.ERROR_SERVER)
-                    }
-                }
-            }
-
-        } else {
-            dismissProgress()
-            CustomToast.show(this, getString(R.string.msg_no_internet))
-        }
+        progressDialog!!.setMessage(getString(R.string.sending_otp))
+        progressDialog!!.isIndeterminate = true
+        progressDialog!!.setCancelable(false)
+        progressDialog!!.show()
+        sendVerificationCode()
     }
 
     /**

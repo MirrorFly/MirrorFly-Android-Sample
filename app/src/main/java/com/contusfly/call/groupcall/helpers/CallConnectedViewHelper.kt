@@ -34,6 +34,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.call.SpeakingIndicatorListener
 import com.contusfly.call.SetDrawable
 import com.contusfly.call.groupcall.utils.UserMuteStatus
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusflysdk.api.contacts.ContactManager
 import java.util.*
 import kotlin.collections.ArrayList
@@ -293,7 +294,7 @@ class CallConnectedViewHelper(
         var name = ""
         if (GroupCallUtils.isOneToOneCall()) {
             val profileDetails = if (GroupCallUtils.getEndCallerJid().contains("@"))
-                ContactManager.getProfileDetails(GroupCallUtils.getEndCallerJid())
+                ProfileDetailsUtils.getProfileDetails(GroupCallUtils.getEndCallerJid())
             else null
             profileDetails?.let {
                 binding.callerProfileImage.loadUserProfileImage(activity, profileDetails)
@@ -563,19 +564,23 @@ class CallConnectedViewHelper(
     fun pinnedUserLeft() {
         LogMessage.d(TAG, "$CALL_UI pinnedUserLeft")
 
-        val userJid = GroupCallUtils.getAvailableCallUsersList()[0]
-        callUsersListAdapter.removeUser(userJid)
-        CallUtils.setPinnedUserJid(userJid)
+        try {
+            val userJid = GroupCallUtils.getAvailableCallUsersList()[0]
+            callUsersListAdapter.removeUser(userJid)
+            CallUtils.setPinnedUserJid(userJid)
 
-        updatePinnedUserVideoMuteStatus()
-        updateRemoteAudioMuteStatus()
-        updateCallMemberDetails(GroupCallUtils.getAvailableCallUsersList())
+            updatePinnedUserVideoMuteStatus()
+            updateRemoteAudioMuteStatus()
+            updateCallMemberDetails(GroupCallUtils.getAvailableCallUsersList())
+        } catch (e: ArrayIndexOutOfBoundsException) {
+            LogMessage.e(TAG, "$CALL_UI $e")
+        }
     }
 
     private fun updatePinnedUserProfile() {
         LogMessage.d(TAG, "$CALL_UI updatePinnedUserProfile getPinnedUserJid: ${CallUtils.getPinnedUserJid()}")
         if (CallUtils.getPinnedUserJid() == SharedPreferenceManager.getCurrentUserJid()) {
-            val profileDetails = ContactManager.getProfileDetails(CallUtils.getPinnedUserJid())
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(CallUtils.getPinnedUserJid())
             val setDrawable = SetDrawable(activity, profileDetails)
             val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
             val icon = setDrawable.setDrawable(userName)
@@ -589,7 +594,7 @@ class CallConnectedViewHelper(
         } else {
             binding.callerProfileImage.setImageDrawable(null)
             if (CallUtils.getPinnedUserJid().isNotEmpty()) {
-                val profileDetails = ContactManager.getProfileDetails(CallUtils.getPinnedUserJid())
+                val profileDetails = ProfileDetailsUtils.getProfileDetails(CallUtils.getPinnedUserJid())
                 binding.callerProfileImage.loadUserProfileImage(activity, profileDetails!!)
             } else
                 binding.callerProfileImage.setImageDrawable(ContextCompat.getDrawable(activity, R.drawable.ic_profile))

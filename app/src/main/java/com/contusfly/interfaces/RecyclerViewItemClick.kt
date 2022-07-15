@@ -17,11 +17,11 @@ interface RecyclerViewItemClick {
      * @param position - position
      * @param profileDetails   - ProfileDetails
      */
-    fun onItemClicked(position: Int, profileDetails: ProfileDetails?)
+    fun onItemClicked(position: Int, profileDetails: ProfileDetails)
 
     /**
-     * Method to notify if user selects more than allowed users
+     * Method to check whether this item is selected or not
      */
-    fun onlyForwardUserRestriction()
+    fun isSelected(userId: String): Boolean
 
 }

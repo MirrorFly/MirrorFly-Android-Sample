@@ -8,8 +8,8 @@ import com.contusfly.TAG
 import com.contusfly.mediapicker.model.Image
 import com.contusfly.models.MediaPreviewModel
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.videocompression.composer.Mp4Composer
-import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ProfileDetails
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +31,7 @@ constructor() : ViewModel() {
 
     fun getProfileDetails(jid: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            profileDetails.postValue(FlyCore.getUserProfile(jid))
+            profileDetails.postValue(ProfileDetailsUtils.getProfileDetails(jid))
         }
     }
 

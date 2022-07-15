@@ -202,11 +202,46 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
         val mUser = FirebaseAuth.getInstance().currentUser
         mUser!!.getIdToken(true).addOnCompleteListener { task: Task<GetTokenResult> ->
             if (task.isSuccessful) {
-                CustomToast.showShortToast(iOtpView.activityContext, otpActivity.getString(R.string.msg_otp_validated))
-                iOtpView.registerAccount()
+                val idToken = task.result!!.token
+                verifyTokenWithServer(idToken)
             } else {
                 iOtpView.dismissProgress()
                 LogMessage.d(TAG, task.exception!!.message)
+            }
+        }
+    }
+
+    private fun verifyTokenWithServer(token: String?) {
+        /*
+         * Check whether user sign-in by using google or mobile number
+         */
+        /* Check whether the user signed-in using Google or with phone number. */
+        val userName: String = if (!SharedPreferenceManager.getBoolean(Constants.LOGIN_MODE))
+            iOtpView.getDialNumber().replace("+", "") + iOtpView.getMobileNumber()
+        else
+            SharedPreferenceManager.getString(Constants.USERNAME).toString()
+        val requestHashMap = HashMap<String, Any>()
+        requestHashMap[Constants.MOBILE_NO] = userName
+        requestHashMap["googleToken"] = token?:""
+
+        apiCall = ApiCall.VERIFY_TOKEN
+        coroutineScope.launch(coroutineExceptionHandler) {
+            val verifyTokenResponse = apiCalls.verifyToken(requestHashMap).await()
+            if (verifyTokenResponse.isSuccessful) {
+                val response = verifyTokenResponse.body()!!
+                withContext(Dispatchers.Main.immediate) {
+                    if (Constants.STATUS_CODE_SUCCESS == response.status.toString()) {
+                        validateDeviceToken(response.data!!.deviceToken)
+                    } else {
+                        CustomToast.show(iOtpView.activityContext, otpActivity.getString(R.string.error_otp_authorization))
+                        iOtpView.dismissProgress()
+                    }
+                }
+            } else {
+                withContext(Dispatchers.Main.immediate) {
+                    iOtpView.dismissProgress()
+                    CustomToast.show(iOtpView.activityContext, Constants.ERROR_SERVER)
+                }
             }
         }
     }
@@ -221,9 +256,15 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
         if (firebaseToken.isEmpty()) {
             FirebaseInstallations.getInstance().getToken(true).addOnCompleteListener {
                 firebaseToken = it.result!!.token
+                SharedPreferenceManager.setString(Constants.FIRE_BASE_TOKEN, firebaseToken)
+                navigateToUserRegisterMethod(deviceToken, firebaseToken)
             }
-            SharedPreferenceManager.setString(Constants.FIRE_BASE_TOKEN, firebaseToken)
+        } else {
+            navigateToUserRegisterMethod(deviceToken, firebaseToken)
         }
+    }
+
+    private fun navigateToUserRegisterMethod(deviceToken: String?, firebaseToken: String?) {
         CustomToast.showShortToast(iOtpView.activityContext, otpActivity.getString(R.string.msg_otp_validated))
         if (TextUtils.isEmpty(deviceToken) || deviceToken == firebaseToken) {
             if (!iOtpView.getOtpProgress()!!.isShowing) iOtpView.showProgress()

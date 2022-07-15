@@ -24,6 +24,7 @@ import com.contusfly.isDeletedContact
 import com.contusfly.setOnClickListener
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.ChatMessageUtils
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.CustomTextView
 import com.contusflysdk.api.contacts.ContactManager
@@ -135,13 +136,13 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
     private fun setUserView(holder: CallHistoryViewHolder, position: Int) {
 
         if (callLogsList[position].callMode == CallMode.ONE_TO_ONE && (callLogsList[position].userList == null || callLogsList[position].userList!!.size < 2)) {
-            val profileDetails = ContactManager.getProfileDetails(if (callLogsList[position].callState == CallState.OUTGOING_CALL) callLogsList[position].toUser!! else callLogsList[position].fromUser!!)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(if (callLogsList[position].callState == CallState.OUTGOING_CALL) callLogsList[position].toUser!! else callLogsList[position].fromUser!!)
             if (profileDetails != null) {
                 profileIcon(holder, profileDetails)
                 holder.emailContactIcon.gone()
             } else {
                 holder.imgRoster.addImage(arrayListOf(callLogsList[position].fromUser!!))
-                holder.txtChatPersonName.text = ContactManager.getDisplayName(callLogsList[position].fromUser!!)
+                holder.txtChatPersonName.text = ProfileDetailsUtils.getDisplayName(callLogsList[position].fromUser!!)
             }
         } else {
             profileIconForManyUsers(holder, position)
@@ -156,13 +157,13 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
     private fun profileIconForManyUsers(holder: CallHistoryViewHolder, position: Int) {
         val callLog = callLogsList[position]
         if (!callLog.groupId.isNullOrEmpty()) {
-            val profileDetails = ContactManager.getProfileDetails(callLog.groupId!!)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)
             if (profileDetails != null) {
                 profileIcon(holder, profileDetails)
                 holder.emailContactIcon.gone()
             } else {
                 holder.imgRoster.addImage(arrayListOf(callLog.groupId!!))
-                holder.txtChatPersonName.text = ContactManager.getDisplayName(callLog.groupId!!)
+                holder.txtChatPersonName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
             }
         } else {
             holder.txtChatPersonName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
@@ -190,9 +191,9 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
     private fun setIconAlpha(holder: CallHistoryViewHolder, callLogs: CallLog) {
         try {
             val profile = if (callLogs.callMode == CallMode.ONE_TO_ONE && (callLogs.userList == null || callLogs.userList!!.size < 2)) {
-                ContactManager.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
+                ProfileDetailsUtils.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
             } else if (!callLogs.groupId.isNullOrBlank()) {
-                ContactManager.getProfileDetails(callLogs.groupId!!)
+                ProfileDetailsUtils.getProfileDetails(callLogs.groupId!!)
             } else null
 
             val adminBlockedStatus = profile?.isAdminBlocked ?: false

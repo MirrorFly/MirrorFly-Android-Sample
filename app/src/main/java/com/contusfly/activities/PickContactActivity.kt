@@ -19,14 +19,13 @@ import com.contusfly.adapters.PickContactAdapter
 import com.contusfly.adapters.ShareContactsAdapter
 import com.contusfly.chat.MessagingClient
 import com.contusfly.chat.ShareMessagesController
-import com.contusfly.getChatType
 import com.contusfly.models.ContactShareModel
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.views.CustomRecyclerView
 import com.contusfly.views.ShareDialog
 import com.contusfly.views.WrapContentLayoutManager
 import com.contusflysdk.AppUtils
-import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.models.Contact
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
@@ -40,7 +39,7 @@ class PickContactActivity : BaseActivity() {
      */
     private var contactsList: List<Contact>? = null
     private var shareContactList: ArrayList<ContactShareModel>? = null
-    private var profileArrayList: ArrayList<ProfileDetails>? = null
+    private var userIdList: ArrayList<String>? = null
     private var phoneNumbers: MutableList<String?>? = null
     private var isFromQuickShare = false
     @Inject
@@ -83,7 +82,7 @@ class PickContactActivity : BaseActivity() {
         val contactListRV = findViewById<CustomRecyclerView>(R.id.contacts_list)
         if (isList) {
             shareContactList = intent.getParcelableArrayListExtra("CONTACTS")
-            profileArrayList = intent.getParcelableArrayListExtra("USERS")
+            userIdList = intent.getStringArrayListExtra("USERS")
             findViewById<View>(R.id.single_card).visibility = View.GONE
             val shareContactsAdapter = ShareContactsAdapter(this, shareContactList!!)
             contactListRV.adapter = shareContactsAdapter
@@ -243,7 +242,7 @@ class PickContactActivity : BaseActivity() {
     private fun sendContacts(contactList: ArrayList<ContactShareModel>) {
         if (AppUtils.isNetConnected(this)) {
             shareDialog!!.initializeAndShowShareDialog("Quick Share", "Sending contacts...")
-            shareMessagesController.sendContactMessage(contactList, profileArrayList!!)
+            shareMessagesController.sendContactMessage(contactList, userIdList!!)
             shareDialog!!.dismissShareDialog()
             navigateToAppropriateScreen()
             finish()
@@ -258,13 +257,13 @@ class PickContactActivity : BaseActivity() {
      * if multiple then navigate to Dashboard screen
      */
     private fun navigateToAppropriateScreen() {
-        if (profileArrayList!!.size == 1) {
-            val userRoster = profileArrayList!![0]
+        if (userIdList!!.size == 1) {
+            val userId = userIdList!![0]
             val intent = Intent(this, ChatActivity::class.java)
-            intent.putExtra(LibConstants.JID, userRoster.jid)
-            intent.putExtra(Constants.CHAT_TYPE, userRoster.getChatType())
+            intent.putExtra(LibConstants.JID, userId)
+            intent.putExtra(Constants.CHAT_TYPE, ProfileDetailsUtils.getProfileDetails(userId))
             startActivity(intent)
-        } else if (profileArrayList!!.size > 1) {
+        } else if (userIdList!!.size > 1) {
             val intent = Intent(this, DashboardActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             startActivity(intent)

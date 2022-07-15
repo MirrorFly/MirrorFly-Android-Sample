@@ -7,13 +7,6 @@
   -->
 
 <resources>
-    <declare-styleable name="CircularImageView">
-        <attr name="border" format="boolean" />
-        <attr name="border_width" format="dimension" />
-        <attr name="border_color" format="color" />
-        <attr name="shadow" format="boolean" />
-        <attr name="is_circle" format="boolean" />
-    </declare-styleable>
     <!-- Defines the custom XML attributes supported for a HorizontalListView -->
     <declare-styleable name="HorizontalListView">
         <attr name="dividerWidth" format="dimension" />

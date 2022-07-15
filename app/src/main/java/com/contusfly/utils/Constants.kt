@@ -45,6 +45,7 @@ class Constants {
         const val NOTIFY_MESSAGE = "notify_message"
         const val NOTIFY_UNREAD_ICON = "notify_unread_icon"
         const val SDK_DATA = "data"
+        const val TOTAL_PAGES = "total_pages"
         const val DIAL_CODE = "dialCode"
         const val COUNTRY_CODE = "countryCode"
         const val MOBILE_NO = "mobileNumber"
@@ -132,7 +133,7 @@ class Constants {
         const val IS_FIRST_LOGIN = "is_first"
         const val FROM_SPLASH = "from_splash"
         const val EMAIL = "email"
-
+        const val ASK_PERMISSION = "ask_permission"
         const val USER_PROFILE_NAME = "profile_name"
         const val EMAIL_PATTERN = ("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
                 + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,3})$")

@@ -3,7 +3,6 @@ package com.contusfly.activities
 import android.content.Intent
 import android.os.Bundle
 import android.os.Parcelable
-import android.os.SystemClock
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
@@ -20,11 +19,10 @@ import com.contus.flycommons.LogMessage
 import com.contus.flycommons.emptyStringFE
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
-import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
+import com.contusfly.activities.parent.BaseContactActivity
 import com.contusfly.adapters.ContactsAdapter
 import com.contusfly.databinding.ActivityNewContactsBinding
-import com.contusfly.fragments.ProfileDialogFragment
 import com.contusfly.utils.Constants
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.UserInterfaceUtils
@@ -32,7 +30,6 @@ import com.contusfly.viewmodels.ContactViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.FlyCore
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.views.CustomToast
 
@@ -40,7 +37,7 @@ import com.contusflysdk.views.CustomToast
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener {
+class NewContactsActivity : BaseContactActivity(), CommonAlertDialog.CommonDialogClosedListener {
 
     var users: ArrayList<ProfileDetails>? = null
 
@@ -48,29 +45,16 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
 
     private lateinit var mAdapter: ContactsAdapter
 
-    private var multiSelection = false
-
     private var isMakeCall = false
 
     private var callType: String? = null
 
-    private var addParticipants = false
-
-    private var fromGroupInfo = false
-
     private var screenTitle: String = emptyStringFE()
-
-    private var selectedUsersJid = ArrayList<String>()
 
     /**
      * Used for search
      */
     private var searchKey: String = emptyString()
-
-    /**
-     * Store onclick time to avoid double click
-     */
-    private var lastClickTime: Long = 0
 
     private var groupId:String? = null
 
@@ -192,31 +176,6 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java))
-                true
-            }
-            R.id.action_done -> {
-                if (addParticipants) {
-                    if (selectedUsersJid.size < 2 && !fromGroupInfo) {
-                        showToast("Add at least two contacts")
-                    } else {
-                        val output = Intent().apply {
-                            putStringArrayListExtra(Constants.USERS_JID, selectedUsersJid)
-                        }
-                        setResult(RESULT_OK, output)
-                        finish()
-                    }
-                }
-
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
     private fun setUpToolBar() {
         setSupportActionBar(newContactsBinding.toolbar)
         supportActionBar?.title = screenTitle
@@ -306,42 +265,7 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
         }
     }
 
-    private fun listItemClicked(profileClicked : Boolean, profile: ProfileDetails) {
-        if (multiSelection) {
-            handleMultiSelection(profile)
-        } else {
-            if(profileClicked){
-                if (SystemClock.elapsedRealtime() - lastClickTime < 1000)
-                    return
-                lastClickTime = SystemClock.elapsedRealtime()
-                val dialogFragment = ProfileDialogFragment.newInstance(ContactManager.getProfileDetails(profile.jid)!!)
-                val ft = supportFragmentManager.beginTransaction()
-                val prev = supportFragmentManager.findFragmentByTag("dialog")
-                if (prev != null) {
-                    ft.remove(prev)
-                }
-                ft.addToBackStack(null)
-                dialogFragment.show(ft, "dialog")
-            } else{
-                startActivity(Intent(context, ChatActivity::class.java)
-                    .putExtra(LibConstants.JID, profile.jid)
-                    .putExtra(Constants.CHAT_TYPE, ChatType.TYPE_CHAT))
-            }
-        }
-    }
-
-    private fun handleMultiSelection(profile: ProfileDetails) {
-        if (profile.isBlocked)
-            return
-        if (selectedUsersJid.contains(profile.jid)) {
-            selectedUsersJid.remove(profile.jid)
-        } else {
-            selectedUsersJid.add(profile.jid)
-        }
-        updateSelectedUserCallView(profile.jid)
-    }
-
-    private fun updateSelectedUserCallView(jid: String? = Constants.EMPTY_STRING) {
+    override fun updateSelectedUserCallView(jid: String?) {
         if (isMakeCall) {
             newContactsBinding.buttonMakeCall.show()
             newContactsBinding.buttonMakeCall.isEnabled = selectedUsersJid.size > 0
@@ -405,13 +329,13 @@ class NewContactsActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosed
            val userIndex = viewModel.contactListAdapter.indexOfFirst { profile -> profile.jid == jid }
            if (userIndex.isValidIndex()) {
                val oldProfile = viewModel.contactListAdapter[userIndex]
-               val updatedProfile = ContactManager.getProfileDetails(jid)!!
+               val updatedProfile = ProfileDetailsUtils.getProfileDetails(jid)!!
                updatedProfile.isSelected = oldProfile.isSelected
                viewModel.contactListAdapter[userIndex] = updatedProfile
                mAdapter.notifyItemChanged(userIndex)
                mAdapter.filter.filter(searchKey)
            } else {
-               val updatedProfile = ContactManager.getProfileDetails(jid)!!
+               val updatedProfile = ProfileDetailsUtils.getProfileDetails(jid)!!
                val list = viewModel.contactDetailsList.value?.toMutableList() ?: mutableListOf()
                list.add(updatedProfile)
                val sortedList = ProfileDetailsUtils.sortProfileList(list)
