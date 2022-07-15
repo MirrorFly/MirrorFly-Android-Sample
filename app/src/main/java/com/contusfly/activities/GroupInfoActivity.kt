@@ -856,7 +856,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             userList.add(usersList[i].jid)
             i++
         }
-        startActivityForResult(Intent(this, NewContactsActivity::class.java)
+        startActivityForResult(Intent(this, UserListActivity::class.java)
             .putExtra(com.contusfly.utils.Constants.ADD_PARTICIAPANTS, true)
             .putExtra(com.contusfly.utils.Constants.FROM_GROUP_INFO, true)
             .putExtra(com.contusfly.utils.Constants.GROUP_ID, groupProfileDetails.jid)
@@ -888,7 +888,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         if (isGroupMember) {
             val index = groupMembersList.indexOfFirst { it.jid == jid }
             if (index.isValidIndex()) {
-                groupMembersList[index] = ContactManager.getProfileDetails(jid)!!
+                groupMembersList[index] = ProfileDetailsUtils.getProfileDetails(jid)!!
                 groupMembersAdapter.notifyItemChanged(index)
             }
         }
@@ -1131,7 +1131,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails = ProfileDetailsUtils.getProfileDetails(groupProfileDetails.jid)!!
         groupProfileDetails.let {
             if (it.isAdminBlocked) navigateToDashboard()
             else {
@@ -1250,7 +1250,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      */
     private fun loadGroupNameAndImage() {
 
-        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails = ProfileDetailsUtils.getProfileDetails(groupProfileDetails.jid)!!
         groupProfileDetails.let {
             val groupImage = Utils.returnEmptyStringIfNull(it.image)
 

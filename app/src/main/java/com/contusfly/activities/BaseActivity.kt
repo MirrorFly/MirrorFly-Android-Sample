@@ -24,12 +24,10 @@ import com.contusfly.call.groupcall.isCallNotConnected
 import com.contusfly.call.groupcall.isInComingCall
 import com.contusfly.call.groupcall.isInPIPMode
 import com.contusfly.chat.AndroidUtils
-import com.contusfly.checkInternetAndExecute
 import com.contusfly.constants.MobileApplication
 import com.contusfly.showToast
 import com.contusfly.utils.*
 import com.contusflysdk.activities.FlyBaseActivity
-import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
@@ -170,7 +168,7 @@ open class BaseActivity : FlyBaseActivity() {
             } else
                 NotificationManagerCompat.from(applicationContext).cancel(Constants.NOTIFICATION_ID)
         } else {
-            if (ContactManager.getProfileDetails(jid)?.isMuted != true)
+            if (ProfileDetailsUtils.getProfileDetails(jid)?.isMuted != true)
                 NotificationUtils.createNotification(MobileApplication.getContext())
         }
     }
@@ -190,17 +188,8 @@ open class BaseActivity : FlyBaseActivity() {
 
     override fun onLoggedOut() {
         SharedPreferenceManager.clearAllPreference()
+        UIKitContactUtils.clearAllData()
         super.onLoggedOut()
-    }
-
-    override fun onConnected() {
-        super.onConnected()
-        checkInternetAndExecute(false) {
-            FlyCore.getFriendsList(true) { isSuccess, _, _ ->
-                if (isSuccess)
-                    userDetailsUpdated()
-            }
-        }
     }
 
     override fun onAdminBlockedUser(jid: String, status: Boolean) {
@@ -248,6 +237,14 @@ open class BaseActivity : FlyBaseActivity() {
                 })
             }
         }, 800)
+    }
+
+    /*
+     * Blocked List
+     */
+    override fun usersIBlockedListFetched(jidList: List<String>) {
+        super.usersIBlockedListFetched(jidList)
+        UIKitContactUtils.updateBlockedStatusOfUser(jidList)
     }
 
     /**

@@ -13,9 +13,9 @@ import com.contusfly.adapters.SectionsPagerAdapter
 import com.contusfly.databinding.ActivityViewAllMediaBinding
 import com.contusfly.showToast
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.viewmodels.ViewAllMediaViewModel
-import com.contusflysdk.api.contacts.ContactManager
 
 class ViewAllMediaActivity : BaseActivity() {
 
@@ -51,7 +51,7 @@ class ViewAllMediaActivity : BaseActivity() {
 
         profileId = intent.getStringExtra(Constants.ROSTER_JID)
         profileId?.let {
-            val profileInfo = ContactManager.getProfileDetails(it)
+            val profileInfo = ProfileDetailsUtils.getProfileDetails(it)
             if (profileInfo != null) {
                 mToolbar.title = profileInfo.name
             }

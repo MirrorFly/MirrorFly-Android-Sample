@@ -11,6 +11,7 @@ import com.contus.flycommons.SharedPreferenceManager
 import com.contusfly.R
 import com.contusfly.gone
 import com.contusfly.loadUserProfileImage
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.SetDrawable
 import com.contusflysdk.api.contacts.ContactManager
@@ -41,7 +42,7 @@ class CallHistoryDetailAdapter(val context: Context, private var userList: Array
             MediaUtils.loadImageWithGlideSecure(context, image,
                     holder.imgRoster, icon)
         } else {
-            val roster = ContactManager.getProfileDetails(userList[position])
+            val roster = ProfileDetailsUtils.getProfileDetails(userList[position])
             roster?.let {
                 holder.imgRoster.loadUserProfileImage(context, it)
                 holder.txtChatPersonName.text = it.name

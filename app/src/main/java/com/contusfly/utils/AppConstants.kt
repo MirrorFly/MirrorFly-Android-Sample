@@ -14,6 +14,7 @@ object AppConstants {
     const val GROUP_PROFILE = "group_profile"
     const val PROFILE_DATA = "profile_data"
     const val YOU = "You"
+    const val DB_NAME = "UIKit"
 
     val supportedFormats = arrayOf("pdf", "txt", "rtf", "xls", "ppt", "pptx", "zip", "xlsx", "doc", "docx", "wav", "mp3", "mp4", "aac", "jpg", "jpeg", "png", "webp", "gif", "pptx", "csv")
 

@@ -151,7 +151,7 @@ constructor() : ViewModel() {
     * Get Profile List */
     fun getProfileDetailsList() {
         viewModelScope.launch {
-            FlyCore.getFriendsList(false, FlyCallback { isSuccess, throwable, data ->
+            FlyCore.getRegisteredUsers(false, FlyCallback { isSuccess, throwable, data ->
                 if (isSuccess) {
                     val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
                     profileDetailsList.value = sortProfileList(profileDetails)
@@ -231,7 +231,7 @@ constructor() : ViewModel() {
 
     fun filterContactsList(searchKey: String, jidList: ArrayList<String>) {
         viewModelScope.launch {
-            FlyCore.getFriendsList(false) { isSuccess, _, data ->
+            FlyCore.getRegisteredUsers(false) { isSuccess, _, data ->
                 if (isSuccess) {
                     val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
                     filterProfileList.value = profileDetails.filter { !jidList.contains(it.jid) && it.name.contains(searchKey, true) }.sortedBy { it.name }

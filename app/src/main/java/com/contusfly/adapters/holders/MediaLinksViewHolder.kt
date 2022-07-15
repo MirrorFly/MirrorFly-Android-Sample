@@ -1,5 +1,6 @@
 package com.contusfly.adapters.holders
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -13,8 +14,9 @@ import com.contusflysdk.api.models.ChatMessage
 import com.jakewharton.rxbinding3.view.clicks
 import java.util.concurrent.TimeUnit
 
-class MediaLinksViewHolder(val context: Context, var viewBinding: RowMediaLinksItemBinding, val onLinkClicked: (String?) -> Unit, val onLinkMessageClicked: (ChatMessage) -> Unit) : RecyclerView.ViewHolder(viewBinding.root) {
+class MediaLinksViewHolder(val context: Context, var viewBinding: RowMediaLinksItemBinding, val onLinkClicked: (ChatMessage) -> Unit, val onLinkMessageClicked: (ChatMessage) -> Unit) : RecyclerView.ViewHolder(viewBinding.root) {
 
+    @SuppressLint("CheckResult")
     fun bindValues(messageItem: GroupedMedia.MessageItem) {
 
         viewBinding.textLinkContent.text = if (messageItem.chatMessage.isTextMessage())
@@ -33,7 +35,7 @@ class MediaLinksViewHolder(val context: Context, var viewBinding: RowMediaLinksI
         viewBinding.textLinkDescription.gone()
 
         viewBinding.layoutLinkContent.clicks().throttleFirst(1000, TimeUnit.MILLISECONDS).subscribe {
-            onLinkClicked(messageItem.linkMap[Constants.URL])
+            onLinkClicked(messageItem.chatMessage)
         }
 
         viewBinding.layoutLinkNavigation.clicks().throttleFirst(1000, TimeUnit.MILLISECONDS).subscribe {
@@ -42,7 +44,7 @@ class MediaLinksViewHolder(val context: Context, var viewBinding: RowMediaLinksI
     }
 
     companion object {
-        fun create(parent: ViewGroup,onLinkClicked: (String?) -> Unit, onLinkMessageClicked: (ChatMessage) -> Unit): MediaLinksViewHolder {
+        fun create(parent: ViewGroup,onLinkClicked: (ChatMessage) -> Unit, onLinkMessageClicked: (ChatMessage) -> Unit): MediaLinksViewHolder {
             val binding = RowMediaLinksItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             return MediaLinksViewHolder(parent.context, binding, onLinkClicked, onLinkMessageClicked)
         }

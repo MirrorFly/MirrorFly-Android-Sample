@@ -6,6 +6,7 @@
 package com.contusfly.chat
 
 import android.annotation.SuppressLint
+import android.content.ContentResolver
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
@@ -14,6 +15,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.text.TextUtils
+import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
 import com.contus.flycommons.LogMessage
 import com.contusfly.mediapicker.helper.ImagePickerUtils
@@ -23,6 +25,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.*
 
 /**
  * The utility class to get the real path of the file picked from the primary external storage
@@ -122,7 +125,7 @@ object RealPathUtil {
         val docId = DocumentsContract.getDocumentId(uri)
         val split = docId.split(":".toRegex()).toTypedArray()
         val type = split[0]
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q && "primary".equals(type, ignoreCase = true)) {
+        if ("primary".equals(type, ignoreCase = true)) {
             return FilePathUtils.getExternalStorage().toString() + "/" + split[1]
         }
         var realPath: String?
@@ -244,7 +247,11 @@ object RealPathUtil {
             val documentFile = DocumentFile.fromSingleUri(context, fileUri)
             val fileName =  documentFile!!.name
             ImagePickerUtils.createFolderIfNotExist(directoryName)
-            val filePath = File(directoryName, fileName)
+            val mimeType = getMimeTypeFromFilePath(context, fileUri)
+
+            val filePath = getFilePath(fileName, mimeType, directoryName)
+            if (filePath.exists())
+                return filePath.path
             val inputStream = context.contentResolver.openInputStream(fileUri)
             val fileOutputStream = FileOutputStream(filePath)
             return if (inputStream != null) {
@@ -274,6 +281,31 @@ object RealPathUtil {
                 cursor?.close()
             }
             return null
+        }
+    }
+
+    private fun getFilePath(fileName: String?, mimeType: String, directoryName: String): File {
+        return if (mimeType.startsWith("image", true) || mimeType.startsWith("video", true))
+            ImagePickerUtils.getFile(directoryName, getExtension(fileName!!))
+        else
+            File(directoryName, fileName)
+    }
+
+    private fun getExtension(path: String): String {
+        return if (path.contains(".")) {
+            path.substring(path.lastIndexOf("."), path.length).toLowerCase(Locale.getDefault())
+        } else {
+            ""
+        }
+    }
+
+    private fun getMimeTypeFromFilePath(context: Context, uri: Uri): String {
+        return  if (ContentResolver.SCHEME_CONTENT == uri.scheme) {
+            val cr = context.contentResolver
+            cr.getType(uri) ?: ""
+        } else {
+            val fileExtension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
+            MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileExtension.toLowerCase())?:""
         }
     }
 

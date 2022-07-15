@@ -158,25 +158,30 @@ object MediaUtils {
      */
     @JvmStatic
     fun openMediaFile(context: Context, filePath: String?) {
-        val file = File(filePath)
-        val extension = MimeTypeMap.getFileExtensionFromUrl(filePath)
-        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
-        val intent = Intent(Intent.ACTION_VIEW)
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        val fileUri = FileProvider.getUriForFile(context, fileProviderAuthority, file)
-        intent.setDataAndType(fileUri, mimeType)
-        val mediaListIntent = Intent(Intent.ACTION_VIEW, fileUri)
-        mediaListIntent.type = mimeType
-        val mediaViewerApps: List<ResolveInfo> = context.packageManager.queryIntentActivities(mediaListIntent, 0)
-        try {
-            when {
-                intent.resolveActivity(context.packageManager) != null -> context.startActivity(intent)
-                mediaViewerApps.isNotEmpty() -> context.startActivity(intent)
-                else -> Toast.makeText(context, R.string.file_viewing_message, Toast.LENGTH_LONG).show()
+        try{
+            val file = File(filePath)
+            val extension = MimeTypeMap.getFileExtensionFromUrl(filePath)
+            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val fileUri = FileProvider.getUriForFile(context, fileProviderAuthority, file)
+            intent.setDataAndType(fileUri, mimeType)
+            val mediaListIntent = Intent(Intent.ACTION_VIEW, fileUri)
+            mediaListIntent.type = mimeType
+            val mediaViewerApps: List<ResolveInfo> = context.packageManager.queryIntentActivities(mediaListIntent, 0)
+            try {
+                when {
+                    intent.resolveActivity(context.packageManager) != null -> context.startActivity(intent)
+                    mediaViewerApps.isNotEmpty() -> context.startActivity(intent)
+                    else -> Toast.makeText(context, R.string.file_viewing_message, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, R.string.file_viewing_message, Toast.LENGTH_LONG).show()
             }
-        } catch (e: Exception) {
-            Toast.makeText(context, R.string.file_viewing_message, Toast.LENGTH_LONG).show()
+        } catch (e: Exception){
+            Toast.makeText(context, R.string.content_not_found, Toast.LENGTH_LONG).show()
         }
+
     }
 
     fun loadImageWithLoader(context: Context, imageUrl: String?, imageView: ImageView, defaultImage: Drawable?, progressDialog: DoProgressDialog?) {

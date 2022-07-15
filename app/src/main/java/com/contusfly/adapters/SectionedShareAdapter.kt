@@ -1,17 +1,18 @@
 package com.contusfly.adapters
 
 import android.content.Context
-import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.ChatType
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.runOnUiThread
 import com.contusfly.*
+import com.contusfly.databinding.RowProgressBarBinding
 import com.contusfly.databinding.RowShareItemBinding
 import com.contusfly.interfaces.GetGroupUsersNameCallback
 import com.contusfly.interfaces.RecyclerViewItemClick
@@ -21,6 +22,9 @@ import com.contusfly.utils.EmojiUtils
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.CustomTextView
+import com.contusflysdk.AppUtils
+import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.Utils
@@ -34,52 +38,28 @@ import java.util.*
  * @author ContusTeam <developers></developers>@contus.in>
  * @version 1.0
  */
-class SectionedShareAdapter(private val context: Context, private val commonAlertDialog: CommonAlertDialog) : RecyclerView.Adapter<SectionedShareAdapter.ShareViewHolder>() {
+class SectionedShareAdapter(private val context: Context, private val commonAlertDialog: CommonAlertDialog, private val onItemClickListener: RecyclerViewItemClick) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     /**
      * The ProfileDetails list to display in the recycler view.
      */
-    private var profileDetailsList: MutableList<ProfileDetailsShareModel>? = null
+    private var profileDetailsList: MutableList<ProfileDetailsShareModel> = mutableListOf()
 
-    /**
-     * The temporary data of the list to reuse the list.
-     */
-    private var mTempData: MutableList<ProfileDetailsShareModel>? = null
+    private var searchKey = Constants.EMPTY_STRING
 
-    /**
-     * Selected users from the search list.
-     */
-    var selectedList: MutableList<ProfileDetailsShareModel> = mutableListOf()
+    private var isLoadingAdded = false
 
-    var blockedUser: String = emptyString()
 
-    /**
-     * Get the selected users object from the list
-     *
-     * @return List<ProfileDetails> List of selected users
-    </ProfileDetails> */
-    /**
-     * Selected ProfileDetails from the search list.
-     */
-    var selectedProfileDetailsList: List<ProfileDetailsShareModel> = ArrayList()
-
-    /**
-     * RecyclerView ClickLister Adapter
-     */
-    private var onItemClickListener: RecyclerViewItemClick? = null
-
-    private var searchKey:String ?= null
-
+    fun getSearchKey() : String {
+        return searchKey
+    }
     /**
      * Sets the list data to ProfileDetails list clear the temp data and refresh the view
      *
      * @param profileDetailsList the new data
      */
     fun setProfileDetails(profileDetailsList: List<ProfileDetailsShareModel>) {
-        if (mTempData != null) mTempData!!.clear()
-        else mTempData = mutableListOf()
-        mTempData!!.addAll(profileDetailsList)
-        this.profileDetailsList = mutableListOf()
-        this.profileDetailsList!!.addAll(mTempData!!)
+        this.profileDetailsList.clear()
+        this.profileDetailsList.addAll(profileDetailsList)
     }
 
     /**
@@ -87,14 +67,13 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
      *
      * @param profileDetails the new data
      */
-    fun updateProfileDetails(position: Int, profileDetails: ProfileDetails?) {
+    fun updateProfileDetails(profileDetails: ProfileDetails?) {
         profileDetails?.let {
-            this.profileDetailsList!![position].profileDetails = profileDetails
-            val index = mTempData!!.indexOfFirst { it.profileDetails.jid == profileDetails.jid }
-            if (index.isValidIndex()) {
-                mTempData!![index].profileDetails = profileDetails
+            val position = profileDetailsList.indexOfFirst { it.profileDetails.jid == profileDetails.jid }
+            if (position.isValidIndex()) {
+                profileDetailsList[position].profileDetails = profileDetails
                 runOnUiThread(Runnable {
-                    notifyItemChanged(index)
+                    notifyItemChanged(position)
                 })
             }
         }
@@ -105,57 +84,81 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
      *
      * @param shareModel the new data
      */
-    fun insertProfileDetails(position: Int, shareModel: ProfileDetailsShareModel?) {
+    fun addProfileDetails(position: Int, shareModel: ProfileDetailsShareModel?) {
         shareModel?.let {
-            if (this.profileDetailsList!!.none { it.profileDetails.jid == shareModel.profileDetails.jid})
-                this.profileDetailsList!!.add(position, shareModel)
-            if (searchKey.isNullOrBlank()) {
-                if (mTempData!!.none { it.profileDetails.jid == shareModel.profileDetails.jid})
-                    mTempData!!.add(position, shareModel)
-            } else {
-                filter(searchKey ?: Constants.EMPTY_STRING)
+            if (this.profileDetailsList.none { it.profileDetails.jid == shareModel.profileDetails.jid}) {
+                this.profileDetailsList.add(position, shareModel)
+                notifyItemInserted(position)
             }
-            notifyDataSetChanged()
+        }
+    }
+
+    fun addProfileList(userList : List<ProfileDetailsShareModel>) {
+        val startIndex = profileDetailsList.size
+        profileDetailsList.addAll(userList)
+        notifyItemRangeInserted(startIndex, userList.size)
+    }
+
+    fun addLoadingFooter() {
+        if (!isLoadingAdded) {
+            isLoadingAdded = true
+            profileDetailsList.add(ProfileDetailsShareModel(ChatType.TYPE_CHAT, ProfileDetails()))
+            notifyItemInserted(profileDetailsList.size - 1)
+        }
+    }
+
+    fun removeLoadingFooter() {
+        if (isLoadingAdded) {
+            isLoadingAdded = false
+            val loaderPosition = profileDetailsList.indexOfFirst { it.profileDetails.jid.isNullOrBlank() }
+            if (loaderPosition.isValidIndex()) {
+                profileDetailsList.removeAt(loaderPosition)
+                notifyItemRemoved(loaderPosition)
+            }
         }
     }
 
     /**
      * Remove the profile details from the adapter
      *
-     * @param position the new data
-     * @param jid of the user
+     * @param userId of the user
      */
-    fun removeProfileDetails(position: Int, jid : String) {
-        this.profileDetailsList!!.removeAt(position)
-        val index = mTempData!!.indexOfFirst { it.profileDetails.jid == jid }
+    fun removeProfileDetails(userId: String) {
+        val index = profileDetailsList.indexOfFirst { it.profileDetails.jid == userId }
         if (index.isValidIndex()) {
-            removeFromSelectedList(mTempData!![index])
-            mTempData!!.removeAt(index)
-            notifyDataSetChanged()
+            profileDetailsList.removeAt(index)
+            notifyItemRemoved(index)
         }
     }
 
-    /**
-     * Get the profileDetails from the Contacts adapter
-     *
-     * @param position Position of the ProfileDetails
-     * @return profileDetails Instance of the ProfileDetails
-     */
-    fun getProfileDetails(position: Int): ProfileDetailsShareModel {
-        return mTempData!![position]
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == ITEM) {
+            val binding = RowShareItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            ShareViewHolder(binding)
+        } else {
+            val progressViewHolder = RowProgressBarBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            ProgressViewHolder(progressViewHolder)
+        }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ShareViewHolder {
-        val binding = RowShareItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ShareViewHolder(binding)
+    override fun getItemViewType(position: Int): Int {
+        return if (profileDetailsList[position].profileDetails.jid.isNullOrBlank()) LOADING else ITEM
     }
 
-    override fun onBindViewHolder(holder: ShareViewHolder, position: Int) {
-        try {
-            enableHeader(holder, position)
-            viewContactsAndGroups(holder, position)
-        } catch (e: Exception) {
-            LogMessage.e(e)
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when(holder) {
+            is ShareViewHolder -> {
+                try {
+                    enableHeader(holder.viewBinding.viewSectionHeader, holder.viewBinding.headerSectionTextView, position)
+                    viewContactsAndGroups(holder, position)
+                } catch (e: Exception) {
+                    LogMessage.e(e)
+                }
+            }
+            is ProgressViewHolder -> {
+                enableHeader(holder.progressViewBinding.viewSectionHeader, holder.progressViewBinding.headerSectionTextView, position)
+                holder.progressViewBinding.loadMoreProgress.show()
+            }
         }
     }
 
@@ -167,13 +170,13 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
      */
     private fun viewContactsAndGroups(holder: ShareViewHolder, position: Int) {
         try {
-            val item = mTempData!![position]
+            val item = profileDetailsList[position]
             setUserInfo(holder, item)
             val onClickListener = View.OnClickListener { handleContactSelection(item, holder, position) }
             holder.viewBinding.centerLayout.setOnClickListener(onClickListener)
             holder.viewBinding.contactItem.setOnClickListener(onClickListener)
             holder.viewBinding.checkSelection.setOnClickListener(onClickListener)
-            holder.viewBinding.checkSelection.isChecked = getUserSelectedStatus(item)
+            holder.viewBinding.checkSelection.isChecked = onItemClickListener.isSelected(item.profileDetails.jid)
             if (item.profileDetails.isBlocked)
                 holder.viewBinding.checkSelection.isClickable = false
         } catch (e: Exception) {
@@ -181,15 +184,11 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
         }
     }
 
-    private fun getUserSelectedStatus(item: ProfileDetailsShareModel): Boolean {
-        return selectedList.any { it.profileDetails.jid == item.profileDetails.jid }
-    }
-
     /**
      * Handle group contact selection
      *
      * @param item   Selected contact item
-     * @param holder View holder of recycler view
+     * @param position position of the item
      */
     private fun handleContactSelection(item: ProfileDetailsShareModel, holder: ShareViewHolder, position: Int) {
         if (item.profileDetails.isGroupProfile && !GroupManager.isMemberOfGroup(item.profileDetails.jid, SharedPreferenceManager.getCurrentUserJid())) {
@@ -197,31 +196,40 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
             return
         }
         if (!(item.profileDetails.isGroupProfile && item.profileDetails.isGroupInOfflineMode) && !item.profileDetails.isBlocked) {
-            if (getUserSelectedStatus(item)) {
-                removeFromSelectedList(item)
-                holder.viewBinding.checkSelection.isChecked = false
-            } else {
-                if (selectedList.size >= Constants.MAX_FORWARD_USER_RESTRICTION) {
-                    onItemClickListener!!.onlyForwardUserRestriction()
-                    holder.viewBinding.checkSelection.isChecked = false
-                } else {
-                    selectedList.add(item)
-                    holder.viewBinding.checkSelection.isChecked = true
-                }
-            }
-            onItemClickListener!!.onItemClicked(position, item.profileDetails)
-        } else if (item.profileDetails.isBlocked){
-            blockedUser = item.profileDetails.jid
+            onItemClickListener.onItemClicked(position, item.profileDetails)
+            holder.viewBinding.checkSelection.isChecked = onItemClickListener.isSelected(item.profileDetails.jid)
+        } else if (item.profileDetails.isBlocked) {
             commonAlertDialog.showAlertDialog(String.format(context.getString(R.string.unblock_message_label), item.profileDetails.name),
                 context.getString(R.string.yes_label), context.getString(R.string.no_label),
-                CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, true)
+                CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, true, dialogListener = object : CommonAlertDialog.CommonDialogClosedListener {
+                    override fun onDialogClosed(
+                        dialogType: CommonAlertDialog.DIALOGTYPE?,
+                        isSuccess: Boolean
+                    ) {
+                        if (isSuccess) {
+                            unblockUser(item)
+                        }
+                    }
+
+                    override fun listOptionSelected(position: Int) {
+                        //Do nothing
+                    }
+                })
         }
     }
 
-    private fun removeFromSelectedList(item: ProfileDetailsShareModel) {
-        val index = selectedList.indexOfFirst { profileDetailsShareModel -> profileDetailsShareModel.profileDetails.jid == item.profileDetails.jid }
-        if (index.isValidIndex()) selectedList.removeAt(index) else selectedList.remove(item)
-
+    private fun unblockUser(item: ProfileDetailsShareModel) {
+        if (AppUtils.isNetConnected(context)) {
+            FlyCore.unblockUser(item.profileDetails.jid) { success, _, _ ->
+                if (success) {
+                    updateProfileDetails(ProfileDetailsUtils.getProfileDetails(item.profileDetails.jid))
+                } else {
+                    CustomToast.show(context, Constants.ERROR_SERVER)
+                }
+            }
+        } else {
+            CustomToast.show(context, context.getString(R.string.msg_no_internet))
+        }
     }
 
     /**
@@ -232,18 +240,14 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
      */
     private fun setUserInfo(holder: ShareViewHolder, item: ProfileDetailsShareModel) {
         val profileDetails = item.profileDetails
-        if (profileDetails != null) {
-            setRosterImage(holder, profileDetails)
-            handleStatus(holder.viewBinding.textUserStatus, profileDetails.getChatType(), profileDetails)
-            if (profileDetails.isGroupInOfflineMode || profileDetails.isBlocked) {
-                holder.viewBinding.contactView.alpha = 0.5f
-                holder.viewBinding.contactView.background = null
-            } else {
-                holder.viewBinding.contactView.alpha = 1.0f
-                holder.viewBinding.contactView.setBackgroundResource(R.drawable.recycleritem_ripple)
-            }
+        setRosterImage(holder, profileDetails)
+        handleStatus(holder.viewBinding.textUserStatus, profileDetails.getChatType(), profileDetails)
+        if (profileDetails.isGroupInOfflineMode || profileDetails.isBlocked) {
+            holder.viewBinding.contactView.alpha = 0.5f
+            holder.viewBinding.contactView.background = null
         } else {
-            holder.viewBinding.imageChatPicture.setImageResource(R.drawable.profile_img)
+            holder.viewBinding.contactView.alpha = 1.0f
+            holder.viewBinding.contactView.setBackgroundResource(R.drawable.recycleritem_ripple)
         }
     }
 
@@ -254,63 +258,48 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
      * @param profileDetails Instance of the ProfileDetails
      */
     private fun setRosterImage(holder: ShareViewHolder, profileDetails: ProfileDetails) {
-        if(searchKey != null && searchKey?.length!! > 0){
-            var startIndex = profileDetails.name.toString().checkIndexes(searchKey!!)
-            if (startIndex < 0) startIndex = profileDetails.name.toString().toLowerCase().indexOf(searchKey!!, 2)
-            val stopIndex = startIndex + searchKey?.length!!
-            EmojiUtils.setEmojiTextAndHighLightSearchContact(context, holder.viewBinding.textChatName, profileDetails.name, startIndex, stopIndex)
-        }else {
+        if(searchKey.isNotBlank()){
+            val startIndex = profileDetails.name!!.toLowerCase(Locale.getDefault()).indexOf(searchKey.toLowerCase(Locale.getDefault()))
+            if (startIndex.isValidIndex()) {
+                val stopIndex = startIndex + searchKey.length
+                EmojiUtils.setEmojiTextAndHighLightSearchContact(context, holder.viewBinding.textChatName, profileDetails.name, startIndex, stopIndex)
+            } else
+                holder.viewBinding.textChatName.text = profileDetails.name
+        } else {
             holder.viewBinding.textChatName.text = profileDetails.name
         }
         holder.viewBinding.imageChatPicture.loadUserProfileImage(context, profileDetails)
     }
 
     override fun getItemCount(): Int {
-        return mTempData!!.size
+        return profileDetailsList.size
     }
 
     /**
-     * Filter the contacts in the recycler view. using the temporary data
+     * Set the search key to highlight search results
      *
      * @param filterKey The search filter key
      */
-    fun filter(filterKey: String) {
+    fun setSearchKey(filterKey: String) {
         searchKey = filterKey
-        if (mTempData != null) {
-            mTempData!!.clear()
-            if (TextUtils.isEmpty(filterKey)) {
-                mTempData!!.addAll(profileDetailsList!!)
-            } else {
-                /**
-                 * Filter the list from the profileDetails name.
-                 */
-                handleSearch(mTempData!!, filterKey)
-            }
-        }
-    }
-
-    private fun handleSearch(mTempData: MutableList<ProfileDetailsShareModel>, filterKey: String) {
-        for (mKey in profileDetailsList!!) {
-            if (mKey.profileDetails.name.contains(filterKey, true))
-                mTempData.add(mKey)
-        }
     }
 
     /**
      * Enable the header, that might be Chats or MessagesModel or Contacts.
      *
-     * @param holder   View holder of the Chat view
+     * @param viewSectionHeader   Linear layout of the header
+     * @param headerSectionTextView   Text view of the header
      * @param position Position of the List
      */
-    private fun enableHeader(holder: ShareViewHolder, position: Int) {
+    private fun enableHeader(viewSectionHeader: LinearLayout, headerSectionTextView: CustomTextView, position: Int) {
         /**
          * Enable header if position is zero or previous item is different
          */
         if (position == 0 || canEnableHeader(position)) {
-            holder.viewBinding.viewSectionHeader.visibility = View.VISIBLE
-            setSearchHeader(holder, position)
+            viewSectionHeader.visibility = View.VISIBLE
+            setSearchHeader(headerSectionTextView, position)
         } else {
-            holder.viewBinding.viewSectionHeader.visibility = View.GONE
+            viewSectionHeader.visibility = View.GONE
         }
     }
 
@@ -318,26 +307,22 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
     /**
      * Set the search header in the chat item, which is the Search type
      *
-     * @param holder   View holder of the Chat view
+     * @param headerSectionTextView  Text view of the header
      * @param position           Position of the list item
      */
-    private fun setSearchHeader(holder: ShareViewHolder, position: Int) {
-        val profileDetailsItem = mTempData!![position]
+    private fun setSearchHeader(headerSectionTextView: CustomTextView, position: Int) {
+        val profileDetailsItem = profileDetailsList[position]
         when {
             profileDetailsItem.type.equals(ChatType.TYPE_GROUP_CHAT, true) -> {
-                holder.viewBinding.headerSectionTextView.text = context.getString(R.string.groups)
+                headerSectionTextView.text = context.getString(R.string.groups)
             }
             profileDetailsItem.type.equals(ChatType.TYPE_CHAT, true) -> {
-                holder.viewBinding.headerSectionTextView.text = context.getString(R.string.contacts)
+                headerSectionTextView.text = context.getString(R.string.contacts)
             }
             else -> {
-                holder.viewBinding.headerSectionTextView.text = context.getString(R.string.recent_chat)
+                headerSectionTextView.text = context.getString(R.string.recent_chat)
             }
         }
-    }
-
-    fun setContactRecyclerViewItemOnClick(contactRecyclerViewClickListener: RecyclerViewItemClick?) {
-        onItemClickListener = contactRecyclerViewClickListener
     }
 
     /**
@@ -348,8 +333,7 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
      * @return boolean True if the header need to enable
      */
     private fun canEnableHeader(position: Int): Boolean {
-        return mTempData!![position].type != mTempData!![position - 1]
-                .type
+        return profileDetailsList[position].type != profileDetailsList[position - 1].type
     }
 
     private fun handleStatus(statusTextView: EmojiAppCompatTextView, type: String, profileDetails: ProfileDetails) {
@@ -368,12 +352,9 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
          */
         if (status.isNotEmpty() && !profileDetails.isBlockedMe) {
             /**
-             * Emoji utils Which has the emoji related common methods
-             */
-            statusTextView.visibility = View.VISIBLE
-            /**
              * Show user status
              */
+            statusTextView.visibility = View.VISIBLE
             EmojiUtils.setEllipsisText(statusTextView, status)
         } else {
             statusTextView.visibility = View.GONE
@@ -388,11 +369,16 @@ class SectionedShareAdapter(private val context: Context, private val commonAler
                 EmojiUtils.setEmojiText(statusTextView, names)
             }
         })
-
     }
 
     /**
      * This class containing the view of the contact items
      */
     class ShareViewHolder(val viewBinding: RowShareItemBinding) : RecyclerView.ViewHolder(viewBinding.root)
+    class ProgressViewHolder(var progressViewBinding: RowProgressBarBinding) : RecyclerView.ViewHolder(progressViewBinding.root)
+
+    companion object {
+        private const val LOADING = 0
+        private const val ITEM = 1
+    }
 }

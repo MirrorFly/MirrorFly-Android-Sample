@@ -28,6 +28,7 @@ import com.contusfly.call.CallPermissionUtils
 import com.contusfly.databinding.ActivityCallHistoryDetailBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.utils.MediaPermissions
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.contacts.ContactManager
@@ -191,7 +192,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             callLog.fromUser
         else
             callLog.toUser
-        val profileDetails = ContactManager.getProfileDetails(toUser!!)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser!!)
         if (profileDetails != null && profileDetails.isAdminBlocked) return
         profileDetails?.let {
             callType = callLog.callType ?: CallType.AUDIO_CALL
@@ -288,9 +289,9 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     private fun isAdminBlocked(callLog: CallLog): Boolean {
         return if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
-            ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
+            ProfileDetailsUtils.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
         } else if (callLog.groupId!!.isNotEmpty()) {
-            ContactManager.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
+            ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
         } else false
     }
 
@@ -301,12 +302,12 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
      */
     private fun setUserView(callLog: CallLog) {
         if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
-            val roster = ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)
+            val roster = ProfileDetailsUtils.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)
             if (roster != null) {
                 profileIcon(roster)
             } else {
                 callHistoryDetailBinding.imageChatPicture.addImage(arrayListOf(callLog.fromUser!!))
-                callHistoryDetailBinding.textChatName.text = ContactManager.getDisplayName(callLog.fromUser!!)
+                callHistoryDetailBinding.textChatName.text = ProfileDetailsUtils.getDisplayName(callLog.fromUser!!)
             }
         } else {
             profileIconForManyUsers(callLog)
@@ -315,12 +316,12 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     private fun profileIconForManyUsers(callLog: CallLog) {
         if (!callLog.groupId.isNullOrEmpty()) {
-            val roster = ContactManager.getProfileDetails(callLog.groupId!!)
+            val roster = ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)
             if (roster != null) {
                 profileIcon(roster)
             } else {
                 callHistoryDetailBinding.imageChatPicture.addImage(arrayListOf(callLog.groupId!!))
-                callHistoryDetailBinding.textChatName.text = ContactManager.getDisplayName(callLog.groupId!!)
+                callHistoryDetailBinding.textChatName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
             }
         } else {
             callHistoryDetailBinding.textChatName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
@@ -348,9 +349,9 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     private fun setIconAlpha(callLogs: CallLog) {
         val profileDetails = if (callLogs.callMode == CallMode.ONE_TO_ONE && (callLogs.userList == null || callLogs.userList!!.size < 2)) {
-            ContactManager.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
+            ProfileDetailsUtils.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
         } else if (!callLogs.groupId.isNullOrBlank()) {
-            ContactManager.getProfileDetails(callLogs.groupId!!)
+            ProfileDetailsUtils.getProfileDetails(callLogs.groupId!!)
         } else null
 
         val adminBlockedStatus = profileDetails?.isAdminBlocked ?: false

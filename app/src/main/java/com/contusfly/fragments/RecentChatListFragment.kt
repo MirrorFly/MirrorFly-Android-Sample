@@ -36,11 +36,11 @@ import com.contusfly.interfaces.RecentChatEvent
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CustomRecyclerView
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.models.RecentSearch
@@ -130,7 +130,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             if (SystemClock.elapsedRealtime() - lastClickTime < 1000)
                 return@onProfileClickedCallback
             lastClickTime = SystemClock.elapsedRealtime()
-            dialogFragment = ProfileDialogFragment.newInstance(ContactManager.getProfileDetails(item!!.jid)!!)
+            dialogFragment = ProfileDialogFragment.newInstance(ProfileDetailsUtils.getProfileDetails(item!!.jid)!!)
             val ft = childFragmentManager.beginTransaction()
             val prev = childFragmentManager.findFragmentByTag("dialog")
             if (prev != null)
@@ -299,7 +299,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
 
     private fun updateProfileDialog(jid: String) {
         if(item != null && dialogFragment != null && dialogFragment!!.context != null && dialogFragment!!.profileDetails.jid == jid){
-            dialogFragment!!.profileDetails = ContactManager.getProfileDetails(jid)!!
+            dialogFragment!!.profileDetails = ProfileDetailsUtils.getProfileDetails(jid)!!
             dialogFragment!!.refreshView()
         }
     }
@@ -693,15 +693,22 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
                 val bundle = Bundle()
                 bundle.putInt(Constants.NOTIFY_SELECTION, 4)
                 for (item in viewModel.selectedRecentChats) {
-                    val index = viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == item.jid }
-                    if (index.isValidIndex())
-                        mAdapter.notifyItemChanged(index, bundle)
+                    updateListAdapter(bundle,item)
                 }
                 viewModel.selectedRecentChats.clear()
                 viewModel.pinnedListPosition.clear()
             }
         } else {
             LogMessage.e(TAG, "Recent fragment not added yet")
+        }
+    }
+
+    private fun updateListAdapter(bundle: Bundle, item: RecentChat){
+        if (viewModel.recentChatList.value != null) {
+            val index =
+                viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == item.jid }
+            if (index.isValidIndex())
+                mAdapter.notifyItemChanged(index, bundle)
         }
     }
 

@@ -34,14 +34,10 @@ import com.contusfly.adapters.MediaViewAdapter
 import com.contusfly.chat.ShareMessagesController
 import com.contusfly.mediapicker.model.Image
 import com.contusfly.models.FileObject
-import com.contusfly.utils.Constants
-import com.contusfly.utils.EmojiHandler
-import com.contusfly.utils.SharedPreferenceManager
-import com.contusfly.utils.UserInterfaceUtils
+import com.contusfly.utils.*
 import com.contusfly.views.ShareDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.model.Roster
@@ -306,7 +302,7 @@ class ImagePreviewActivity : BaseActivity(), View.OnClickListener,
         }
         toUser = intent.getStringExtra(Constants.USER_JID)
         if (toUser != null && toUser!!.isNotEmpty()) {
-            val profileDetail = FlyCore.getUserProfile(toUser!!)
+            val profileDetail = ProfileDetailsUtils.getProfileDetails(toUser!!)
             selectedImageList[0].imageCaption = FlyMessenger.getUnsentMessageOfAJid(toUser!!)
             if (profileDetail != null)
                 recipientName!!.text = "To: ${profileDetail.name}"
@@ -745,7 +741,7 @@ class ImagePreviewActivity : BaseActivity(), View.OnClickListener,
      * handle caption click
      */
     private fun handleCaptionImage(toUser: String) {
-        val profileDetail = FlyCore.getUserProfile(toUser)
+        val profileDetail = ProfileDetailsUtils.getProfileDetails(toUser)
         /*
          * Set type of chat to send message
          */
@@ -1010,7 +1006,7 @@ class ImagePreviewActivity : BaseActivity(), View.OnClickListener,
 
     private fun sendMediaFilesForSingleUser() {
         if (AppUtils.isNetConnected(this)) {
-            val usersJID = ArrayList<String?>()
+            val usersJID = ArrayList<String>()
             for (user in selectedUsers!!) usersJID.add(user.jid)
             shareMessagesController.sendMediaMessagesForSingleUser(fileObjects!!, usersJID)
         } else {

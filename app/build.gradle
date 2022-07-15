@@ -37,8 +37,8 @@ android {
         applicationId "com.mirrorfly.uikit"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 8
-        versionName "6.6.2"
+        versionCode 10
+        versionName "6.7.0"
         multiDexEnabled true
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true

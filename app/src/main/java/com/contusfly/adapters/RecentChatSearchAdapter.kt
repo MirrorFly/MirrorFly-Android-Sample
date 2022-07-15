@@ -22,7 +22,6 @@ import com.contusfly.utils.*
 import com.contusfly.views.CustomTextView
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
@@ -110,7 +109,7 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
     @Suppress("NAME_SHADOWING")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val binding = holder as RecentChatSearchViewHolder
-        val item = ContactManager.getProfileDetails(this.recentSearchList[position].jid)
+        val item = ProfileDetailsUtils.getProfileDetails(this.recentSearchList[position].jid)
         enableHeader(binding.viewBinding, position)
         binding.viewBinding.searchRecentItem.setBackgroundResource(R.drawable.recycleritem_ripple)
         val recent = this.recentSearchList[position]
@@ -122,6 +121,7 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
         }
 
         binding.viewBinding.searchRecentItem.setOnClickListener {
+            if(position < recentSearchList.size){
             if (position >= 0 && (recentSearchList[position].searchType != Constants.TYPE_SEARCH_RECENT))
                 onSearchItemClicked(position)
             else {
@@ -129,6 +129,7 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
                 if (!recent!!.isGroupInOfflineMode)
                     onSearchItemClicked(position)
             }
+        }
         }
     }
 

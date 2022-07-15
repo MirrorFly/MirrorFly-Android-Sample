@@ -28,8 +28,6 @@ import com.contusfly.getAppName
 import com.contusfly.views.SetDrawable
 import com.contusflysdk.api.ChatManager.startActivity
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager
-import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.media.MediaUploadHelper
@@ -109,7 +107,7 @@ class NotificationUtil(private val context: Context) {
             unreadMessages = 0
             notificationIds.clear()
             for (jid in notificationMessages.keys) {
-                profileDetails = getProfileDetails(jid)
+                profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
                 if (profileDetails != null) {
                     if (!profileDetails!!.isMuted)
                         createMessagingStyleNotification(jid, notificationMessages[jid]!!)
@@ -126,7 +124,7 @@ class NotificationUtil(private val context: Context) {
      */
     private fun createInboxStyleNotification(chatJid: String, messages: List<ChatMessage>) {
         notificationIds.add(chatJid.hashCode().toLong().toInt())
-        val profileDetails = ContactManager.getProfileDetails(chatJid)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(chatJid)
         var title = profileDetails?.name
         unreadMessages += messages.size
         val inboxStyle = NotificationCompat.InboxStyle()
@@ -208,7 +206,7 @@ class NotificationUtil(private val context: Context) {
      * @param chatJid The jabber id of the corresponding chat for which the notification message is received.
      */
     private fun createMessagingStyleNotification(chatJid: String, messages: List<ChatMessage>) {
-        profileDetails = getProfileDetails(chatJid)
+        profileDetails = ProfileDetailsUtils.getProfileDetails(chatJid)
         var title = profileDetails?.name
         notificationIds.add(chatJid.hashCode().toLong().toInt())
         unreadMessages += messages.size
@@ -219,7 +217,7 @@ class NotificationUtil(private val context: Context) {
         var lastMessageTime: Long = 0
         for (message in messages.asReversed().takeLast(10)) {
             val contentBuilder = StringBuilder()
-            val userProfile: ProfileDetails? = getProfileDetails(message.getSenderUserJid())
+            val userProfile: ProfileDetails? = ProfileDetailsUtils.getProfileDetails(message.getSenderUserJid())
             name = userProfile?.name ?: Constants.EMPTY_STRING
             contentBuilder.append(GetMsgNotificationUtils.getMessageSummary(context, message))
             notificationMessageStyle(profileDetails, messagingStyle, contentBuilder, message, name)

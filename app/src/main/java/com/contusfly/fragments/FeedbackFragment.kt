@@ -14,6 +14,7 @@ import com.contusfly.show
 import com.contusfly.utils.Constants
 import com.contusfly.utils.SafeChatUtils
 import com.contusfly.utils.SharedPreferenceManager
+import com.contusfly.utils.UIKitContactUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusflysdk.api.FlyCore
@@ -138,6 +139,7 @@ class FeedbackFragment : Fragment(), View.OnClickListener {
                     SharedPreferenceManager.setString(Constants.MY_PIN, "")
                     SafeChatUtils.silentDisableSafeChat(requireContext())
                     SharedPreferenceManager.clearAllPreference()
+                    UIKitContactUtils.clearAllData()
                     CustomToast.show(requireContext(), getString(R.string.delete_account_success))
                 } else
                     CustomToast.show(requireContext(), Constants.ERROR_SERVER)

@@ -156,6 +156,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
+        AutoStartHelper.instance.getAutoStartPermission(this@OtpActivity)
         super.onCreate(savedInstanceState)
         otpBinding = ActivityOtpBinding.inflate(layoutInflater)
         setContentView(otpBinding.root)

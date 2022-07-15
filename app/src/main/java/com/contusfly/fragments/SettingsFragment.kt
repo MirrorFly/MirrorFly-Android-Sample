@@ -205,6 +205,7 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
             FlyCore.logoutOfChatSDK() { isSuccess, throwable, data ->
                 if (isSuccess) {
                     SharedPreferenceManager.clearAllPreference()
+                    UIKitContactUtils.clearAllData()
                     CommonUtils.navigateUserToLoggedOutUI(context)
                 } else {
                     settingsActivity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)

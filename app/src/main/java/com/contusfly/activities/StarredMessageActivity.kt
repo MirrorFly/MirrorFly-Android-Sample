@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Parcelable
 import android.os.SystemClock
 import android.text.TextUtils
 import android.view.ActionMode
@@ -47,7 +48,6 @@ import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.FlyMessenger.downloadMedia
 import com.contusflysdk.api.FlyMessenger.getFavouriteMessages
 import com.contusflysdk.api.FlyMessenger.uploadMedia
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.ContactChatMessage
 import com.contusflysdk.utils.*
@@ -248,13 +248,12 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
         if (searchEnabled && searchedText.isNotEmpty()) {
             searchStarredMessage(searchedText)
         } else {
+            // Save Current Scroll state to retain scroll position after DiffUtils Applied
+            val previousState =  listStarredMessages!!.layoutManager?.onSaveInstanceState() as Parcelable
+            listStarredMessages!!.layoutManager?.onRestoreInstanceState(previousState)
+
             starredMessagesViewPresenter!!.setChatAdapter()
             starredMessagesAdapterAdapterData!!.notifyDataSetChanged()
-
-            listStarredMessages!!.postDelayed(Runnable {
-                listStarredMessages!!.smoothScrollToPosition(itemPosition)
-                itemPosition = 0
-            }, 0)
         }
     }
 
@@ -373,7 +372,7 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
                 searchedStarredMessageList.add(message)
             else if (message.isMessageSentByMe && "You".toLowerCase().contains(filterKey.toLowerCase()))
                 searchedStarredMessageList.add(message)
-            else if(message.isGroupMessage() && ContactManager.getDisplayName(message.getChatUserJid()).toLowerCase().contains(filterKey.toLowerCase()))
+            else if(message.isGroupMessage() && ProfileDetailsUtils.getDisplayName(message.getChatUserJid())!!.toLowerCase().contains(filterKey.toLowerCase()))
                 searchedStarredMessageList.add(message)
         }
         starredMessagesAdapterAdapterData!!.setSearch(searchEnabled, searchedText)

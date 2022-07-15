@@ -1,6 +1,7 @@
 package com.contusfly.utils
 
 import com.contusfly.interfaces.GetGroupUsersNameCallback
+import com.contusfly.isUnknownContact
 import com.contusfly.isValidIndex
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ContactManager
@@ -40,7 +41,7 @@ object ProfileDetailsUtils {
                         else
                             userNames.add(user.name)
                     }
-                    Collections.sort(userNames, String.CASE_INSENSITIVE_ORDER);
+                    Collections.sort(userNames, String.CASE_INSENSITIVE_ORDER)
                     getGroupUsersNameCallback.onGroupUsersNamePrepared(userNames.joinToString(","))
                 }
             }
@@ -63,10 +64,10 @@ object ProfileDetailsUtils {
             val user = if (index.isValidIndex())
                 it[index]
             else
-                ContactManager.getProfileDetails(com.contus.flycommons.SharedPreferenceManager.instance.currentUserJid)
+                getProfileDetails(com.contus.flycommons.SharedPreferenceManager.instance.currentUserJid)
             it.remove(user)
-            if(it.contains(ContactManager.getProfileDetails(com.contus.flycommons.SharedPreferenceManager.instance.currentUserJid)))
-                it.remove(ContactManager.getProfileDetails(com.contus.flycommons.SharedPreferenceManager.instance.currentUserJid))
+            if(it.contains(getProfileDetails(com.contus.flycommons.SharedPreferenceManager.instance.currentUserJid)))
+                it.remove(getProfileDetails(com.contus.flycommons.SharedPreferenceManager.instance.currentUserJid))
             val sortedList = it.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, { it.name })).toMutableList()
             if(index>=0) {
                 user?.nickName = AppConstants.YOU
@@ -76,5 +77,34 @@ object ProfileDetailsUtils {
             return sortedList
         }
         return mutableListOf()
+    }
+
+
+    fun removeAdminBlockedProfiles(profileDetails: List<ProfileDetails>, sortProfiles: Boolean): List<ProfileDetails> {
+        return if (sortProfiles)
+            sortProfileList(profileDetails.filter { !it.isAdminBlocked })
+        else
+            profileDetails.filter { !it.isAdminBlocked }
+    }
+
+    fun getProfileDetails(jid: String) : ProfileDetails? {
+        val profileDetails = ContactManager.getProfileDetails(jid)
+        return when {
+            profileDetails == null -> UIKitContactUtils.getProfileDetails(jid) // if it is null then return UIKit contact
+            profileDetails.isUnknownContact() -> UIKitContactUtils.getProfileDetails(jid) ?: profileDetails // if it is isUnknownContact then return UIKit contact
+            else -> profileDetails
+        }
+    }
+
+    fun getDisplayName(jid: String?): String? {
+        if (jid == null)
+            return null
+        return getProfileDetails(jid)?.name
+    }
+
+    fun addContact(profileDetail: ProfileDetails) {
+        val profileDetails = ContactManager.getProfileDetails(profileDetail.jid)
+        if (profileDetails == null || profileDetails.isUnknownContact())
+            UIKitContactUtils.addUIKitContact(profileDetail)
     }
 }

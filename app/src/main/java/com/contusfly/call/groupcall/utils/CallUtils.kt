@@ -9,9 +9,9 @@ import com.contus.webrtc.api.CallManager
 import com.contusfly.*
 import com.contusfly.call.groupcall.isUserVideoMuted
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.SetDrawable
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ChatUtils
 import com.contusflysdk.utils.Utils
@@ -225,7 +225,7 @@ object CallUtils {
     }
 
     private fun getNameAndProfileDetails(jid: String): Pair<String, ProfileDetails?> {
-        val profileDetails = ContactManager.getProfileDetails(jid)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
         val name = if (profileDetails != null) {
             com.contusfly.utils.Utils.returnEmptyStringIfNull(profileDetails.name)
         } else Utils.getFormattedPhoneNumber(ChatUtils.getUserFromJid(jid)) ?: Constants.EMPTY_STRING

@@ -8,6 +8,7 @@ import com.contusfly.BuildConfig
 import com.contusfly.TAG
 import com.contusfly.constants.MobileApplication
 
+
 /**
  *
  * @author ContusTeam <developers@contus.in>
@@ -109,12 +110,14 @@ object SharedPreferenceManager {
      * Clear all preference.
      */
     fun clearAllPreference() {
-        val versionName: String = getString(Constants.APP_VERSION)
-        val token: String = getString(Constants.FIRE_BASE_TOKEN)
+        val versionName: String = getString(Constants.APP_VERSION).toString()
+        val token: String = getString(Constants.FIRE_BASE_TOKEN).toString()
+        val askPermission = getBoolean(Constants.ASK_PERMISSION)
         editor.clear()
         editor.commit()
         setString(Constants.APP_VERSION, versionName)
         setString(Constants.FIRE_BASE_TOKEN, token)
+        setBoolean(Constants.ASK_PERMISSION, askPermission)
     }
 }
 

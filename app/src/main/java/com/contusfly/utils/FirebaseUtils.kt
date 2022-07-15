@@ -9,7 +9,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
 import com.contusfly.constants.MobileApplication
 import com.contusflysdk.api.ChatActionListener
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.notification.NotificationEventListener
 import com.contusflysdk.api.notification.PushNotificationManager
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -61,7 +60,7 @@ class FirebaseUtils : CoroutineScope {
                 PushNotificationManager.handleReceivedMessage(it, object : NotificationEventListener {
                     override fun onMessageReceived() {
                         val messageType = Utils.returnEmptyStringIfNull(it[com.contus.flycommons.Constants.TYPE])
-                        if ((it.containsKey("user_jid") && !ContactManager.getProfileDetails(it["user_jid"].toString())?.isMuted!!) ||
+                        if ((it.containsKey("user_jid") && !ProfileDetailsUtils.getProfileDetails(it["user_jid"].toString())?.isMuted!!) ||
                             (messageType == com.contus.flycommons.Constants.RECALL)) {
                             NotificationUtils.createNotification(MobileApplication.getContext())
                         }
