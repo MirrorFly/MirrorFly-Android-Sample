@@ -739,9 +739,9 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun setProfileImage(image: String) {
 
         if (image.startsWith(storagePrefix) && File(Utils.returnEmptyStringIfNull(image)).exists()) {
-            com.contusflysdk.utils.MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
+            MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
         } else {
-            com.contusflysdk.utils.MediaUtils.loadImageWithGlideSecure(
+            MediaUtils.loadImageWithGlideSecure(
                 this,
                 if (image.isBlank()) null else image,
                 binding.profileImage,

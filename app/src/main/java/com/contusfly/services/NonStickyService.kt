@@ -31,7 +31,7 @@ class NonStickyService : Service() {
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        return START_NOT_STICKY
+        return START_NOT_STICKY ?: 2 // Handled null exception in hard use cases
     }
 
     override fun onTaskRemoved(rootIntent: Intent) {
@@ -41,7 +41,7 @@ class NonStickyService : Service() {
         // Remove the unread message separator from the message table
         // when user kills the application from the recent apps.
         val recentChat = getOnGoingChatUser()
-        if (!recentChat.isEmpty()) deleteUnreadMessageSeparatorOfAConversation(recentChat)
+        if (recentChat.isNotEmpty()) deleteUnreadMessageSeparatorOfAConversation(recentChat)
         onDestroy()
     }
 

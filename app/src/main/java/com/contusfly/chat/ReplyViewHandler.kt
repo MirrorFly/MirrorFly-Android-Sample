@@ -13,7 +13,6 @@ import com.contusfly.views.CustomTextView
 import com.contusfly.views.MessageTextView
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.api.utils.ImageUtils
 import com.contusflysdk.utils.Utils
 
 

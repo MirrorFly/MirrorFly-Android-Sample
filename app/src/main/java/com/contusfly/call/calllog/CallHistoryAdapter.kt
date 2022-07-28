@@ -17,8 +17,8 @@ import com.contus.webrtc.CallState
 import com.contus.webrtc.CallType
 import com.contus.call.database.model.CallLog
 import com.contus.call.utils.CallTimeFormatter
-import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.gone
 import com.contusfly.isDeletedContact
 import com.contusfly.setOnClickListener
@@ -27,7 +27,6 @@ import com.contusfly.utils.ChatMessageUtils
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.CustomTextView
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import java.util.*
 
@@ -65,7 +64,7 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
         setCallStatusIcon(holder, callLog)
         updateSelectedItem(holder.itemView, selectedCallLogs.contains(callLog.roomId))
         holder.imageViewCallIcon.setOnClickListener(1000) {
-            if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+            if (CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false).isNotEmpty())
                 listener.onItemClick(holder.imageViewCallIcon, callLogsList.indexOf(callLog))
         }
     }
@@ -166,8 +165,8 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
                 holder.txtChatPersonName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
             }
         } else {
-            holder.txtChatPersonName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            holder.imgRoster.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as ArrayList<String>)
+            holder.txtChatPersonName.text = CallUtils.getCallLogUserNames(callLog.fromUser, callLog.userList)
+            holder.imgRoster.addImage(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as ArrayList<String>)
         }
         holder.emailContactIcon.gone()
     }

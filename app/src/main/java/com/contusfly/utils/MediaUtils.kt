@@ -4,8 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.text.TextUtils
+import android.util.Base64
 import android.webkit.MimeTypeMap
 import android.widget.ImageView
 import android.widget.Toast
@@ -308,5 +311,51 @@ object MediaUtils {
                 .priority(Priority.HIGH)
             Glide.with(context!!).load(frame).thumbnail(0.1f).apply(options).into(imgView)
         } else imgView.setImageResource(errorImg)
+    }
+
+    /**
+     * Load image in view.
+     *
+     * @param imageView   The image view
+     * @param path        String path
+     * @param base64      base64 string
+     * @param messageType Message Type
+     * @param context     The context of the activity
+     * @param id          placeholder resource id
+     */
+    fun loadImageInView(
+        imageView: ImageView,
+        path: String,
+        base64: String,
+        context: Context,
+        id: Int
+    ) {
+        if (path.isNotEmpty()) {
+            val file = File(path)
+            if (file.exists()) {
+                loadImageWithGlide(context, file, imageView, id)
+            } else loadBase64(imageView, base64)
+        } else if (TextUtils.isEmpty(base64)) {
+            val file = File(path)
+            if (file.exists()) loadImageWithGlide(context, file, imageView, id)
+        } else loadBase64(imageView, base64)
+    }
+
+    /**
+     * Load base64 of the image into image view
+     *
+     * @param imageView Image view to load
+     * @param base64    Base64 string
+     */
+    private fun loadBase64(imageView: ImageView, base64: String) {
+        try {
+            val array = Base64.decode(base64, Base64.DEFAULT)
+            val mBitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
+            if (mBitmap != null) {
+                imageView.setImageBitmap(mBitmap)
+            }
+        } catch (e: java.lang.Exception) {
+            LogMessage.e(e)
+        }
     }
 }

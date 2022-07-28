@@ -25,13 +25,13 @@ import com.contusfly.*
 import com.contusfly.activities.BaseActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallPermissionUtils
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.ActivityCallHistoryDetailBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.utils.MediaPermissions
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.utils.ChatTimeFormatter
 import dagger.android.AndroidInjection
@@ -153,7 +153,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             setCallStatusIcon(callLog)
 
             mUsersList.clear()
-            mUsersList.addAll(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
+            mUsersList.addAll(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
             mUserAdapter.notifyDataSetChanged()
         }
     }
@@ -177,7 +177,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
         callHistoryDetailBinding.imgCallType.setOnClickListener {
             callLogDetails?.let { callLog ->
                 if (!callLog.groupId.isNullOrEmpty() || (!callLog.userList.isNullOrEmpty() && callLog.userList!!.filter { it != GroupCallUtils.getLocalUserJid() }.size > 1)) {
-                    if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+                    if (CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false).isNotEmpty())
                         makeGroupCall(callLog)
                 } else {
                     makeOneToOneCall(callLog)
@@ -252,7 +252,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             callPermissionUtils = CallPermissionUtils(
                 activity!!,
                 false, false,
-                GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>,
+                CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false) as java.util.ArrayList<String>,
                 callLog.groupId ?: "",
                 true
             )
@@ -270,7 +270,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             callPermissionUtils =   CallPermissionUtils(
                 activity!!,
                 false, false,
-                GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>,
+                CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false) as java.util.ArrayList<String>,
                 callLog.groupId ?: "",
                 true
             )
@@ -324,8 +324,8 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
                 callHistoryDetailBinding.textChatName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
             }
         } else {
-            callHistoryDetailBinding.textChatName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            callHistoryDetailBinding.imageChatPicture.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
+            callHistoryDetailBinding.textChatName.text = CallUtils.getCallLogUserNames(callLog.fromUser, callLog.userList)
+            callHistoryDetailBinding.imageChatPicture.addImage(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
         }
         callHistoryDetailBinding.emailContactIcon.gone()
     }

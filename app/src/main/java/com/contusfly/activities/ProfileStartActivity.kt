@@ -704,7 +704,6 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                 if (isSuccess) {
                     ConfigurationUtils.insertDefaultStatus(this, mStatus)
                     ConfigurationUtils.insertDefaultBusyStatus(this)
-                    ConfigurationUtils.setDefaultValues(this)
                     navigateToDashboard()
                 } else {
                     progressDialog?.dismiss()

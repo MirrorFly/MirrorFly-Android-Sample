@@ -10,12 +10,11 @@ import androidx.core.provider.FontRequest
 import androidx.emoji.text.EmojiCompat
 import androidx.emoji.text.FontRequestEmojiCompatConfig
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.contus.call.utils.CallNotificationHelper
 import com.contus.webrtc.api.CallHelper
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.MissedCallListener
-import com.contus.call.utils.GroupCallUtils
 import com.contus.webrtc.*
+import com.contus.webrtc.api.CallNameHelper
 import com.contusfly.*
 import com.contusfly.R
 import com.contusfly.BuildConfig
@@ -25,6 +24,7 @@ import com.contusfly.activities.StartActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallNotificationUtils
 import com.contusfly.call.groupcall.GroupCallActivity
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.database.UIKitDatabase
 import com.contusfly.di.components.DaggerAppComponent
 import com.contusfly.utils.*
@@ -34,7 +34,6 @@ import com.contusflysdk.api.CallMessenger
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.MediaNotificationHelper
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.utils.NameHelper
 import com.facebook.stetho.Stetho
 import com.google.firebase.FirebaseApp
@@ -182,10 +181,6 @@ class MobileApplication : Application(), HasAndroidInjector {
         })
 
         CallManager.setCallHelper(object : CallHelper {
-            override fun getDisplayName(jid: String): String {
-                return if (ProfileDetailsUtils.getProfileDetails(jid) != null) ProfileDetailsUtils.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
-            }
-
             override fun getNotificationContent(callDirection: String): String {
                 return if (BuildConfig.HIPAA_COMPLIANCE_ENABLED) {
                     when (callDirection) {
@@ -194,15 +189,17 @@ class MobileApplication : Application(), HasAndroidInjector {
                         else -> resources.getString(R.string.new_ongoing_call)
                     }
                 } else
-                    CallNotificationHelper.getNotificationMessage()
-            }
-
-            override fun isDeletedUser(jid: String): Boolean {
-                return ProfileDetailsUtils.getProfileDetails(jid)?.isDeletedContact() ?: false
+                    getNotificationMessage()
             }
 
             override fun sendCallMessage(details: GroupCallDetails, users: List<String>, invitedUsers: List<String>) {
                 CallMessenger.sendCallMessage(details, users, invitedUsers)
+            }
+        })
+
+        CallManager.setCallNameHelper(object : CallNameHelper {
+            override fun getDisplayName(jid: String): String {
+                return if (ProfileDetailsUtils.getProfileDetails(jid) != null) ProfileDetailsUtils.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
             }
         })
     }
@@ -225,7 +222,7 @@ class MobileApplication : Application(), HasAndroidInjector {
             messageContent = if (!groupId.isNullOrBlank()) {
                 ProfileDetailsUtils.getProfileDetails(groupId)?.name!!
             } else {
-                GroupCallUtils.getCallUsersName(userList).toString()
+                CallUtils.getCallUsersName(userList).toString()
             }
         }
         if (BuildConfig.HIPAA_COMPLIANCE_ENABLED)
@@ -241,6 +238,18 @@ class MobileApplication : Application(), HasAndroidInjector {
         notificationIntent.putExtra(Constants.JID, if (toUsers.count() == 1) toUsers.elementAt(0) else Constants.EMPTY_STRING)
         val requestID = System.currentTimeMillis().toInt()
         return PendingIntent.getActivity(this, requestID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    fun getNotificationMessage() : String {
+        return if (CallManager.isOneToOneCall() && CallManager.getGroupID().isEmpty()) {
+            ProfileDetailsUtils.getDisplayName(CallManager.getCallUsersList().first())
+        } else {
+            if (CallManager.getGroupID().isNotBlank()) {
+                ProfileDetailsUtils.getDisplayName(CallManager.getGroupID())
+            } else {
+                CallUtils.getCallUsersName(CallManager.getCallUsersList()).toString()
+            }
+        }
     }
 
     override fun androidInjector(): AndroidInjector<Any> {
