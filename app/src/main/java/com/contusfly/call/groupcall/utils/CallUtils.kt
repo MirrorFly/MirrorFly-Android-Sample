@@ -270,6 +270,57 @@ object CallUtils {
         return membersName.toString()
     }
 
+    fun getCallUsersName(callUsers: ArrayList<String>): StringBuilder {
+        var name = StringBuilder("")
+        for (i in callUsers.indices) {
+            if (i == 2) {
+                name.append(" and (+").append(callUsers.size - i).append(")")
+                break
+            } else if (i == 1) {
+                name.append(", ").append(ProfileDetailsUtils.getDisplayName(callUsers[i]))
+            } else {
+                name = StringBuilder(ProfileDetailsUtils.getDisplayName(callUsers[i]))
+            }
+        }
+        return name
+    }
+
+    /**
+     * this method return the user jid for the call
+     */
+    fun getCallLogUserJidList(toUser: String?, callUsers: List<String>? = null, withDeletedUser: Boolean = true): List<String> {
+        val userList = mutableListOf<String>()
+        if (toUser != null
+            && toUser != GroupCallUtils.getLocalUserJid()
+            && (withDeletedUser || ProfileDetailsUtils.getProfileDetails(toUser)?.isDeletedContact() != true))
+            userList.add(toUser)
+        if (callUsers != null) {
+            for (jid in callUsers) {
+                if (jid != GroupCallUtils.getLocalUserJid()
+                    && !userList.contains(jid)
+                    && (withDeletedUser || ProfileDetailsUtils.getProfileDetails(jid)?.isDeletedContact() != true))
+                    userList.add(jid)
+            }
+        }
+        return userList
+    }
+
+    fun getCallLogUserNames(toUser: String?, callUsers: List<String>? = null): String {
+        val userNames = mutableListOf<String?>()
+        if (toUser != null && toUser != GroupCallUtils.getLocalUserJid()) {
+            userNames.add(ProfileDetailsUtils.getDisplayName(toUser))
+        }
+        if (callUsers != null) {
+            for (jid in callUsers) {
+                if (jid.isNotEmpty()
+                    && jid != GroupCallUtils.getLocalUserJid()
+                    && !userNames.contains(ProfileDetailsUtils.getDisplayName(jid)))
+                    userNames.add(ProfileDetailsUtils.getDisplayName(jid))
+            }
+        }
+        return userNames.filter { !it.isNullOrEmpty() }.joinToString(", ")
+    }
+
     fun getPinnedVideoSink(): ProxyVideoSink? {
         return if (getPinnedUserJid() == GroupCallUtils.getLocalUserJid())
             CallManager.getLocalProxyVideoSink()

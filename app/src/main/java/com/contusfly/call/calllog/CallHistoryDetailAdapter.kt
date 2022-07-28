@@ -11,11 +11,10 @@ import com.contus.flycommons.SharedPreferenceManager
 import com.contusfly.R
 import com.contusfly.gone
 import com.contusfly.loadUserProfileImage
+import com.contusfly.utils.MediaUtils
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.SetDrawable
-import com.contusflysdk.api.contacts.ContactManager
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 import java.util.*
 

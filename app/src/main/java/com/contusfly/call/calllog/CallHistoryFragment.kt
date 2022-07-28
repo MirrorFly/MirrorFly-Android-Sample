@@ -39,6 +39,7 @@ import com.contusfly.activities.DashboardActivity
 import com.contusfly.activities.UserListActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallPermissionUtils
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.FragmentCallHistoryBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.setOnClickListener
@@ -50,7 +51,6 @@ import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.FlyCore
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ItemClickSupport
 import com.contusflysdk.views.CustomToast
@@ -473,9 +473,10 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                     callLog.callType!!,
                     callLog.groupId,
                     false, false,
-                    GroupCallUtils.getConferenceUserList(
+                    CallUtils.getCallLogUserJidList(
                         callLog.fromUser,
-                        callLog.userList
+                        callLog.userList,
+                        false
                     ) as java.util.ArrayList<String>
                 )
             } else {

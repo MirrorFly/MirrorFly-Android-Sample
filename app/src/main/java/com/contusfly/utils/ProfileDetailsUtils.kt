@@ -6,6 +6,7 @@ import com.contusfly.isValidIndex
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
+import org.jxmpp.util.XmppStringUtils
 import java.util.*
 
 object ProfileDetailsUtils {
@@ -88,6 +89,8 @@ object ProfileDetailsUtils {
     }
 
     fun getProfileDetails(jid: String) : ProfileDetails? {
+        if (XmppStringUtils.parseDomain(jid).isNullOrBlank())
+            return null
         val profileDetails = ContactManager.getProfileDetails(jid)
         return when {
             profileDetails == null -> UIKitContactUtils.getProfileDetails(jid) // if it is null then return UIKit contact
@@ -96,10 +99,10 @@ object ProfileDetailsUtils {
         }
     }
 
-    fun getDisplayName(jid: String?): String? {
+    fun getDisplayName(jid: String?): String {
         if (jid == null)
-            return null
-        return getProfileDetails(jid)?.name
+            return Constants.EMPTY_STRING
+        return getProfileDetails(jid)?.name ?: jid
     }
 
     fun addContact(profileDetail: ProfileDetails) {

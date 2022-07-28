@@ -158,7 +158,7 @@ open class BaseActivity : FlyBaseActivity() {
 
     override fun showOrUpdateOrCancelNotification(jid: String) {
         super.showOrUpdateOrCancelNotification(jid)
-        if (FlyMessenger.getUnreadMessagesCount() <= 0) {
+        if (FlyMessenger.getUnreadMessagesCount() <= 0 || !SharedPreferenceManager.getBoolean(Constants.IS_PROFILE_LOGGED)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 val barNotifications: Array<StatusBarNotification> = notificationManager.activeNotifications
@@ -187,9 +187,13 @@ open class BaseActivity : FlyBaseActivity() {
     }
 
     override fun onLoggedOut() {
-        SharedPreferenceManager.clearAllPreference()
-        UIKitContactUtils.clearAllData()
         super.onLoggedOut()
+        SharedPreferenceManager.setBoolean(Constants.SHOW_PIN, false)
+        SharedPreferenceManager.setBoolean(Constants.BIOMETRIC, false)
+        SharedPreferenceManager.setString(Constants.CHANGE_PIN_NEXT, "")
+        SharedPreferenceManager.setString(Constants.MY_PIN, "")
+        SafeChatUtils.silentDisableSafeChat(this)
+        SharedPreferenceManager.clearAllPreference(true)
     }
 
     override fun onAdminBlockedUser(jid: String, status: Boolean) {

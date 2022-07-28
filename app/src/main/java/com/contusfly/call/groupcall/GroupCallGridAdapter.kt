@@ -26,11 +26,10 @@ import com.contusfly.databinding.CallGridUserItemBinding
 import com.contusfly.gone
 import com.contusfly.show
 import com.contusfly.utils.Constants
+import com.contusfly.utils.MediaUtils
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.utils.ChatUtils
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 import com.jakewharton.rxbinding3.view.clicks
 import org.webrtc.RendererCommon

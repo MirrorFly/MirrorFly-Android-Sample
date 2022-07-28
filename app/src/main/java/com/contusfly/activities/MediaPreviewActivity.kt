@@ -223,6 +223,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             viewModel.getUnsentMessage(it)
         }
 
+        initializeCaptionListener()
         if (intent.getBooleanExtra(Constants.IS_IMAGE, false)) {
             handlePreviewFromGallery()
         } else if (intentKeyShare != null && intentKeyShare == Constants.SHARE) {
@@ -232,7 +233,6 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         }
 
         initializeAdapterForViewPager()
-        initializeCaptionListener()
 
         mediaPreviewAdapter = MediaPreviewAdapter(this, selectedImageList, imagePosition, this)
         mediaPreviewBinding.imagesPreviewList.apply {

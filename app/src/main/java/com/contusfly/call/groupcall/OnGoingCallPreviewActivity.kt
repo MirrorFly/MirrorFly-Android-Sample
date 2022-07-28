@@ -35,7 +35,6 @@ import com.contusflysdk.views.CustomToast
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
-import java.util.*
 import kotlin.collections.ArrayList
 
 class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonAlertDialog.CommonDialogClosedListener {
@@ -198,7 +197,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     }
 
     private fun handleOnFailure(error: Error) {
-        LogMessage.d(TAG, "$CALL_UI ${error.code.toString()}")
+        LogMessage.d(TAG, "$CALL_UI ${error.code}")
         var callEnded: String = Constants.EMPTY_STRING
         var callEndedMessage: String = Constants.EMPTY_STRING
         var isInvalidLink = false
@@ -303,9 +302,9 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     private fun observeNetworkListener() {
         val networkConnection = NetworkConnection(applicationContext)
-        networkConnection.observe(this, { isConnected ->
+        networkConnection.observe(this) { isConnected ->
             checkUserCallSubscribeDetails(isConnected)
-        })
+        }
     }
 
     private fun checkUserCallSubscribeDetails(subscribeStatus: Boolean) {
@@ -382,7 +381,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     }
 
     private fun showJoinCallOrCallEndedView(usersList: List<String>) {
-        if (usersList.isNullOrEmpty() || usersList.size == 1) {
+        if (usersList.isEmpty() || usersList.size == 1) {
             onGoingCallPreviewScreenBinding.toolbar.toolbarTitle.text = Constants.EMPTY_STRING
             callEndedView!!.visibility = View.VISIBLE
             joinCallView!!.visibility = View.GONE
@@ -411,7 +410,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
-        if (!groupUsersList.isNullOrEmpty()) updateGroupMemberDetails(groupUsersList)
+        if (groupUsersList.isNotEmpty()) updateGroupMemberDetails(groupUsersList)
     }
 
     private fun showUserProfilePic() {

@@ -22,11 +22,10 @@ import com.contusfly.call.SetDrawable
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.CallUserItemBinding
 import com.contusfly.utils.Constants
+import com.contusfly.utils.MediaUtils
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.utils.ChatUtils
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 import com.jakewharton.rxbinding3.view.clicks
 import org.webrtc.RendererCommon

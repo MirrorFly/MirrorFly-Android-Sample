@@ -24,6 +24,7 @@ import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.CommonUtils
 import com.contusfly.utils.CommonUtils.Companion.showBottomSheetView
+import com.contusfly.utils.MediaUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusfly.views.PermissionAlertDialog
@@ -31,10 +32,8 @@ import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ProfileDetails
-import com.contusflysdk.api.utils.ImageUtils
 import com.contusflysdk.api.utils.PickFileUtils
 import com.contusflysdk.utils.*
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.RequestCode
 import com.contusflysdk.utils.VideoRecUtils
 import com.contusflysdk.views.CustomToast

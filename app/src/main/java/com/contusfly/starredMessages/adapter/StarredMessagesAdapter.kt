@@ -53,6 +53,7 @@ import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils.getUserFromJid
 import com.contusfly.utils.ChatUtils.setSelectedChatItem
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ImageUtils.loadMapWithGlide
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
 import com.contusfly.utils.SharedPreferenceManager
@@ -62,7 +63,6 @@ import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.MessageStatus
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.api.utils.ImageUtils.loadMapWithGlide
 import com.contusflysdk.utils.Utils
 import io.github.rockerhieu.emojicon.EmojiconTextView
 import java.text.ParseException

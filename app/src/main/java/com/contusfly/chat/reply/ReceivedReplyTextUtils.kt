@@ -14,9 +14,9 @@ import com.contusfly.R
 import com.contusfly.adapters.holders.ReplyMessageViewHolder
 import com.contusfly.getColourCode
 import com.contusfly.utils.Constants
+import com.contusfly.utils.MediaUtils
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.api.models.ReplyParentChatMessage
-import com.contusflysdk.utils.DecodeImageUtils
 
 /**
  * This class handles the received reply message related operations
@@ -53,7 +53,6 @@ open class ReceivedReplyTextUtils : ReceivedReplyContactUtils(){
      * @param replyMessage           the message object possessing the reply information.
      */
     fun showReceivedReplyImageVideoView(context: Context?, replyMessageViewHolder: ReplyMessageViewHolder, replyMessage: ReplyParentChatMessage, isGroupMessage: Boolean) {
-        val decodeImageUtils = DecodeImageUtils()
         val mediaDetail = replyMessage.getMediaChatMessage()
         replyMessageViewHolder.imgReceivedReplyMessageType?.visibility = View.VISIBLE
         replyMessageViewHolder.imgReceivedReplyMessageType?.setImageResource(R.drawable.ic_camera_receiver_reply)
@@ -65,13 +64,9 @@ open class ReceivedReplyTextUtils : ReceivedReplyContactUtils(){
         if (userName != Constants.YOU && isGroupMessage) replyMessageViewHolder.txtChatReceivedReplyUserName?.setTextColor(userName.getColourCode()) else replyMessageViewHolder.txtChatReceivedReplyUserName?.setTextColor(ContextCompat.getColor(context!!, R.color.color_black))
         replyMessageViewHolder.txtChatReceivedReplyUserName?.text = userName
         replyMessageViewHolder.imgReceivedReplyImageVideoPreview?.visibility = View.VISIBLE
-        if (replyMessage.getMessageType() == MessageType.IMAGE) {
-            decodeImageUtils.loadImageInView(replyMessageViewHolder.imgReceivedReplyImageVideoPreview,
-                    mediaDetail.getMediaLocalStoragePath(), mediaDetail.getMediaThumbImage(), com.contus.flycommons.Constants.MSG_TYPE_IMAGE, context,
-                    R.drawable.ic_image_placeholder)
-        } else if (replyMessage.getMessageType() == MessageType.VIDEO) {
-            decodeImageUtils.loadImageInView(replyMessageViewHolder.imgReceivedReplyImageVideoPreview,
-                    mediaDetail.getMediaLocalStoragePath(), mediaDetail.getMediaThumbImage(), com.contus.flycommons.Constants.MSG_TYPE_VIDEO, context,
+        if (replyMessage.getMessageType() == MessageType.IMAGE || replyMessage.getMessageType() == MessageType.VIDEO) {
+            MediaUtils.loadImageInView(replyMessageViewHolder.imgReceivedReplyImageVideoPreview!!,
+                    mediaDetail.getMediaLocalStoragePath(), mediaDetail.getMediaThumbImage(), context!!,
                     R.drawable.ic_image_placeholder)
         }
     }
