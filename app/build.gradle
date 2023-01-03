@@ -37,8 +37,8 @@ android {
         applicationId "com.mirrorfly.uikit"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 11
-        versionName "6.8.0"
+        versionCode 8
+        versionName "6.6.0"
         multiDexEnabled true
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true
@@ -49,9 +49,24 @@ android {
     buildTypes {
         debug {
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
-            buildConfigField 'String', 'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
-            buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
-            buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
+            buildConfigField 'String', 'SDK_BASE_URL', '"https://api-uikit-dev.contus.us/api/v1/"'
+            buildConfigField 'String', 'LICENSE', '"2sdgNtr3sFBSM3bYRa7RKDPEiB38Xo"'
+            buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-uikit-dev.contus.us/"'
+            buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
+            buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
+            resValue("string", "app_name", "UI Kit")
+            shrinkResources false
+            debuggable true
+            minifyEnabled false
+            signingConfig signingConfigs.config
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        qa {
+            buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
+            buildConfigField 'String', 'SDK_BASE_URL', '"https://api-uikit-qa.contus.us/api/v1/"'
+            buildConfigField 'String', 'LICENSE', '"ckIjaccWBoMNvxdbql8LJ2dmKqT5bp"'
+            buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-uikit-qa.contus.us/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
             buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
             resValue("string", "app_name", "UI Kit")
@@ -66,7 +81,7 @@ android {
             initWith debug
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
             buildConfigField 'String', 'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
-            buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
+            buildConfigField 'String', 'LICENSE', '"lu3Om85JYSghcsB6vgVoSgTlSQArL5"'
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
             buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
@@ -76,6 +91,30 @@ android {
             minifyEnabled false
             signingConfig signingConfigs.config
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Specifies one flavor dimension.
+    flavorDimensions "version"
+    productFlavors {
+        uikit {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
+        }
+
+        uikitdev {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
+        }
+
+        uikitqa {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
+        }
+
+        uikituat {
+            dimension "version"
+            applicationId "com.mirrorfly.uikit"
         }
     }
 
@@ -140,11 +179,10 @@ dependencies {
     implementation 'androidx.emoji:emoji:1.1.0'
     implementation 'androidx.emoji:emoji-appcompat:1.1.0'
     implementation 'io.github.rockerhieu:emojicon:1.4.2'
-
-    //Glide - versions.gradle
-    implementation deps.bumptechglide.glide
-    kapt deps.bumptechglide.compiler
-    implementation deps.bumptechglide.okhttp3
+    implementation 'com.github.bumptech.glide:glide:4.11.0'
+    implementation 'com.github.bumptech.glide:okhttp3-integration:4.11.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
+    implementation 'com.github.bumptech.glide:annotations:4.11.0'
 
     // Import the BoM for the Firebase platform
     implementation platform('com.google.firebase:firebase-bom:26.7.0')

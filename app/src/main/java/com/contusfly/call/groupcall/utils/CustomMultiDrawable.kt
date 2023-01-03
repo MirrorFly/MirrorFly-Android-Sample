@@ -14,8 +14,8 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.contusfly.getDefaultDrawable
 import com.contusfly.getMoreUsersDrawable
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CustomDrawable
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.media.MediaUploadHelper
 import java.util.*
@@ -76,7 +76,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
 
     private fun setFourOrMoreUserProfile() {
         if (userList.size >= 4) {
-            val profileDetails1 = ProfileDetailsUtils.getProfileDetails(userList[0])
+            val profileDetails1 = ContactManager.getProfileDetails(userList[0])
             if (profileDetails1 != null) {
                 val tempBitmap1 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails1))
                 val fourthBitmap1 = scaleCenterCrop(tempBitmap1, bounds.width(), bounds.height())
@@ -86,7 +86,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
                 ))
                 addImage(profileDetails1, context, tempBitmap1, 0)
             }
-            val profileDetails2 = ProfileDetailsUtils.getProfileDetails(userList[1])
+            val profileDetails2 = ContactManager.getProfileDetails(userList[1])
             if (profileDetails2 != null) {
                 val tempBitmap2 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails2))
                 val fourthBitmap2 = scaleCenterCrop(tempBitmap2, bounds.width(), bounds.height())
@@ -96,7 +96,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
                 ))
                 addImage(profileDetails2, context, tempBitmap2, items.size - 1)
             }
-            val profileDetails3 = ProfileDetailsUtils.getProfileDetails(userList[2])
+            val profileDetails3 = ContactManager.getProfileDetails(userList[2])
             if (profileDetails3!= null) {
                 val tempBitmap3 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails3))
                 val fourthBitmap3 = scaleCenterCrop(tempBitmap3, bounds.width(), bounds.height())
@@ -106,7 +106,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
                 ))
                 addImage(profileDetails3, context, tempBitmap3, items.size - 1)
             }
-            val profileDetails4 = ProfileDetailsUtils.getProfileDetails(userList[3])
+            val profileDetails4 = ContactManager.getProfileDetails(userList[3])
             if (profileDetails4!= null) {
                 val tempBitmap4 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails4))
                 val fourthBitmap4 = scaleCenterCrop(tempBitmap4, bounds.width(), bounds.height())
@@ -129,7 +129,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
     }
 
     private fun setThreeUserProfile() {
-        val profileDetails1 = ProfileDetailsUtils.getProfileDetails(userList[0])
+        val profileDetails1 = ContactManager.getProfileDetails(userList[0])
         if (profileDetails1!= null) {
             val tempBitmap1 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails1))
             val thirdBitmap1 = scaleCenterCrop(tempBitmap1, bounds.width(), bounds.height())
@@ -144,7 +144,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
             ))
             addImage(profileDetails1, context, tempBitmap1, 0)
         }
-        val profileDetails2 = ProfileDetailsUtils.getProfileDetails(userList[1])
+        val profileDetails2 = ContactManager.getProfileDetails(userList[1])
         if (profileDetails2 != null) {
             val tempBitmap2 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails2))
             val thirdBitmap2 = scaleCenterCrop(tempBitmap2, bounds.width(), bounds.height())
@@ -159,7 +159,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
             ))
             addImage(profileDetails2, context, tempBitmap2, items.size - 1)
         }
-        val profileDetails3 = ProfileDetailsUtils.getProfileDetails(userList[2])
+        val profileDetails3 = ContactManager.getProfileDetails(userList[2])
         if (profileDetails3 != null) {
             val tempBitmap3 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails3))
             val thirdBitmap3 = scaleCenterCrop(tempBitmap3, bounds.width(), bounds.height())
@@ -177,7 +177,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
     }
 
     private fun setTwoUserProfile() {
-        val profileDetails1 = ProfileDetailsUtils.getProfileDetails(userList[0])
+        val profileDetails1 = ContactManager.getProfileDetails(userList[0])
         if (profileDetails1 != null) {
             val tempBitmap1 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails1))
             val bitmap1 = scaleCenterCrop(tempBitmap1, bounds.width(), bounds.height())
@@ -187,7 +187,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
             ))
             addImage(profileDetails1, context, tempBitmap1, 0)
         }
-        val profileDetails2 = ProfileDetailsUtils.getProfileDetails(userList[1])
+        val profileDetails2 = ContactManager.getProfileDetails(userList[1])
         if (profileDetails2 != null) {
             val tempBitmap2 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails2))
             val bitmap2 = scaleCenterCrop(tempBitmap2, bounds.width(), bounds.height())
@@ -205,7 +205,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
     }
 
     private fun setSingleProfile() {
-        val profileDetails1 = ProfileDetailsUtils.getProfileDetails(userList[0])
+        val profileDetails1 = ContactManager.getProfileDetails(userList[0])
         if (profileDetails1 != null) {
             val tempBitmap1 = getBitmap(CustomDrawable(context).getDefaultDrawable(profileDetails1))
             val bitmap = scaleCenterCrop(tempBitmap1, bounds.width(), bounds.height())

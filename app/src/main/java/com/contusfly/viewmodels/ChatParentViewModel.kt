@@ -12,6 +12,7 @@ import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.GroupManager
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.google.android.gms.tasks.Task
@@ -178,7 +179,7 @@ constructor(private val messageRepository: MessageRepository) : ViewModel() {
 
     fun deleteUnreadMessageSeparator(jid: String) = messageRepository.deleteUnreadMessageSeparator(jid)
 
-    fun getProfileDetails(jid: String): ProfileDetails? = ProfileDetailsUtils.getProfileDetails(jid)
+    fun getProfileDetails(jid: String): ProfileDetails? = ContactManager.getProfileDetails(jid)
 
     fun isGroupUserExist(groupId: String, jid: String): Boolean = GroupManager.isMemberOfGroup(groupId, jid)
 

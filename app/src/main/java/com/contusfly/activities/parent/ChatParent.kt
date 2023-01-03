@@ -660,14 +660,14 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             launchActivity<UserInfoActivity> {
                 putExtra(
                     AppConstants.PROFILE_DATA,
-                    ProfileDetailsUtils.getProfileDetails(chat.toUser)
+                    ContactManager.getProfileDetails(chat.toUser)
                 )
             }
         } else if (chat.isGroupChat()) {
             launchActivity<GroupInfoActivity> {
                 putExtra(
                     AppConstants.PROFILE_DATA,
-                    ProfileDetailsUtils.getProfileDetails(chat.toUser)
+                    ContactManager.getProfileDetails(chat.toUser)
                 )
             }
         }

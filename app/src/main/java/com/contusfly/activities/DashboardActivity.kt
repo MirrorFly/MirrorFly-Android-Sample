@@ -347,7 +347,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     override fun onClick(v: View?) {
         when (v) {
             dashboardBinding.newChatFab -> {
-                startActivity(Intent(this, UserListActivity::class.java))
+                startActivity(Intent(this, NewContactsActivity::class.java))
             }
         }
     }

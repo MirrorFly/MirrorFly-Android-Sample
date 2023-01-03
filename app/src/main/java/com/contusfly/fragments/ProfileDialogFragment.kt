@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import com.contus.flycommons.ChatType
+import com.contus.flycommons.ContactType
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.CallType
 import com.contus.call.utils.GroupCallUtils
@@ -30,7 +31,9 @@ import com.contusfly.call.CallPermissionUtils
 import com.contusfly.databinding.FragmentProfileDialogBinding
 import com.contusfly.utils.*
 import com.contusfly.views.PermissionAlertDialog
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
+import com.contusflysdk.utils.Utils
 import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.IOException
 
@@ -75,7 +78,7 @@ class ProfileDialogFragment : DialogFragment() {
         // Inflate the layout for this fragment
         profileDialogBinding = FragmentProfileDialogBinding.inflate(inflater, container, false)
         dialog?.setCanceledOnTouchOutside(true)
-        dialog?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT));
         return profileDialogBinding.root
     }
 
@@ -96,13 +99,18 @@ class ProfileDialogFragment : DialogFragment() {
 
     private fun checkUserBlocked() {
         rosterImage = if (profileDetails.isBlockedMe) "" else profileDetails.image
-        profileDialogBinding.userProfileImageViewer.isEnabled = rosterImage.isNotEmpty()
+        profileDialogBinding.userProfileImageViewer.isEnabled = !rosterImage.isEmpty()
     }
 
     private fun setData() {
         profileDialogBinding.userProfileImageViewer.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.color_light_gray))
-        profileDialogBinding.userName.text = ProfileDetailsUtils.getProfileDetails(profileDetails.jid)!!.name
-        ProfileDetailsUtils.getProfileDetails(profileDetails.jid)?.let {
+        var name = ""
+        if (!profileDetails.isItSavedContact() && profileDetails.getChatType() != ChatType.TYPE_GROUP_CHAT)
+            name = Utils.getFormattedPhoneNumber(profileDetails.jid.split("@".toRegex()).dropLastWhile({ it.isEmpty() }).toTypedArray()[0])
+        else
+            name = ContactManager.getProfileDetails(profileDetails.jid)!!.name
+        profileDialogBinding.userName.text = name
+        ContactManager.getProfileDetails(profileDetails.jid)?.let {
             profileDialogBinding.userProfileImageViewer.setImageDrawable(null)
             if(it.isGroupProfile){
                 val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
@@ -169,17 +177,17 @@ class ProfileDialogFragment : DialogFragment() {
     private fun navigateToProfileInfoScreen() {
         if (profileDetails.getChatType() == ChatType.TYPE_GROUP_CHAT) {
             startActivity(Intent(context, GroupInfoActivity::class.java)
-                .putExtra(AppConstants.PROFILE_DATA, ProfileDetailsUtils.getProfileDetails(profileDetails.jid)))
+                .putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(profileDetails.jid)))
         } else {
             startActivity(Intent(context, UserInfoActivity::class.java)
-                .putExtra(AppConstants.PROFILE_DATA, ProfileDetailsUtils.getProfileDetails(profileDetails.jid)))
+                .putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(profileDetails.jid)))
         }
 
         dismissDialog()
     }
 
     private fun navigateToProfileImageScreen() {
-        val profile = ProfileDetailsUtils.getProfileDetails(profileDetails.jid)
+        val profile = ContactManager.getProfileDetails(profileDetails.jid)
         var title: String? = profile!!.name
         if (title == null || title.isEmpty())
             title = resources.getString(R.string.action_delete)

@@ -76,11 +76,7 @@ public class Full2VideoRecorder extends FullVideoRecorder {
         // Camera2 engine refuses a surface that has not been configured, so even with that trick
         // we would have to attach the surface to this recorder before creating the CameraSession.
         // mediaRecorder.setInputSurface(mInputSurface);
-        int stubRotation = 0;
-        if (stub != null && stub.rotation != 0) {
-            stubRotation = stub.rotation;
-        } else stubRotation = 270;
-        Size size = stubRotation % 180 != 0 ? stub.size.flip() : stub.size;
+        Size size = stub.rotation % 180 != 0 ? stub.size.flip() : stub.size;
         return CamcorderProfiles.get(mCameraId, size);
     }
 

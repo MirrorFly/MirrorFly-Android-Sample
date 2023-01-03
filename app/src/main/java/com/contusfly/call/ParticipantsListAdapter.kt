@@ -12,7 +12,7 @@ import com.contusfly.call.groupcall.isNull
 import com.contusfly.databinding.RowParticipantsListItemBinding
 import com.contusfly.isValidIndex
 import com.contusfly.loadUserProfileImage
-import com.contusfly.utils.ProfileDetailsUtils
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.utils.Utils
 import java.util.ArrayList
 
@@ -51,7 +51,7 @@ class ParticipantsListAdapter(private val context: Context) : RecyclerView.Adapt
 
     override fun onBindViewHolder(holder: ParticipantsListViewHolder, position: Int) {
         val profileJid = profilesUserList!![position]
-        val profile = ProfileDetailsUtils.getProfileDetails(profileJid)
+        val profile = ContactManager.getProfileDetails(profileJid)
         val userName = Utils.returnEmptyStringIfNull(profile?.name)
         //Set User Name
         holder.viewBinding.textUserName.text = userName

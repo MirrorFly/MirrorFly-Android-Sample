@@ -19,7 +19,6 @@ import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SafeChatUtils
 import com.contusfly.utils.SharedPreferenceManager
-import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.ChatManager.closeXMPPConnection
 import com.contusflysdk.api.ChatManager.pinActivity
 import com.google.android.material.snackbar.Snackbar
@@ -305,11 +304,5 @@ class BiometricActivity : BaseActivity(), BiometricCallback {
         if (status) {
             mBiometricManager!!.closeBiometricDialogIfOpened()
         }
-    }
-
-    override fun onBackPressed() {
-        //super.onBackPressed()
-        SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.BACK_PRESS, false)
-        ActivityCompat.finishAffinity(this)
     }
 }

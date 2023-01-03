@@ -25,13 +25,12 @@ import com.contusfly.*
 import com.contusfly.activities.BaseActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallPermissionUtils
-import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.ActivityCallHistoryDetailBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.utils.MediaPermissions
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.utils.ChatTimeFormatter
 import dagger.android.AndroidInjection
@@ -153,7 +152,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             setCallStatusIcon(callLog)
 
             mUsersList.clear()
-            mUsersList.addAll(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
+            mUsersList.addAll(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
             mUserAdapter.notifyDataSetChanged()
         }
     }
@@ -177,7 +176,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
         callHistoryDetailBinding.imgCallType.setOnClickListener {
             callLogDetails?.let { callLog ->
                 if (!callLog.groupId.isNullOrEmpty() || (!callLog.userList.isNullOrEmpty() && callLog.userList!!.filter { it != GroupCallUtils.getLocalUserJid() }.size > 1)) {
-                    if (CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false).isNotEmpty())
+                    if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
                         makeGroupCall(callLog)
                 } else {
                     makeOneToOneCall(callLog)
@@ -192,7 +191,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             callLog.fromUser
         else
             callLog.toUser
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser!!)
+        val profileDetails = ContactManager.getProfileDetails(toUser!!)
         if (profileDetails != null && profileDetails.isAdminBlocked) return
         profileDetails?.let {
             callType = callLog.callType ?: CallType.AUDIO_CALL
@@ -252,7 +251,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             callPermissionUtils = CallPermissionUtils(
                 activity!!,
                 false, false,
-                CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false) as java.util.ArrayList<String>,
+                GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>,
                 callLog.groupId ?: "",
                 true
             )
@@ -270,7 +269,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             callPermissionUtils =   CallPermissionUtils(
                 activity!!,
                 false, false,
-                CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false) as java.util.ArrayList<String>,
+                GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>,
                 callLog.groupId ?: "",
                 true
             )
@@ -289,9 +288,9 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     private fun isAdminBlocked(callLog: CallLog): Boolean {
         return if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
-            ProfileDetailsUtils.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
+            ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
         } else if (callLog.groupId!!.isNotEmpty()) {
-            ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
+            ContactManager.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
         } else false
     }
 
@@ -302,12 +301,12 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
      */
     private fun setUserView(callLog: CallLog) {
         if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
-            val roster = ProfileDetailsUtils.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)
+            val roster = ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)
             if (roster != null) {
                 profileIcon(roster)
             } else {
                 callHistoryDetailBinding.imageChatPicture.addImage(arrayListOf(callLog.fromUser!!))
-                callHistoryDetailBinding.textChatName.text = ProfileDetailsUtils.getDisplayName(callLog.fromUser!!)
+                callHistoryDetailBinding.textChatName.text = ContactManager.getDisplayName(callLog.fromUser!!)
             }
         } else {
             profileIconForManyUsers(callLog)
@@ -316,16 +315,16 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     private fun profileIconForManyUsers(callLog: CallLog) {
         if (!callLog.groupId.isNullOrEmpty()) {
-            val roster = ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)
+            val roster = ContactManager.getProfileDetails(callLog.groupId!!)
             if (roster != null) {
                 profileIcon(roster)
             } else {
                 callHistoryDetailBinding.imageChatPicture.addImage(arrayListOf(callLog.groupId!!))
-                callHistoryDetailBinding.textChatName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
+                callHistoryDetailBinding.textChatName.text = ContactManager.getDisplayName(callLog.groupId!!)
             }
         } else {
-            callHistoryDetailBinding.textChatName.text = CallUtils.getCallLogUserNames(callLog.fromUser, callLog.userList)
-            callHistoryDetailBinding.imageChatPicture.addImage(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
+            callHistoryDetailBinding.textChatName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
+            callHistoryDetailBinding.imageChatPicture.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as java.util.ArrayList<String>)
         }
         callHistoryDetailBinding.emailContactIcon.gone()
     }
@@ -349,9 +348,9 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
 
     private fun setIconAlpha(callLogs: CallLog) {
         val profileDetails = if (callLogs.callMode == CallMode.ONE_TO_ONE && (callLogs.userList == null || callLogs.userList!!.size < 2)) {
-            ProfileDetailsUtils.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
+            ContactManager.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
         } else if (!callLogs.groupId.isNullOrBlank()) {
-            ProfileDetailsUtils.getProfileDetails(callLogs.groupId!!)
+            ContactManager.getProfileDetails(callLogs.groupId!!)
         } else null
 
         val adminBlockedStatus = profileDetails?.isAdminBlocked ?: false

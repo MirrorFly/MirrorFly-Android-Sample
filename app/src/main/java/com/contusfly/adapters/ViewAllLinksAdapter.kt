@@ -39,7 +39,7 @@ class ViewAllLinksAdapter(private val groupedDocsList:List<GroupedMedia>) : Recy
         onLinkMessageClicked = fn
     }
 
-    fun onLinkClickedCallback(fn: (ChatMessage) -> Unit) {
+    fun onLinkClickedCallback(fn: (String?) -> Unit) {
         onLinkClicked = fn
     }
 
@@ -48,6 +48,6 @@ class ViewAllLinksAdapter(private val groupedDocsList:List<GroupedMedia>) : Recy
         const val LINKS_ITEM = 1
 
         lateinit var onLinkMessageClicked: (ChatMessage) -> Unit
-        lateinit var onLinkClicked: (ChatMessage) -> Unit
+        lateinit var onLinkClicked: (String?) -> Unit
     }
 }

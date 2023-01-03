@@ -31,7 +31,7 @@ object AppChatShortCuts {
     @TargetApi(25)
     fun dynamicAppShortcuts(context: Context, toUser: String, chatType: String) {
         try {
-            val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser)
+            val profileDetails = FlyCore.getUserProfile(toUser)
             var contactName: String
             profileDetails.let { userVcard -> contactName = userVcard!!.name }
 

@@ -24,7 +24,6 @@ import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.CommonUtils
 import com.contusfly.utils.CommonUtils.Companion.showBottomSheetView
-import com.contusfly.utils.MediaUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusfly.views.PermissionAlertDialog
@@ -32,8 +31,10 @@ import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ProfileDetails
+import com.contusflysdk.api.utils.ImageUtils
 import com.contusflysdk.api.utils.PickFileUtils
 import com.contusflysdk.utils.*
+import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.RequestCode
 import com.contusflysdk.utils.VideoRecUtils
 import com.contusflysdk.views.CustomToast
@@ -202,8 +203,8 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     }
 
     private fun profileImageUrlUpdate() {
-        val profile = if (groupId != null && groupId!!.isNotEmpty()) ProfileDetailsUtils.getProfileDetails(groupId!!)
-        else ProfileDetailsUtils.getProfileDetails(userId!!)
+        val profile = if (groupId != null && groupId!!.isNotEmpty()) ContactManager.getProfileDetails(groupId!!)
+        else ContactManager.getProfileDetails(userId!!)
         if (profile!!.isAdminBlocked) imageUrl = Constants.EMPTY_STRING
     }
 
@@ -222,7 +223,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
 
     private fun updateUserProfile(jid: String) {
         if(userId == jid) {
-            val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
+            val profileDetail = ContactManager.getProfileDetails(jid)
             if (profileDetail?.image!!.startsWith(storagePath))
                 com.contusfly.utils.MediaUtils.loadImageWithGlide(this, profileDetail.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
             else
@@ -515,7 +516,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     }
 
     private fun setUserProfileImage(jid: String, status: Boolean) {
-        val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
+        val profileDetail = ContactManager.getProfileDetails(jid)
         if (profileDetail != null) {
             profileDetail.image = if (status) Constants.EMPTY_STRING else profileDetail.image
             if (profileDetail.image!!.startsWith(storagePath))

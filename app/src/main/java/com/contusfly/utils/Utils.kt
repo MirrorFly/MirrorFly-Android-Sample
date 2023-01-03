@@ -4,7 +4,6 @@ import android.content.Context
 import android.text.TextUtils
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import com.contusfly.TAG
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -30,12 +29,5 @@ object Utils {
         if (inputMethodManager != null && view != null) {
             inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
         }
-    }
-
-    fun clearOldData(context: Context) {
-        LogMessage.d(TAG, "clearOldData called")
-        SharedPreferenceManager.clearAllPreference()
-        ConfigurationUtils.setDefaultValues(context)
-        UIKitContactUtils.clearAllData()
     }
 }

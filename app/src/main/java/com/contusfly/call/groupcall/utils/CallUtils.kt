@@ -9,9 +9,9 @@ import com.contus.webrtc.api.CallManager
 import com.contusfly.*
 import com.contusfly.call.groupcall.isUserVideoMuted
 import com.contusfly.utils.Constants
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.SetDrawable
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ChatUtils
 import com.contusflysdk.utils.Utils
@@ -225,7 +225,7 @@ object CallUtils {
     }
 
     private fun getNameAndProfileDetails(jid: String): Pair<String, ProfileDetails?> {
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
+        val profileDetails = ContactManager.getProfileDetails(jid)
         val name = if (profileDetails != null) {
             com.contusfly.utils.Utils.returnEmptyStringIfNull(profileDetails.name)
         } else Utils.getFormattedPhoneNumber(ChatUtils.getUserFromJid(jid)) ?: Constants.EMPTY_STRING
@@ -268,57 +268,6 @@ object CallUtils {
             }
         }
         return membersName.toString()
-    }
-
-    fun getCallUsersName(callUsers: ArrayList<String>): StringBuilder {
-        var name = StringBuilder("")
-        for (i in callUsers.indices) {
-            if (i == 2) {
-                name.append(" and (+").append(callUsers.size - i).append(")")
-                break
-            } else if (i == 1) {
-                name.append(", ").append(ProfileDetailsUtils.getDisplayName(callUsers[i]))
-            } else {
-                name = StringBuilder(ProfileDetailsUtils.getDisplayName(callUsers[i]))
-            }
-        }
-        return name
-    }
-
-    /**
-     * this method return the user jid for the call
-     */
-    fun getCallLogUserJidList(toUser: String?, callUsers: List<String>? = null, withDeletedUser: Boolean = true): List<String> {
-        val userList = mutableListOf<String>()
-        if (toUser != null
-            && toUser != GroupCallUtils.getLocalUserJid()
-            && (withDeletedUser || ProfileDetailsUtils.getProfileDetails(toUser)?.isDeletedContact() != true))
-            userList.add(toUser)
-        if (callUsers != null) {
-            for (jid in callUsers) {
-                if (jid != GroupCallUtils.getLocalUserJid()
-                    && !userList.contains(jid)
-                    && (withDeletedUser || ProfileDetailsUtils.getProfileDetails(jid)?.isDeletedContact() != true))
-                    userList.add(jid)
-            }
-        }
-        return userList
-    }
-
-    fun getCallLogUserNames(toUser: String?, callUsers: List<String>? = null): String {
-        val userNames = mutableListOf<String?>()
-        if (toUser != null && toUser != GroupCallUtils.getLocalUserJid()) {
-            userNames.add(ProfileDetailsUtils.getDisplayName(toUser))
-        }
-        if (callUsers != null) {
-            for (jid in callUsers) {
-                if (jid.isNotEmpty()
-                    && jid != GroupCallUtils.getLocalUserJid()
-                    && !userNames.contains(ProfileDetailsUtils.getDisplayName(jid)))
-                    userNames.add(ProfileDetailsUtils.getDisplayName(jid))
-            }
-        }
-        return userNames.filter { !it.isNullOrEmpty() }.joinToString(", ")
     }
 
     fun getPinnedVideoSink(): ProxyVideoSink? {

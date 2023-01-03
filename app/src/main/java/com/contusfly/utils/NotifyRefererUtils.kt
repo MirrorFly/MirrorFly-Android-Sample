@@ -14,6 +14,7 @@ import com.contus.flycommons.ChatTypeEnum
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusflysdk.api.FlyMessenger
+import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import java.util.*
 
@@ -78,7 +79,7 @@ object NotifyRefererUtils {
                                  delimiter: String): String {
         var appendedContent = messageContent
         if (ChatTypeEnum.groupchat == message.getMessageChatType()) {
-            val groupUser = ProfileDetailsUtils.getProfileDetails(message.getChatUserJid())
+            val groupUser = getProfileDetails(message.getChatUserJid())
             appendedContent = groupUser!!.name + delimiter + messageContent
         }
         return appendedContent

@@ -4,8 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.TypedValue
 import android.view.*
 import android.widget.*
@@ -24,14 +22,12 @@ import com.contus.call.utils.GroupCallUtils
 import com.contusfly.*
 import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
 import com.contusfly.di.factory.AppViewModelFactory
-import com.contusfly.helpers.PaginationScrollListener
-import com.contusfly.helpers.UserListType
-import com.contusfly.network.NetworkConnection
-import com.contusfly.utils.ProfileDetailsUtils
-import com.contusfly.utils.UIKitContactUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomRecyclerView
+import com.contusflysdk.AppUtils
 import com.contusflysdk.activities.FlyBaseActivity
+import com.contusflysdk.api.FlyCore
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.views.CustomToast
 import dagger.android.support.AndroidSupportInjection
@@ -48,7 +44,7 @@ import kotlin.coroutines.CoroutineContext
  * Use the [AddParticipantFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
-class AddParticipantFragment : Fragment(), CoroutineScope{
+class AddParticipantFragment : Fragment(), RecyclerViewUserItemClick, CoroutineScope, CommonAlertDialog.CommonDialogClosedListener {
 
     @Inject
     lateinit var callViewModelFactory: AppViewModelFactory
@@ -80,70 +76,24 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
 
     private lateinit var groupId: String
 
+    private lateinit var blockedUserJid: String
+
     private var callConnectedUserList: ArrayList<String>? = null
 
-    /**
-     * The handler to delay the search
-     */
-    private lateinit var mHandler: Handler
-
-    /**
-     * Used for search
-     */
-    private var searchKey: String = emptyString()
-
     private var isRefreshing = false
-
-    private var mUserListType = UserListType.USER_LIST
 
     /**
      * The common alert dialog to display the alert dialogs in the alert view
      */
-    private val commonAlertDialog: CommonAlertDialog by lazy {
-        CommonAlertDialog(requireContext())
-    }
+    private lateinit var commonAlertDialog: CommonAlertDialog
 
     /**
      * Validate if the call is one to one call
      */
     private var isAddUsersToOneToOneCall: Boolean = false
 
-    /**
-     * Selected users from the search list.
-     */
-    var selectedList: ArrayList<String> = ArrayList()
-
     private val mAdapter by lazy {
-        UserSelectionAdapter(requireContext(), true, commonAlertDialog, onItemClickListener)
-    }
-
-    private val mSearchAdapter by lazy {
-        UserSelectionAdapter(requireContext(), true, commonAlertDialog, onItemClickListener)
-    }
-
-    val onItemClickListener = object : RecyclerViewUserItemClick {
-        override fun onItemClicked(position: Int, profileDetails: ProfileDetails) {
-            UIKitContactUtils.addUIKitContact(profileDetails)
-            if (!selectedList.contains(profileDetails.jid)) {
-                if (selectedList.size >= (CallManager.getMaxCallUsersCount() - GroupCallUtils.getAvailableCallUsersList().size + 1)) {
-                    onUserSelectRestriction()
-                } else {
-                    selectedList.add(profileDetails.jid)
-                }
-            } else {
-                selectedList.remove(profileDetails.jid)
-            }
-            addParticipantsTextView.text = selectedUserCount
-        }
-
-        override fun onSelectBlockedUser(profileDetails: ProfileDetails) {
-            //Do Nothing
-        }
-
-        override fun isSelected(userId: String): Boolean {
-            return selectedList.contains(userId)
-        }
-
+        UserSelectionAdapter(requireContext(), true)
     }
 
     /**
@@ -151,14 +101,14 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
      */
     private val selectedUserCount: String
         get() {
-            return if (selectedList.isEmpty()) {
+            return if (mAdapter.selectedList.isEmpty()) {
                 addParticipantsLayout.visibility = View.GONE
                 addParticipantsLayout.isEnabled = false
                 getString(R.string.msg_add_participant)
             } else {
                 addParticipantsLayout.visibility = View.VISIBLE
                 addParticipantsLayout.isEnabled = true
-                String.format(getString(R.string.msg_add_participants), selectedList.size)
+                String.format(getString(R.string.msg_add_participants), mAdapter.selectedList.size)
             }
         }
 
@@ -195,7 +145,9 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if (!isAddUsersToOneToOneCall)
+        if (isAddUsersToOneToOneCall)
+            viewModel.getInviteUserList(callConnectedUserList)
+        else
             viewModel.getInviteUserListForGroup(groupId, callConnectedUserList)
     }
 
@@ -206,109 +158,37 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
         initView(view)
         setListeners()
         setObservers()
-        observeNetworkListener()
         return view
     }
 
     private fun setObservers() {
         requireActivity().let {
-            viewModel.profileUpdatedLiveData.observe(viewLifecycleOwner) { userJid ->
+            viewModel.profileUpdatedLiveData.observe(viewLifecycleOwner, { userJid ->
                 mAdapter.updateRoster(userJid)
-            }
+            })
 
-            viewModel.inviteUserList.observe(viewLifecycleOwner) {
-                if (it.isEmpty()) {
-                    val message =
-                        if (isAddUsersToOneToOneCall) requireContext().getString(R.string.all_members_already_in_call) else requireContext().getString(
-                            R.string.all_members_already_in_group_call
-                        )
-                    emptyView.text = message
-                    emptyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14F)
-                }
-                mAdapter.setProfileDetails(it)
-                mAdapter.notifyDataSetChanged()
-            }
-            setUserListObservers()
-            setSearchObservers()
-        }
-    }
-
-    private fun setUserListObservers() {
-        viewModel.callUserList.observe(viewLifecycleOwner) { userList ->
-            userList?.let {
+            viewModel.inviteUserList.observe(viewLifecycleOwner, {
                 if (it.isEmpty()) {
                     val message = if (isAddUsersToOneToOneCall) requireContext().getString(R.string.all_members_already_in_call) else requireContext().getString(R.string.all_members_already_in_group_call)
                     emptyView.text = message
                     emptyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14F)
                 }
-                mAdapter.addProfileList(userList)
-            }
-        }
-
-        viewModel.addLoadUserLoader.observe(viewLifecycleOwner) {
-            if (it)
-                mAdapter.addLoadingFooter()
-        }
-
-        viewModel.removeLoadUserLoader.observe(viewLifecycleOwner) {
-            if (it)
-                mAdapter.removeLoadingFooter()
-        }
-
-        viewModel.fetchingError.observe(viewLifecycleOwner) {
-            if (it)
-                CustomToast.show(context, getString(R.string.msg_no_internet))
-        }
-    }
-
-    private fun setSearchObservers() {
-        viewModel.resetSearchResult.observe(viewLifecycleOwner) {
-            if (it)
-                mSearchAdapter.resetSearch()
-        }
-
-        viewModel.searchCallUserList.observe(viewLifecycleOwner ) { userList ->
-            userList?.let {
-                mSearchAdapter.addProfileList(userList)
-            }
-        }
-
-        viewModel.addUserSearchLoader.observe(viewLifecycleOwner) {
-            if (it)
-                mSearchAdapter.addLoadingFooter()
-        }
-
-        viewModel.removeUserSearchLoader.observe(viewLifecycleOwner) {
-            if (it)
-                mSearchAdapter.removeLoadingFooter()
-        }
-    }
-
-    private fun observeNetworkListener() {
-        val networkConnection = NetworkConnection(requireContext())
-        networkConnection.observe(viewLifecycleOwner) { connected ->
-            if (connected && viewModel.fetchingError.value == true) { //If user list fetch failed then re-fetch user list when internet is reconnected
-                if (searchKey.isBlank()) {
-                    mAdapter.addLoadingFooter()
-                    viewModel.loadUserList(callConnectedUserList)
-                } else {
-                    mSearchAdapter.addLoadingFooter()
-                    viewModel.searchUserList(searchKey, callConnectedUserList)
-                }
-            }
+                mAdapter.setProfileDetails(it)
+                mAdapter.notifyDataSetChanged()
+            })
         }
     }
 
     private fun initView(view: View) {
-        mHandler = Handler(Looper.getMainLooper())
         onGoingCallLink = CallManager.getCallLink()
 
         callLinkView = view.findViewById(R.id.call_link_view)
         callLink = view.findViewById(R.id.call_link)
         callLinkCopyIcon = view.findViewById(R.id.call_link_copy)
         emptyView = view.findViewById(R.id.text_empty_view)
-        emptyView.text = getString(R.string.msg_no_contacts)
+        emptyView.text = getString(R.string.msg_no_results)
         emptyView.setTextColor(ResourcesCompat.getColor(resources, R.color.color_text_grey, null))
+        mAdapter.setHasStableIds(true)
         listContact = view.findViewById(R.id.view_contact_list)
         setContactAdapter()
 
@@ -335,47 +215,17 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
             setEmptyView(emptyView)
             itemAnimator = null
             adapter = mAdapter
-            if (isAddUsersToOneToOneCall)
-                setScrollListener(this, layoutManager as LinearLayoutManager)
         }
-    }
-
-
-    private fun setScrollListener(
-        recyclerView: CustomRecyclerView,
-        layoutManager: LinearLayoutManager
-    ) {
-        recyclerView.addOnScrollListener(object : PaginationScrollListener(layoutManager, handler = mHandler){
-            override fun loadMoreItems() {
-                if (searchKey.isBlank())
-                    viewModel.loadUserList(callConnectedUserList)
-                else
-                    viewModel.searchUserList(searchKey, callConnectedUserList)
-            }
-
-            override fun isLastPage(): Boolean {
-                return if (searchKey.isBlank())
-                    viewModel.lastPageFetched()
-                else
-                    viewModel.searchLastPageFetched()
-            }
-
-            override fun isFetching(): Boolean {
-                return if (searchKey.isBlank())
-                    viewModel.getUserListFetching()
-                else
-                    viewModel.getSearchUserListFetching()
-            }
-        })
-        viewModel.addLoaderToTheList()
-        viewModel.loadUserList(callConnectedUserList)
+        mAdapter.setRecyclerViewUsersItemOnClick(this)
     }
 
     private fun setListeners() {
+        commonAlertDialog = CommonAlertDialog(context)
+        commonAlertDialog.setOnDialogCloseListener(this)
         addParticipantsLayout.setOnClickListener {
-            if (selectedList.isNotEmpty()) {
+            if (mAdapter.selectedList.isNotEmpty()) {
                 addParticipantsLayout.isEnabled = false
-                CallManager.inviteUsersToOngoingCall(selectedList)
+                CallManager.inviteUsersToOngoingCall(mAdapter.selectedList)
                 requireActivity().supportFragmentManager.popBackStackImmediate()
             } else {
                 Toast.makeText(requireContext(), getString(R.string.error_select_atleast_one), Toast.LENGTH_SHORT).show()
@@ -383,7 +233,11 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
         }
     }
 
-    fun onUserSelectRestriction() {
+    override fun onItemClicked(position: Int, roster: ProfileDetails?) {
+        addParticipantsTextView.text = selectedUserCount
+    }
+
+    override fun onUserSelectRestriction() {
         val availableCount =
             CallManager.getMaxCallUsersCount() - (GroupCallUtils.getAvailableCallUsersList().size + 1) //plus 1 for own user
         if (availableCount == 1)
@@ -403,6 +257,13 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
             ).show()
     }
 
+    override fun onSelectBlockedUser(profile: ProfileDetails) {
+        blockedUserJid = profile.jid
+        commonAlertDialog.showAlertDialog(String.format(requireContext().getString(R.string.unblock_message_label), ContactManager.getDisplayName(profile.jid)),
+            requireContext().getString(R.string.yes_label), requireContext().getString(R.string.no_label),
+            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, true)
+    }
+
     fun refreshUsersList() {
         LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} refreshUsersList")
         getRefreshedProfilesList()
@@ -410,27 +271,25 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
 
     fun refreshUser(jid: String) {
         LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} refreshUser")
-        val index = mAdapter.profileDetailsList.indexOfFirst { it.jid == jid }
-        if (index.isValidIndex()) {
+        val index = mAdapter.profileDetailsList?.indexOfFirst { it.jid == jid }
+        if (index != null && index.isValidIndex()) {
             updateProfileDetails(jid)
         }
     }
 
     fun removeUser(jid: String) {
         LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} removeUser")
-        selectedList.remove(jid)
         mAdapter.removeUser(jid)
     }
 
     fun onAdminBlockedStatus(jid: String, type: String, status: Boolean) {
         LogMessage.i(TAG, "OnAdminBlockedStatus jid = $jid, type = $type, status = $status")
-        if (status && selectedList.isNotEmpty()) {
-            val isJidSelected = selectedList.any { it == jid }
-            val index = selectedList.indexOf(jid)
+        if (status && mAdapter.selectedList.isNotEmpty()) {
+            val isJidSelected = mAdapter.selectedList.any { it == jid }
+            val index = mAdapter.selectedList.indexOf(jid)
             if (isJidSelected && index.isValidIndex()) {
-                selectedList.removeAt(index)
+                mAdapter.selectedList.removeAt(index)
             }
-            removeUser(jid)
             addParticipantsTextView.text = selectedUserCount
         }
         getRefreshedProfilesList()
@@ -438,53 +297,16 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
 
     private fun getRefreshedProfilesList() {
         lifecycleScope.launchWhenStarted {
-            if (!isAddUsersToOneToOneCall)
+            if (isAddUsersToOneToOneCall)
+                viewModel.getInviteUserList(callConnectedUserList)
+            else
                 viewModel.getInviteUserListForGroup(groupId, callConnectedUserList)
         }
     }
 
     fun filterResult(searchKey: String) {
-        this.searchKey = searchKey.trim()
-        if (isAddUsersToOneToOneCall) {
-            mHandler.removeCallbacksAndMessages(null)
-            mHandler.postDelayed({
-                mSearchAdapter.resetSearch()
-                if (searchKey.isEmpty()) {
-                    mUserListType = UserListType.USER_LIST
-                } else {
-                    mUserListType = UserListType.SEARCH
-                    viewModel.resetSearch()
-                    viewModel.addSearchLoaderToTheList()
-                    viewModel.searchUserList(searchKey, callConnectedUserList)
-                }
-                setAdapterBasedOnSearchType()
-                mSearchAdapter.setSearchKey(searchKey)
-            }, 500)
-        } else {
-            if (searchKey.isNotBlank()) {
-                mSearchAdapter.resetSearch()
-                mSearchAdapter.addProfileList(filterList(mAdapter.profileDetailsList))
-            }
-            mUserListType = if (searchKey.isEmpty()) {
-                UserListType.USER_LIST
-            } else {
-                UserListType.SEARCH
-            }
-            setAdapterBasedOnSearchType()
-            mSearchAdapter.setSearchKey(searchKey)
-        }
-    }
-
-    private fun filterList(profileDetailsList: ArrayList<ProfileDetails>): List<ProfileDetails> {
-        return profileDetailsList.filter { it.name.contains(searchKey, true) }
-    }
-
-    private fun setAdapterBasedOnSearchType() {
-        if (mUserListType == UserListType.USER_LIST && (listContact.adapter as UserSelectionAdapter).getSearchKey().isNotBlank()) {
-            listContact.adapter = mAdapter
-        } else if (mUserListType == UserListType.SEARCH && (listContact.adapter as UserSelectionAdapter).getSearchKey().isBlank()) {
-            listContact.adapter = mSearchAdapter
-        }
+        mAdapter.filter(searchKey)
+        mAdapter.notifyDataSetChanged()
     }
 
     companion object {
@@ -519,10 +341,33 @@ class AddParticipantFragment : Fragment(), CoroutineScope{
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.IO + Job()
 
+    override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
+        if (isSuccess) {
+            if (AppUtils.isNetConnected(requireContext())) {
+                FlyCore.unblockUser(blockedUserJid) { isSuccess, _, _ ->
+                    if (isSuccess) {
+                        updateProfileDetails(blockedUserJid)
+                    } else {
+                        CustomToast.show(requireContext(), com.contusfly.utils.Constants.ERROR_SERVER)
+                        blockedUserJid = emptyString()
+                    }
+                }
+            } else {
+                CustomToast.show(requireContext(), getString(R.string.msg_no_internet))
+                blockedUserJid = emptyString()
+            }
+        }
+    }
+
+    override fun listOptionSelected(position: Int) {
+        //Do nthg
+    }
+
     /*
     * Update Profile Details */
     private fun updateProfileDetails(userJid: String) {
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(userJid)
+        val profileDetails = ContactManager.getProfileDetails(userJid)
         mAdapter.updateProfileDetails(profileDetails)
+        blockedUserJid = emptyString()
     }
 }

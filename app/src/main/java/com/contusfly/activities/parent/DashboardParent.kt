@@ -31,6 +31,7 @@ import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.*
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.models.RecentSearch
 import com.contusflysdk.utils.Utils
@@ -452,7 +453,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
         if (mRecentChatListType == RecentChatListType.RECENT) {
             // Delete the one chat
             deleteAlertMessage = if (viewModel.selectedRecentChats.size == 1) {
-                val userNickName = ProfileDetailsUtils.getDisplayName(viewModel.selectedRecentChats[0].jid)
+                val userNickName = ContactManager.getDisplayName(viewModel.selectedRecentChats[0].jid)
                 String.format(getString(R.string.msg_delete_chat_single_conversation), userNickName)
             } else {
                 // Delete the multiple chats
@@ -491,11 +492,11 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     private fun startInfoActivity(jid: String, chatType: String) {
         if (ChatType.TYPE_CHAT == chatType) {
             launchActivity<UserInfoActivity> {
-                putExtra(AppConstants.PROFILE_DATA, ProfileDetailsUtils.getProfileDetails(jid))
+                putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(jid))
             }
         } else {
             launchActivity<GroupInfoActivity> {
-                putExtra(AppConstants.PROFILE_DATA, ProfileDetailsUtils.getProfileDetails(jid))
+                putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(jid))
             }
         }
     }

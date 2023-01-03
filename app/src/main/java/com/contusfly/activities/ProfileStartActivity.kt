@@ -93,9 +93,6 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     @JvmField
     protected var mobileEditText: CustomTextView? = null
 
-    @JvmField
-    protected var profilePicture: CircularImageView? = null
-
     /**
      * The progress dialog of the activity When run the background tasks
      */
@@ -204,7 +201,6 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun viewInitialization() {
         setDrawable = SetDrawable(this)
         progressDialog = DoProgressDialog(this)
-        profilePicture = profileStartBinding.imageProfilePicture
         mobileEditText = profileStartBinding.editMobileNumber
         profileStartBinding.editProfileName.isEnabled = true
         profileStartBinding.editProfileName.isCursorVisible = true
@@ -215,14 +211,13 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun clickListeners() {
         profileStartBinding.currentStatusView.setOnClickListener(this)
         profileStartBinding.changeProfileImage.setOnClickListener(this)
-        profilePicture!!.setOnClickListener(this)
+        profileStartBinding.imageProfilePicture.setOnClickListener(this)
         profileStartBinding.textSync.setOnClickListener(this)
         profileStartBinding.textEdit.setOnClickListener(this)
         profileStartBinding.editMobileNumber.keyListener = null
         checkNameContentTextWatcher(profileStartBinding.editProfileName)
         hideCursorsAndKeyboard(profileStartBinding.editProfileName)
         if (isFromSettingsProfile) {
-            profileStartBinding.textEmail.isEnabled=false
             checkEmailContentTextWatcher(profileStartBinding.textEmail)
             hideCursorsAndKeyboard(profileStartBinding.textEmail)
         }
@@ -392,7 +387,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             mobileEditText!!.text = Utils.getFormattedPhoneNumber(mobileNumber)
             userImgUrl = Utils.returnEmptyStringIfNull(profileDetails.image)
             if (userImgUrl.isNotEmpty()) {
-                MediaUtils.loadImageWithLoader(this, userImgUrl, profilePicture!!, AppCompatResources.getDrawable(applicationContext, R.drawable.profile_img), progressDialog)
+                MediaUtils.loadImageWithLoader(this, userImgUrl, profileStartBinding.imageProfilePicture, AppCompatResources.getDrawable(applicationContext, R.drawable.profile_img), progressDialog)
             } else if (profileStartBinding.editProfileName.text.toString().isNotEmpty()) showProfilePicInitials()
             mStatus = Utils.returnEmptyStringIfNull(profileDetails.status)
             if (mStatus.isNullOrEmpty()) {
@@ -426,7 +421,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         if(progressDialog != null && progressDialog?.isShowing == true){
             val imageURL = Prefs.getString(com.contus.flycommons.SharedPreferenceManager.USER_PROFILE_IMAGE)
             if(imageURL != null) {
-                MediaUtils.loadImageWithLoader(this, imageURL, profilePicture!!, profilePicture!!.drawable, progressDialog)
+                MediaUtils.loadImageWithLoader(this, imageURL, profileStartBinding.imageProfilePicture, profileStartBinding.imageProfilePicture.drawable, progressDialog)
             }
         }
         if (isSuccess && isFromSettingsProfile && !fromBackground) {
@@ -610,7 +605,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                 }else{
                     userImgUrl = mFileTemp!!.path
                     val photo = BitmapFactory.decodeFile(mFileTemp!!.path)
-                    profilePicture!!.setImageBitmap(photo)
+                    profileStartBinding.imageProfilePicture.setImageBitmap(photo)
                 }
             }
         } catch (e: java.lang.Exception) {
@@ -633,7 +628,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun profilePicUploadSuccess(image: String?) {
         SharedPreferenceManager.setString(Constants.USER_PROFILE_IMAGE, image)
         userImgUrl = image!!
-        if (userImgUrl.isNotEmpty()) MediaUtils.loadImageWithLoader(this, userImgUrl, profilePicture!!, profilePicture!!.drawable, progressDialog)
+        if (userImgUrl.isNotEmpty()) MediaUtils.loadImageWithLoader(this, userImgUrl, profileStartBinding.imageProfilePicture, profileStartBinding.imageProfilePicture.drawable, progressDialog)
         else progressDialog?.dismiss()
     }
 
@@ -642,7 +637,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         else {
             CustomToast.show(this, getString(R.string.msg_no_internet))
             if (userImgUrl.isNotEmpty()) {
-                MediaUtils.loadImageWithLoader(this, userImgUrl, profilePicture!!,
+                MediaUtils.loadImageWithLoader(this, userImgUrl, profileStartBinding.imageProfilePicture,
                     ContextCompat.getDrawable(this, R.drawable.profile_img), progressDialog)
             }
         }
@@ -704,6 +699,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                 if (isSuccess) {
                     ConfigurationUtils.insertDefaultStatus(this, mStatus)
                     ConfigurationUtils.insertDefaultBusyStatus(this)
+                    ConfigurationUtils.setDefaultValues(this)
                     navigateToDashboard()
                 } else {
                     progressDialog?.dismiss()
@@ -770,7 +766,10 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         showResponseToast(true)
         if (intent.getBooleanExtra(Constants.IS_FIRST_LOGIN, false) && isUpdateClickedOnStart) {
             updateArchiveChatsSettings()
-            navigateToMainPage()
+            FlyCore.syncContacts(true) { isSuccess, _, _ ->
+                LogMessage.e(TAG, "ContactSync Response: $isSuccess")
+                navigateToMainPage()
+            }
         } else if (isFromSettingsProfile) updateProfileImageIfUrlEmpty()
     }
 
@@ -791,13 +790,16 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
 
     private fun showProfilePicInitials() {
         if (userImgUrl.isEmpty()) {
-            profilePicture!!.setImageDrawable(setDrawable!!.setDrawableForProfile(profileName))
+            profileStartBinding.imageProfilePicture.setImageDrawable(setDrawable!!.setDrawableForProfile(profileName))
         }
     }
 
     private fun navigateToMainPage() {
         if (FlyCore.getIsProfileBlockedByAdmin()) return
-        FlyCore.getUsersIBlocked(true) { _, _, _ -> }
+        FlyCore.getFriendsList(true) { isSuccess, _, _ ->
+            if (isSuccess)
+                FlyCore.getUsersIBlocked(true) { _, _, _ -> }
+        }
         UserProfileUtils().closeProgress(progressDialog)
         startActivity(Intent(this, DashboardActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
         finish()
@@ -827,7 +829,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                         isUserProfileRemoved = true
                         userImgUrl = Constants.EMPTY_STRING
                         SharedPreferenceManager.setString(Constants.USER_PROFILE_IMAGE, userImgUrl)
-                        MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profilePicture!!, setDrawable!!.setDrawableForProfile(profileName))
+                        MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profileStartBinding.imageProfilePicture, setDrawable!!.setDrawableForProfile(profileName))
                         updateMyProfile()
                     } else {
                         showResponseToast(isSuccess)
@@ -843,7 +845,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             isImageSelected = false
             userImgUrl = Constants.EMPTY_STRING
             SharedPreferenceManager.setString(Constants.USER_PROFILE_IMAGE, userImgUrl)
-            MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profilePicture!!, setDrawable!!.setDrawableForProfile(profileName))
+            MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profileStartBinding.imageProfilePicture, setDrawable!!.setDrawableForProfile(profileName))
             progressDialog?.dismiss()
         }
     }
@@ -886,19 +888,5 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                 Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_STATUS))
         }
         setUserProfile()
-    }
-
-    override fun onConnected() {
-        super.onConnected()
-        if(!isFromSettingsProfile){
-            handleSaveButton(true)
-        }
-    }
-
-    override fun onDisconnected() {
-        super.onDisconnected()
-        if(!isFromSettingsProfile){
-            handleSaveButton(false)
-        }
     }
 }

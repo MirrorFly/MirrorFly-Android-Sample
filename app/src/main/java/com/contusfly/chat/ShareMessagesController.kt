@@ -1,6 +1,7 @@
 package com.contusfly.chat
 
 import com.contusfly.models.MessageObject
+import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusfly.chat.FileMimeType.Companion.APPLICATION
 import com.contusfly.chat.FileMimeType.Companion.AUDIO
@@ -25,12 +26,12 @@ constructor(private val messagingClient: MessagingClient){
      * Compose and send text messages to the given list of rosters
      *
      * @param shareText the text to share or send
-     * @param userIdList user list to send the text message
+     * @param users     roster list  to send the text message
      */
-    fun sendTextMessage(shareText: String, userIdList: List<String>) {
+    fun sendTextMessage(shareText: String, users: List<ProfileDetails>) {
         val messageObjectList = ArrayList<MessageObject>()
-        for (userId in userIdList) {
-            messageObjectList.add(messagingClient.composeTextMessage(userId, shareText))
+        for (roster in users) {
+            messageObjectList.add(messagingClient.composeTextMessage(roster.jid, shareText))
         }
         sendMessage(messageObjectList)
     }
@@ -39,13 +40,13 @@ constructor(private val messagingClient: MessagingClient){
      * Compose and send Contact messages to the given list of rosters
      *
      * @param contacts list of ContactShareModel to share to the users
-     * @param users    user id list to send the text message
+     * @param users    profile list  to send the text message
      */
-    fun sendContactMessage(contacts: List<ContactShareModel>, users: List<String>) {
+    fun sendContactMessage(contacts: List<ContactShareModel>, users: List<ProfileDetails>) {
         val messageObjectList = ArrayList<MessageObject>()
-        for (userId in users) {
+        for (profileDetails in users) {
             for (contactMessage in contacts) {
-                messageObjectList.add(messagingClient.composeContactMessage(userId, contactMessage))
+                messageObjectList.add(messagingClient.composeContactMessage(profileDetails.jid, contactMessage))
             }
         }
         sendMessage(messageObjectList)
@@ -67,28 +68,30 @@ constructor(private val messagingClient: MessagingClient){
      * Send Media Message to the first user in quick to whom only the uploads takes place
      *
      * @param fileObjects list of files the needs to be uploaded
-     * @param userIdList  list of JID to which the message is going to send.
+     * @param jids        list of JID to which the message is going to send.
      */
-    fun sendMediaMessagesForSingleUser(fileObjects: List<FileObject>, userIdList: List<String>) {
+    fun sendMediaMessagesForSingleUser(fileObjects: List<FileObject>, jids: List<String?>) {
         val messageObjectList = ArrayList<MessageObject>()
-        for (userId in userIdList) {
+        for (jid in jids) {
+            jid?.let {
                 for (fileObject in fileObjects) {
                     when (fileObject.fileMimeType) {
-                        IMAGE -> messageObjectList.add(messagingClient.composeImageMessage(userId, fileObject.filePath, fileObject.caption))
+                        IMAGE -> messageObjectList.add(messagingClient.composeImageMessage(it, fileObject.filePath, fileObject.caption))
                         VIDEO -> {
-                            val videoMessage = messagingClient.composeVideoMessage(userId, fileObject.filePath, fileObject.caption)
+                            val videoMessage = messagingClient.composeVideoMessage(jid,fileObject.filePath, fileObject.caption)
                             addVideoMessage(videoMessage, messageObjectList)
                         }
                         AUDIO -> {
-                            val audioMessage = messagingClient.composeAudioMessage(userId, false, fileObject.filePath)
-                            addAudioMessage(audioMessage, messageObjectList)
+                            val audioMessage = messagingClient.composeAudioMessage(it, false, fileObject.filePath)
+                            addAudioMessage(audioMessage,messageObjectList)
                         }
                         APPLICATION -> {
-                            val documentMessage = messagingClient.composeDocumentsMessage(userId, fileObject.filePath)
+                            val documentMessage = messagingClient.composeDocumentsMessage(it, fileObject.filePath)
                             addDocumentMessage(documentMessage, messageObjectList)
                         }
                     }
                 }
+            }
         }
         sendMessage(messageObjectList)
     }
@@ -111,7 +114,7 @@ constructor(private val messagingClient: MessagingClient){
     /**
      * Send the message to the SDK
      *
-     * @param messageObjectList list of messages to send
+     * @param MessageObjectList list of messages to send
      */
     private fun sendMessage(messageObjectList: ArrayList<MessageObject>) {
         for (messageObject in messageObjectList) {

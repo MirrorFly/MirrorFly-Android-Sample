@@ -53,7 +53,6 @@ import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils.getUserFromJid
 import com.contusfly.utils.ChatUtils.setSelectedChatItem
 import com.contusfly.utils.Constants
-import com.contusfly.utils.ImageUtils.loadMapWithGlide
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
 import com.contusfly.utils.SharedPreferenceManager
@@ -61,8 +60,11 @@ import com.contusfly.views.SetDrawable
 import com.contusflysdk.api.ChatManager.getUserProfileName
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.MessageStatus
+import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
+import com.contusflysdk.api.models.ContactChatMessage
+import com.contusflysdk.api.utils.ImageUtils.loadMapWithGlide
 import com.contusflysdk.utils.Utils
 import io.github.rockerhieu.emojicon.EmojiconTextView
 import java.text.ParseException
@@ -858,7 +860,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
      * @param item   message item
      */
     private fun setHeader(holder: RecyclerView.ViewHolder, type: Int, item: ChatMessage) {
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(item.getChatUserJid())
+        val profileDetails = getProfileDetails(item.getChatUserJid())
         if (type == SENDER_HEADER) {
             val userName = getUserProfileName()
             val setDrawable = SetDrawable(context!!, profileDetails)
@@ -894,7 +896,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
         var groupUser = Constants.EMPTY_STRING
         val setDrawable: SetDrawable
         if (item.getMessageChatType() == ChatTypeEnum.groupchat) {
-            val profileGroupUser = ProfileDetailsUtils.getProfileDetails(item.senderUserJid)
+            val profileGroupUser = getProfileDetails(item.senderUserJid)
             groupUser = if (profileGroupUser != null && profileGroupUser.name != null && profileGroupUser.name.isNotEmpty()) profileGroupUser.name
             else Utils.getFormattedPhoneNumber(getUserFromJid(profileGroupUser!!.jid))
             profileNickName = profileGroupUser.name

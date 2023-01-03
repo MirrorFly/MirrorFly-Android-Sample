@@ -739,9 +739,9 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun setProfileImage(image: String) {
 
         if (image.startsWith(storagePrefix) && File(Utils.returnEmptyStringIfNull(image)).exists()) {
-            MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
+            com.contusflysdk.utils.MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
         } else {
-            MediaUtils.loadImageWithGlideSecure(
+            com.contusflysdk.utils.MediaUtils.loadImageWithGlideSecure(
                 this,
                 if (image.isBlank()) null else image,
                 binding.profileImage,
@@ -856,7 +856,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             userList.add(usersList[i].jid)
             i++
         }
-        startActivityForResult(Intent(this, UserListActivity::class.java)
+        startActivityForResult(Intent(this, NewContactsActivity::class.java)
             .putExtra(com.contusfly.utils.Constants.ADD_PARTICIAPANTS, true)
             .putExtra(com.contusfly.utils.Constants.FROM_GROUP_INFO, true)
             .putExtra(com.contusfly.utils.Constants.GROUP_ID, groupProfileDetails.jid)
@@ -888,7 +888,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         if (isGroupMember) {
             val index = groupMembersList.indexOfFirst { it.jid == jid }
             if (index.isValidIndex()) {
-                groupMembersList[index] = ProfileDetailsUtils.getProfileDetails(jid)!!
+                groupMembersList[index] = ContactManager.getProfileDetails(jid)!!
                 groupMembersAdapter.notifyItemChanged(index)
             }
         }
@@ -1131,7 +1131,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        groupProfileDetails = ProfileDetailsUtils.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
         groupProfileDetails.let {
             if (it.isAdminBlocked) navigateToDashboard()
             else {
@@ -1250,7 +1250,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      */
     private fun loadGroupNameAndImage() {
 
-        groupProfileDetails = ProfileDetailsUtils.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
         groupProfileDetails.let {
             val groupImage = Utils.returnEmptyStringIfNull(it.image)
 

@@ -33,7 +33,6 @@ import com.contusfly.call.groupcall.listeners.ActivityOnClickListener
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.ActivityGroupCallBinding
 import com.contusfly.utils.ChatUtils
-import com.contusfly.utils.ProfileDetailsUtils
 import kotlinx.android.synthetic.main.custom_toast.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -807,7 +806,7 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
         if (!callUserGridAdapter.gridCallUserList.contains(userJid)) {
             callUserGridAdapter.addUser(userJid)
             if (!isInPIPMode())
-                callsUsersToast(String.format(getString(R.string.call_member_joined), ProfileDetailsUtils.getDisplayName(userJid)))
+                callsUsersToast(String.format(getString(R.string.call_member_joined), CallManager.getCallHelper().getDisplayName(userJid)))
         }
         setUpCallUI()
         showOrHideSurfaceViews()
@@ -828,7 +827,7 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
             if (callUserGridAdapter.gridCallUserList.contains(userJid)) {
                 callUserGridAdapter.removeUser(userJid)
                 if (!isInPIPMode() && leftStatus)
-                    callsUsersToast(String.format(getString(R.string.call_member_left), ProfileDetailsUtils.getDisplayName(userJid)))
+                    callsUsersToast(String.format(getString(R.string.call_member_left), CallManager.getCallHelper().getDisplayName(userJid)))
             }
 
             setUpCallUI()

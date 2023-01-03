@@ -14,9 +14,9 @@ import com.contusfly.adapters.holders.ReplyMessageViewHolder
 import com.contusfly.getColourCode
 import com.contusfly.show
 import com.contusfly.utils.Constants
-import com.contusfly.utils.MediaUtils
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.api.models.ReplyParentChatMessage
+import com.contusflysdk.utils.DecodeImageUtils
 
 /**
  * This class handles the sent reply message related operations
@@ -53,6 +53,7 @@ open class SentReplyTextUtils {
      * @param replyMessage           the message object possessing the reply information.
      */
     fun showSenderReplyImageVideoView(context: Context, replyMessageViewHolder: ReplyMessageViewHolder, replyMessage: ReplyParentChatMessage, isGroupMessage: Boolean) {
+        val decodeImageUtils = DecodeImageUtils()
         val mediaDetail = replyMessage.getMediaChatMessage()
         replyMessageViewHolder.imgSenderMessageType?.show()
         replyMessageViewHolder.imgSenderMessageType?.setImageResource(R.drawable.ic_camera_reply)
@@ -64,9 +65,12 @@ open class SentReplyTextUtils {
         if (userName != Constants.YOU && isGroupMessage) replyMessageViewHolder.txtChatReplyUserName?.setTextColor(userName.getColourCode()) else replyMessageViewHolder.txtChatReplyUserName?.setTextColor(ContextCompat.getColor(context, R.color.color_black))
         replyMessageViewHolder.txtChatReplyUserName?.text = userName
         replyMessageViewHolder.imgSenderImageVideoPreview?.show()
-        if (replyMessage.getMessageType() == MessageType.IMAGE || replyMessage.getMessageType() == MessageType.VIDEO) {
-            MediaUtils.loadImageInView(replyMessageViewHolder.imgSenderImageVideoPreview!!, mediaDetail.getMediaLocalStoragePath(),
-                    mediaDetail.getMediaThumbImage(), context, R.drawable.ic_image_placeholder)
+        if (replyMessage.getMessageType() == MessageType.IMAGE) {
+            decodeImageUtils.loadImageInView(replyMessageViewHolder.imgSenderImageVideoPreview, mediaDetail.getMediaLocalStoragePath(),
+                    mediaDetail.getMediaThumbImage(), Constants.MSG_TYPE_IMAGE, context, R.drawable.ic_image_placeholder)
+        } else if (replyMessage.getMessageType() == MessageType.VIDEO) {
+            decodeImageUtils.loadImageInView(replyMessageViewHolder.imgSenderImageVideoPreview, mediaDetail.getMediaLocalStoragePath(),
+                    mediaDetail.getMediaThumbImage(), Constants.MSG_TYPE_VIDEO, context, R.drawable.ic_image_placeholder)
         }
     }
 }

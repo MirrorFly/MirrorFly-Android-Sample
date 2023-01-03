@@ -7,21 +7,19 @@ interface RecyclerViewUserItemClick {
      * Callback Method for Clicking an item
      *
      * @param position - position
-     * @param profileDetails   - ProfileDetails
+     * @param roster   - Roster
      */
-    fun onItemClicked(position: Int, profileDetails: ProfileDetails)
+    fun onItemClicked(position: Int, roster: ProfileDetails?)
+
+    /**
+     * Method to notify if user selects more than seven users
+     */
+    fun onUserSelectRestriction()
 
     /**
      * Callback Method for Clicking an blocked user item
      *
-     * @param profileDetails  - ProfileDetails
+     * @param roster   - Roster
      */
-    fun onSelectBlockedUser(profileDetails: ProfileDetails)
-
-    /**
-     * Callback Method for check selected or not
-     *
-     * @param userId   - User id of the user
-     */
-    fun isSelected(userId: String) : Boolean
+    fun onSelectBlockedUser(roster: ProfileDetails)
 }

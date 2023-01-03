@@ -140,7 +140,6 @@
     <string name="single_chat_receiver_recall">This message was deleted&#160;&#160;&#160;&#160;</string>
     <string name="msg_no_chats">No Chats Found</string>
     <string name="msg_no_results">No results found</string>
-    <string name="msg_no_contacts">No Contacts found</string>
     <string name="msg_timed_out_sms">Timed out waiting for SMS</string>
     <string name="msg_otp_validated">OTP validated successfully</string>
     <string name="max_profile_name_chars">Maximum of 30 Characters</string>
@@ -184,7 +183,6 @@
     <string name="action_location">Location</string>
     <string name="action_contact">Contact</string>
     <string name="title_video">Video</string>
-    <string name="content_not_found">Content not found</string>
 
     <string name="file_size_convention_b">bytes</string>
     <string name="file_size_convention_gb">GB</string>
@@ -450,8 +448,7 @@
     <string name="google_translation_label">Translate Message</string>
     <string name="google_translation_message">Enable Translate Message to choose Translation Language</string>
     <string name="google_translation_language_label">Choose Translation Language</string>
-    <string name="google_translation_language_double_tap">Double Tap the received messages to translate</string>
-    <string name="save_media_to_gallery">Save Media To Gallery</string>
+    <string name="google_translation_language_double_tap">Double Tap the received messages to translate</string> <string name="save_media_to_gallery">Save Media To Gallery</string>
     <string name="choose_language">Choose Language</string>
     <string name="set_up_media_to_gallery">SetUp if you want to save media files to gallery</string>
     <string name="media_auto_download">Media Auto download</string>

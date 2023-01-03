@@ -13,7 +13,7 @@ import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.call.groupcall.listeners.ActivityOnClickListener
-import com.contusfly.utils.ProfileDetailsUtils
+import com.contusflysdk.api.contacts.ContactManager
 
 /**
  * This call dialog view helper is handle the incoming and outgoing video call switch requests.
@@ -48,7 +48,7 @@ class DialogViewHelper(
             dismissVideoCallRequestingDialog()
             CallManager.muteVideo(true)
             activityOnClickListener.onRequestingVideoCallDialog()
-            Toast.makeText(context, "No response from " + ProfileDetailsUtils.getDisplayName(GroupCallUtils.getEndCallerJid()), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "No response from " + ContactManager.getDisplayName(GroupCallUtils.getEndCallerJid()), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -139,7 +139,7 @@ class DialogViewHelper(
     private val callSwitchDialog: AlertDialog by lazy {
         val mBuilder = AlertDialog.Builder(context, R.style.AlertDialogStyle)
         if (GroupCallUtils.getEndCallerJid().contains("@") && GroupCallUtils.getEndCallerJid().isNotEmpty()) {
-            mBuilder.setMessage(ProfileDetailsUtils.getDisplayName(GroupCallUtils.getEndCallerJid()) + " requesting to switch to video call")
+            mBuilder.setMessage(ContactManager.getDisplayName(GroupCallUtils.getEndCallerJid()) + " requesting to switch to video call")
         } else {
             mBuilder.setMessage("requesting to switch to video call")
         }
