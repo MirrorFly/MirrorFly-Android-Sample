@@ -124,9 +124,6 @@ class AppLifecycleListener : LifecycleObserver {
         var pinActivityShowing = false
 
         @JvmField
-        var pinScreenShowing = true
-
-        @JvmField
         var deviceContactCount = 0
 
         @JvmField

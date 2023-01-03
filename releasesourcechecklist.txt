@@ -1,9 +1,9 @@
-Date: 18 Feb 2022
+Date: 10 May 2022
 
 Note: While sharing the UI Kit source code, please do follow the below mentioned steps and share the source.
 
-1. Remove ".git" hidden folder from local Project Source folder
-2. app/build.gradle -> remove the debug build variant
+1. app/build.gradle -> remove the qa build variant
+2. Remove Product Flavors block in build.gradle file
 3. In release build variant check the server config details as mentioned below
      'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
      'XMPP_PORT', '"5222"'
@@ -14,5 +14,9 @@ Note: While sharing the UI Kit source code, please do follow the below mentioned
      'SIGNAL_SERVER', '"https://signal-preprod-sandbox.mirrorfly.com"'
      'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
      'JANUS_WEB_SOCKET_SERVER', '"wss://janus.mirrorfly.com"'
-4. Make sure that License Key value[lu3Om85JYSghcsB6vgVoSgTlSQArL5] should be removed and replace the String as "Please enter your License key"
+4. Replace debug build variant config details with release config details
+5. Make sure that License Key value[lu3Om85JYSghcsB6vgVoSgTlSQArL5] should be removed and replace the String as "Please enter your License key"
     Ex: 'LICENSE', '"Please enter your License key"'
+6. Make sure that Google Translate Key value should be removed and replace the String as "Please enter your google translate key"
+    Ex: GOOGLE_TRANSLATE_KEY="Please enter your google translate key"
+7. Export UIKit Code through Android Studio "File -> Export -> Export to Zip File..."

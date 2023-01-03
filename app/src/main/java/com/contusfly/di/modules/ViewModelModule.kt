@@ -61,9 +61,4 @@ abstract class ViewModelModule {
     @IntoMap
     @ViewModelKey(MediaPreviewViewModel::class)
     internal abstract fun bindMediaPreviewViewModel(mediaPreviewViewModel: MediaPreviewViewModel): ViewModel
-
-    @Binds
-    @IntoMap
-    @ViewModelKey(UserListViewModel::class)
-    internal abstract fun bindUserListViewModel(userListViewModel: UserListViewModel): ViewModel
 }

@@ -7,6 +7,7 @@ import com.contus.flycommons.models.MessageType
 import com.contusfly.R
 import com.contusfly.utils.NotifyRefererUtils.getGroupUserAppendedText
 import com.contusfly.utils.NotifyRefererUtils.hasMultipleSenders
+import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import java.util.*
 
@@ -38,7 +39,6 @@ object GetMsgNotificationUtils {
      * @return String Summary of the message
      */
     internal fun getMessageSummary(context: Context, message: ChatMessage): String {
-
         return if (MessageType.TEXT == message.getMessageType() || MessageType.NOTIFICATION == message.getMessageType()) if (message.isMessageRecalled()) deleted_message else message.getMessageTextContent() else if (message.isMessageRecalled()) deleted_message else getMediaMessageContent(context, message)
     }
 
@@ -54,12 +54,12 @@ object GetMsgNotificationUtils {
                 contentBuilder.append(context.resources
                         .getString(R.string.file_emoji)).append(" ").append("File")
             MessageType.IMAGE -> contentBuilder.append(context.resources.getString(R.string.image_emoji)).append(" ")
-                    .append(if (message.getMediaChatMessage() != null && message.getMediaChatMessage().getMediaCaptionText() != null && message.getMediaChatMessage().getMediaCaptionText().isNotEmpty()) message.getMediaChatMessage().getMediaCaptionText() else "Image")
+                    .append(if (message.getMediaChatMessage().getMediaCaptionText() != null && message.getMediaChatMessage().getMediaCaptionText().isNotEmpty()) message.getMediaChatMessage().getMediaCaptionText() else "Image")
             MessageType.LOCATION ->
                 contentBuilder.append(context.resources
                         .getString(R.string.location_emoji)).append(" ").append("Location")
             MessageType.VIDEO -> contentBuilder.append(context.resources.getString(R.string.video_emoji)).append(" ")
-                    .append(if (message.getMediaChatMessage() != null && message.getMediaChatMessage().getMediaCaptionText() != null && message.getMediaChatMessage().getMediaCaptionText().isNotEmpty()) message.getMediaChatMessage().getMediaCaptionText() else "Video")
+                    .append(if (message.getMediaChatMessage().getMediaCaptionText() != null && message.getMediaChatMessage().getMediaCaptionText().isNotEmpty()) message.getMediaChatMessage().getMediaCaptionText() else "Video")
             else -> {
                 // No Implementation Needed
             }
@@ -92,7 +92,7 @@ object GetMsgNotificationUtils {
                     if (senderDisplayNames.containsKey(messageFrom)) {
                         sender = senderDisplayNames[messageFrom]
                     } else {
-                        val profileDetails = ProfileDetailsUtils.getProfileDetails(messageFrom)
+                        val profileDetails = getProfileDetails(messageFrom)
                         sender = profileDetails!!.name
                         senderDisplayNames[messageFrom] = sender
                     }
@@ -116,7 +116,7 @@ object GetMsgNotificationUtils {
             notBuilder.setContentTitle(title)
         } else {
             jid = unseenMessagesForNotification[0].getChatUserJid()
-            val profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
+            val profileDetails = getProfileDetails(jid)
             val title = profileDetails!!.name
             inboxStyle.setBigContentTitle(title)
             notBuilder.setContentTitle(title)
@@ -127,7 +127,7 @@ object GetMsgNotificationUtils {
 
     private fun isMuteCheck(jid: String?): Boolean {
         if (!TextUtils.isEmpty(jid)) {
-            val profileDetails = ProfileDetailsUtils.getProfileDetails(jid!!)
+            val profileDetails = getProfileDetails(jid!!)
             return profileDetails != null && profileDetails.isMuted
         }
         return false

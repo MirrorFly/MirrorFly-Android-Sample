@@ -68,7 +68,7 @@ constructor(val application: Application) : CoroutineScope {
     }
 
     private fun sendTextMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        FlyMessenger.sendTextMessage(messageObject.toJid, messageObject.textMessage, messageObject.replyMessageId, object : SendMessageListener {
+        FlyMessenger.sendTextMessage(messageObject.toJid, TextUtils.htmlEncode(messageObject.textMessage), messageObject.replyMessageId, object : SendMessageListener {
             override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
                 if (isSuccess && chatMessage != null && messageListener != null)
                     messageListener.onSendMessageSuccess(chatMessage)

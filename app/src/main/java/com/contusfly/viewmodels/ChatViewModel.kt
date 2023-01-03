@@ -4,8 +4,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.contusfly.repository.MessageRepository
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusflysdk.api.FlyMessenger
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +42,7 @@ constructor(private val messageRepository: MessageRepository) : ViewModel() {
     }
 
     fun getProfileDetails() {
-        userRoster.value = ProfileDetailsUtils.getProfileDetails(toUserJid)
+        userRoster.value = ContactManager.getProfileDetails(toUserJid)
     }
 
     fun getMessage(messageId: String): ChatMessage? = FlyMessenger.getMessageOfId(messageId)

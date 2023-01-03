@@ -1,6 +1,7 @@
 package com.contusfly.call.groupcall
 
 import android.content.Context
+import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -10,45 +11,59 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.TAG
+import com.contus.webrtc.api.CallManager
+import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.adapters.BaseViewHolder
 import com.contusfly.call.groupcall.listeners.RecyclerViewUserItemClick
-import com.contusfly.databinding.RowProgressBarBinding
+import com.contusfly.isItSavedContact
 import com.contusfly.isValidIndex
 import com.contusfly.loadUserProfileImage
-import com.contusfly.show
-import com.contusfly.utils.Constants
 import com.contusfly.utils.EmojiUtils
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
-import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomTextView
-import com.contusflysdk.AppUtils
-import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.Utils
-import com.contusflysdk.views.CustomToast
+import java.util.*
 import kotlin.collections.ArrayList
 
-class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Boolean, private val commonAlertDialog: CommonAlertDialog, private val onItemClickListener: RecyclerViewUserItemClick) : RecyclerView.Adapter<RecyclerView.ViewHolder >() {
+class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Boolean) : RecyclerView.Adapter<UserSelectionAdapter.UserViewHolder>() {
+
+    /**
+     * Selected users from the search list.
+     */
+    var selectedList: ArrayList<String> = ArrayList()
 
     /**
      * The ProfileDetails list to display in the recycler view.
      */
-    var profileDetailsList: ArrayList<ProfileDetails> = arrayListOf()
+    var profileDetailsList: ArrayList<ProfileDetails>? = null
 
-    private var searchKey = Constants.EMPTY_STRING
+    /**
+     * Selected rosters from the search list.
+     */
+    var selectedProfileDetailsList: ArrayList<ProfileDetails> = java.util.ArrayList()
 
-    private var isLoadingAdded = false
-    private var loaderPosition = -1
+    /**
+     * The temporary data of the list to reuse the list.
+     */
+    val mTempData = java.util.ArrayList<ProfileDetails>()
+
+    /**
+     * RecyclerView ClickLister Adapter
+     */
+    private var onItemClickListener: RecyclerViewUserItemClick? = null
+
     /**
      * Sets the list data to rosters list clear the temp data and refresh the view
      *
      * @param profileDetailsList the new data
      */
     fun setProfileDetails(profileDetailsList: List<ProfileDetails>) {
+        mTempData.clear()
+        this.mTempData.addAll(profileDetailsList)
         this.profileDetailsList = java.util.ArrayList()
-        this.profileDetailsList.addAll(profileDetailsList)
+        this.profileDetailsList!!.addAll(this.mTempData)
     }
 
     /**
@@ -57,65 +72,62 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
      * @param profileDetails the new data
      */
     fun updateProfileDetails(profileDetails: ProfileDetails?) {
-        val userIndex = profileDetailsList.indexOfFirst { profile -> profile.jid == profileDetails!!.jid }
+        val userIndex = profileDetailsList!!.indexOfFirst { profile -> profile.jid == profileDetails!!.jid }
         if (userIndex.isValidIndex()) {
             profileDetails?.let {
-                this.profileDetailsList[userIndex] = profileDetails
-                notifyItemChanged(userIndex)
+                this.profileDetailsList!![userIndex] = profileDetails
+                val index = mTempData.indexOfFirst { it.jid == profileDetails.jid }
+                if (index.isValidIndex()) {
+                    mTempData[index] = profileDetails
+                    notifyItemChanged(index)
+                }
             }
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder  {
-        return if (viewType == ITEM) {
-            UserViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.row_select_contact_item, parent, false))
-        } else {
-            val progressViewHolder = RowProgressBarBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            ProgressViewHolder(progressViewHolder)
-        }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserViewHolder {
+        return UserViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.row_select_contact_item, parent, false))
     }
 
     override fun getItemCount(): Int {
-        return profileDetailsList.size
+        return mTempData.size
     }
 
     override fun getItemId(position: Int): Long {
         return position.toLong()
     }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (holder) {
-            is UserViewHolder -> {
-                val item: ProfileDetails = profileDetailsList[position]
-                Log.d(TAG, "$TAG ${item.jid}")
-                holder.emailContactIcon.visibility = View.GONE
-                setUserInfo(holder, item)
-                holder.contactView.setBackgroundResource(R.drawable.recycleritem_ripple)
-                holder.header.setOnClickListener(null)
+    override fun onBindViewHolder(holder: UserViewHolder, position: Int) {
+        val item: ProfileDetails = mTempData[position]
+        Log.d(TAG, "$TAG ${item.jid}")
+        holder.emailContactIcon.visibility = View.GONE
+        setUserInfo(holder, item)
+        holder.contactView.setBackgroundResource(R.drawable.recycleritem_ripple)
+        holder.header.setOnClickListener(null)
 
-                holder.checkBox.visibility = View.VISIBLE
-                val onClickListener = View.OnClickListener { handleContactSelection(item, position, holder) }
-                holder.contactView.setOnClickListener(onClickListener)
-                holder.checkBox.setOnClickListener(onClickListener)
+        holder.checkBox.visibility = View.VISIBLE
+        val onClickListener = View.OnClickListener { handleContactSelection(item, position, holder) }
+        holder.contactView.setOnClickListener(onClickListener)
+        holder.checkBox.setOnClickListener(onClickListener)
 
-                enableCheckbox(holder, item)
-            }
-            is ProgressViewHolder -> {
-                holder.progressViewBinding.loadMoreProgress.show()
-            }
-        }
-
-    }
-
-    override fun getItemViewType(position: Int): Int {
-        return if (profileDetailsList[position].jid.isNullOrBlank()) LOADING else ITEM
+        enableCheckbox(holder, item)
     }
 
     fun removeUser(jid: String) {
-        val index = profileDetailsList.indexOfFirst { it.jid == jid }
+        val index = mTempData.indexOfFirst { it.jid == jid }
         if (index.isValidIndex()) {
-            profileDetailsList.removeAt(index)
+            selectedList.remove(jid)
+            val selectedIndex = selectedProfileDetailsList.indexOfFirst { it.jid == jid }
+            if (selectedIndex.isValidIndex())
+                selectedProfileDetailsList.removeAt(selectedIndex)
+            else
+                selectedProfileDetailsList.remove(mTempData[index])
+            mTempData.removeAt(index)
             notifyItemRemoved(index)
+        }
+        val userIndex = profileDetailsList?.indexOfFirst { it.jid == jid }
+        if (userIndex != null && userIndex.isValidIndex()) {
+            profileDetailsList?.removeAt(userIndex)
         }
     }
 
@@ -123,7 +135,7 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
      * Enable the checkbox based on the selected list.
      */
     private fun enableCheckbox(holder: UserSelectionAdapter.UserViewHolder, item: ProfileDetails) {
-        holder.checkBox.isChecked = onItemClickListener.isSelected(item.jid)
+        holder.checkBox.isChecked = selectedList.contains(item.jid)
     }
 
     /**
@@ -135,60 +147,27 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
     private fun handleContactSelection(item: ProfileDetails, position: Int, holder: UserSelectionAdapter.UserViewHolder) {
         if (item.isBlocked) {
             holder.checkBox.isChecked = false
-            if (isAddUserInCall) {
-                showBlockedUserPopUp(item)
-            } else
-                onItemClickListener.onSelectBlockedUser(item)
+            onItemClickListener!!.onSelectBlockedUser(item)
         } else {
-            onItemClickListener.onItemClicked(position, item)
-            holder.checkBox.isChecked = onItemClickListener.isSelected(item.jid)
+            if (!selectedList.contains(item.jid)) {
+                if (selectedList.size >= if (isAddUserInCall) (CallManager.getMaxCallUsersCount() -
+                            (GroupCallUtils.getAvailableCallUsersList().size + 1))
+                    else CallManager.getMaxCallUsersCount() - 1) {
+                    onItemClickListener!!.onUserSelectRestriction()
+                    holder.checkBox.isChecked = false
+                } else {
+                    selectedList.add(item.jid)
+                    selectedProfileDetailsList.add(item)
+                    holder.checkBox.isChecked = true
+                    onItemClickListener!!.onItemClicked(position, item)
+                }
+            } else {
+                selectedList.remove(item.jid)
+                selectedProfileDetailsList.remove(item)
+                holder.checkBox.isChecked = false
+                onItemClickListener!!.onItemClicked(position, item)
+            }
         }
-    }
-
-    private fun showBlockedUserPopUp(item: ProfileDetails) {
-        commonAlertDialog.showAlertDialog(String.format(
-            context.getString(R.string.unblock_message_label),
-            ProfileDetailsUtils.getDisplayName(item.jid)
-        ),
-            context.getString(R.string.yes_label),
-            context.getString(R.string.no_label),
-            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL,
-            true,
-            dialogListener = object : CommonAlertDialog.CommonDialogClosedListener {
-                override fun onDialogClosed(
-                    dialogType: CommonAlertDialog.DIALOGTYPE?,
-                    isSuccess: Boolean
-                ) {
-                    if (isSuccess) {
-                        if (AppUtils.isNetConnected(context)) {
-                            FlyCore.unblockUser(item.jid) { success, _, _ ->
-                                if (success) {
-                                    updateProfileDetails(
-                                        ProfileDetailsUtils.getProfileDetails(
-                                            item.jid
-                                        )
-                                    )
-                                } else {
-                                    CustomToast.show(
-                                        context,
-                                        Constants.ERROR_SERVER
-                                    )
-                                }
-                            }
-                        } else {
-                            CustomToast.show(
-                                context,
-                                context.getString(R.string.msg_no_internet)
-                            )
-                        }
-                    }
-                }
-
-                override fun listOptionSelected(position: Int) {
-                    //Do Nothing
-                }
-
-            })
     }
 
     /**
@@ -215,51 +194,49 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
         }
     }
 
-
-    fun addLoadingFooter() {
-        if (!isLoadingAdded) {
-            isLoadingAdded = true
-            profileDetailsList.add(ProfileDetails())
-            loaderPosition = profileDetailsList.size - 1
-            notifyItemInserted(loaderPosition)
-        }
-    }
-
-    fun removeLoadingFooter() {
-        if (isLoadingAdded) {
-            isLoadingAdded = false
-            if (loaderPosition.isValidIndex() && profileDetailsList.size > loaderPosition) {
-                profileDetailsList.removeAt(loaderPosition)
-                notifyItemRemoved(loaderPosition)
-                loaderPosition = -1
+    /**
+     * Filter the contacts in the recycler view. using the temporary data
+     *
+     * @param filterKey The search filter key
+     */
+    fun filter(filterKey: String) {
+        mTempData.clear()
+        if (TextUtils.isEmpty(filterKey)) {
+            mTempData.addAll(profileDetailsList!!)
+        } else {
+            /*
+             * Filter the list from the roster name.
+             */
+            for (mKey in profileDetailsList!!) {
+                if (mKey.isItSavedContact() && mKey.name.toLowerCase(Locale.getDefault()).contains(filterKey.toLowerCase(Locale.getDefault())))
+                    mTempData.add(mKey)
             }
+            setSearchCount(mTempData)
         }
     }
 
-    fun addProfileList(userList : List<ProfileDetails>) {
-        val startIndex = profileDetailsList.size
-        profileDetailsList.addAll(userList)
-        notifyItemRangeInserted(startIndex, userList.size)
+    private fun setSearchCount(tempData: List<ProfileDetails>) {
+        val tempRoster: MutableList<ProfileDetails> = java.util.ArrayList()
+        var i = 0
+        while (i < tempData.size) {
+            tempRoster.add(tempData[i])
+            i++
+        }
     }
 
-    fun resetSearch() {
-        loaderPosition = -1
-        profileDetailsList.clear()
-        notifyDataSetChanged()
-    }
-
-    fun setSearchKey(searchKey: String) {
-        this.searchKey = searchKey
-    }
-
-    fun getSearchKey() : String {
-        return this.searchKey
+    fun setRecyclerViewUsersItemOnClick(recyclerViewUsersItemClick: RecyclerViewUserItemClick?) {
+        onItemClickListener = recyclerViewUsersItemClick
     }
 
     fun updateRoster(userJid: String) {
-        val index = profileDetailsList.indexOfFirst { it.jid == userJid }
-        if (index >= 0) {
-            notifyItemChanged(index)
+        if (profileDetailsList != null) {
+            val index = profileDetailsList!!.indexOfFirst { it.jid == userJid }
+            if (index >= 0) {
+                val tempIndex = mTempData.indexOfFirst { it.jid == userJid }
+                if (tempIndex >= 0) {
+                    notifyItemChanged(tempIndex)
+                }
+            }
         }
     }
 
@@ -297,10 +274,4 @@ class UserSelectionAdapter(val context: Context, private val isAddUserInCall: Bo
         var contactView: LinearLayout = view.findViewById(R.id.contact_view)
     }
 
-    class ProgressViewHolder(var progressViewBinding: RowProgressBarBinding) : BaseViewHolder(progressViewBinding.root)
-
-    companion object {
-        private const val LOADING = 0
-        private const val ITEM = 1
-    }
 }

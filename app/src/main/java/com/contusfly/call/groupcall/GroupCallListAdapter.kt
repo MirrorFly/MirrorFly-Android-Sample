@@ -22,10 +22,10 @@ import com.contusfly.call.SetDrawable
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.CallUserItemBinding
 import com.contusfly.utils.Constants
-import com.contusfly.utils.MediaUtils
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.utils.ChatUtils
+import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 import com.jakewharton.rxbinding3.view.clicks
 import org.webrtc.RendererCommon
@@ -154,7 +154,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setLocalUserInfo(holder: CallUserViewHolder, position: Int) {
         holder.binding.textUserName.text = Constants.YOU
         val image = SharedPreferenceManager.getString(Constants.USER_PROFILE_IMAGE)
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(callUserList[position])
+        val profileDetails = ContactManager.getProfileDetails(callUserList[position])
         val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
 
         val setDrawable = SetDrawable(context, profileDetails)
@@ -163,7 +163,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun setRemoteUserInfo(holder: CallUserViewHolder, position: Int) {
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(callUserList[position])
+        val profileDetails = ContactManager.getProfileDetails(callUserList[position])
         if (profileDetails != null) {
             val name = Utils.returnEmptyStringIfNull(profileDetails.name)
             val image = profileDetails.image

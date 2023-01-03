@@ -99,7 +99,7 @@ class CommonAlertDialog(context: Context?) {
      * @param dialogType     the dialog type
      */
     fun showAlertDialog(msg: String?, positiveString: String?, negativeString: String?,
-                        dialogType: DIALOGTYPE, smartreply: Boolean, isCheckBoxShown: Boolean = false, dialogListener: CommonDialogClosedListener? = null) {
+                        dialogType: DIALOGTYPE, smartreply: Boolean, isCheckBoxShown: Boolean = false) {
         val builder = AlertDialog.Builder(context, R.style.AdminBlockAlertDialogStyle)
         builder.setMessage(msg)
         if (isCheckBoxShown) builder.setView(createAndSetCheckBox())
@@ -107,12 +107,10 @@ class CommonAlertDialog(context: Context?) {
             builder.setNegativeButton(negativeString) { dialog: DialogInterface, which: Int ->
                 dialog.dismiss()
                 listener?.onDialogClosed(dialogType, false)
-                dialogListener?.onDialogClosed(dialogType, false)
             }
         }
         builder.setPositiveButton(positiveString) { dialog: DialogInterface, which: Int ->
             listener?.onDialogClosed(dialogType, true)
-            dialogListener?.onDialogClosed(dialogType, true)
             dialog.dismiss()
         }
         if (smartreply) builder.setCancelable(false)

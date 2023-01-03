@@ -19,6 +19,8 @@ import com.contusfly.R
 import com.contusfly.getAppName
 import com.contusflysdk.api.ChatManager.startActivity
 import com.contusflysdk.api.FlyMessenger
+import com.contusflysdk.api.contacts.ContactManager
+import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 
 /**
@@ -92,9 +94,9 @@ object NotificationUtils {
 
     private fun getProfileMuteDetails(jid: String): Boolean {
         if (!TextUtils.isEmpty(jid)) {
-            return ProfileDetailsUtils.getProfileDetails(jid)!!.isMuted
+            return getProfileDetails(jid)!!.isMuted
         } else if (!TextUtils.isEmpty(mutecheckJid)) {
-            return ProfileDetailsUtils.getProfileDetails(mutecheckJid)!!.isMuted
+            return getProfileDetails(mutecheckJid)!!.isMuted
         }
         return false
     }
@@ -134,7 +136,7 @@ object NotificationUtils {
                 messageContent = getGroupUserAppendedText(unseenMessage, messageContent, ":")
                 notBuilder.setContentText(messageContent)
                 val toUser = unseenMessage.getChatUserJid()
-                val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser)
+                val profileDetails = getProfileDetails(toUser)
                 if (profileDetails != null && !profileDetails.isMuted) notBuilder.setDefaults(Notification.DEFAULT_SOUND)
                 notBuilder.setContentTitle(profileDetails?.name)
                 unseenMessage.getChatUserJid()
@@ -164,7 +166,7 @@ object NotificationUtils {
                                          delimiter: String): String {
         var appendedContent = messageContent
         if (ChatTypeEnum.groupchat == message.getMessageChatType()) {
-            val groupUser = ProfileDetailsUtils.getProfileDetails(message.getChatUserJid())
+            val groupUser = ContactManager.getProfileDetails(message.getChatUserJid())
             appendedContent = groupUser?.name + delimiter + messageContent
         }
         return appendedContent

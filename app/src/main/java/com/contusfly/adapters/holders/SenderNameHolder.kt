@@ -8,8 +8,8 @@ import com.contus.flycommons.exception.FlyException
 import com.contusfly.R
 import com.contusfly.getColourCode
 import com.contusfly.utils.Constants
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CustomTextView
+import com.contusflysdk.api.FlyCore.getUserProfile
 import com.contusflysdk.api.contacts.ProfileDetails
 
 /**
@@ -81,7 +81,7 @@ open class SenderNameHolder(itemView: View) : DateViewHolder(itemView) {
      */
     fun showSenderNameView(sendJid: String) {
         try {
-            val profileDetails = ProfileDetailsUtils.getProfileDetails(sendJid)
+            val profileDetails = getUserProfile(sendJid)
             var name = Constants.EMPTY_STRING
             if (profileDetails != null) {
                 name = profileDetails.name

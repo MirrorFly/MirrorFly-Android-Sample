@@ -36,13 +36,13 @@ import com.contusfly.utils.*
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager
-import com.contusfly.utils.Utils.clearOldData
 import com.contusfly.viewmodels.RegisterViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.*
 import com.contusflysdk.api.notification.PushNotificationManager
 import com.contusflysdk.utils.ChatUtilsOperations
+import com.contusflysdk.utils.UserUtils
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
 import dagger.android.AndroidInjection
@@ -156,7 +156,6 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
-        AutoStartHelper.instance.getAutoStartPermission(this@OtpActivity)
         super.onCreate(savedInstanceState)
         otpBinding = ActivityOtpBinding.inflate(layoutInflater)
         setContentView(otpBinding.root)
@@ -527,6 +526,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
      * false- follow the normal flow along with db clearing process
      */
     private fun checkCurrentUser() {
+        UserUtils().clearUserDataWithoutpPreference()
         SharedPreferenceManager.setString(Constants.USER_MOBILE_NUMBER, mobile)
         handleProgress()
     }
@@ -594,9 +594,6 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
 
             FlyCore.registerUser(mobile!!, regId) { isSuccess, _, data ->
                 if (isSuccess){
-                    val isNewUser = data["is_new_user"] as Boolean
-                    if (isNewUser)
-                        clearOldData(this)
                     renderUserRegistrationResponseData(data.getData() as JSONObject)
                 } else {
                     showErrorResponse(data)
@@ -669,6 +666,8 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
      */
     private fun deleteUserAccount() {
         progress.show()
+        UserUtils().clearUserData()
+        LogMessage.d("Userdata cleared", "")
         CommonUtils.navigateUserToLoggedOutUI(applicationContext)
     }
 

@@ -21,9 +21,6 @@ abstract class ActivityModule {
     internal abstract fun contributeNewContactsActivity(): NewContactsActivity
 
     @ContributesAndroidInjector
-    internal abstract fun contributeUserListActivity(): UserListActivity
-
-    @ContributesAndroidInjector
     internal abstract fun contributeOtpActivity(): OtpActivity
 
     @ContributesAndroidInjector

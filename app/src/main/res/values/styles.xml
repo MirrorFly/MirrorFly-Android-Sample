@@ -466,7 +466,7 @@
         <item name="android:includeFontPadding">false</item>
         <item name="android:fontFamily">@font/sf_ui_display_regular</item>
         <item name="font_name">@font/sf_ui_display_regular</item>
-        <item name="android:textColor">@color/color_status_list</item>
+        <item name="android:textColor">?attr/status_list_color</item>
         <item name="android:textSize">@dimen/text_size_14</item>
     </style>
 

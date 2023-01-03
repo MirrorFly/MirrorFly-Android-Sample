@@ -36,21 +36,20 @@ import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.activities.ChatActivity
 import com.contusfly.activities.DashboardActivity
-import com.contusfly.activities.UserListActivity
+import com.contusfly.activities.NewContactsActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallPermissionUtils
-import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.FragmentCallHistoryBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.setOnClickListener
 import com.contusfly.setVisible
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.MediaPermissions
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.FlyCore
+import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ItemClickSupport
 import com.contusflysdk.views.CustomToast
@@ -188,7 +187,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
 
         callHistoryBinding.fabMakeVoiceCall.setOnClickListener(1000) {
-            val intent = Intent(context, UserListActivity::class.java).apply {
+            val intent = Intent(context, NewContactsActivity::class.java).apply {
                 putExtra(com.contusfly.utils.Constants.TITLE, getString(R.string.title_contacts))
                 putExtra(com.contusfly.utils.Constants.MULTI_SELECTION, true)
                 putExtra(com.contusfly.utils.Constants.IS_MAKE_CALL, true)
@@ -201,7 +200,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
 
         callHistoryBinding.fabMakeVideoCall.setOnClickListener(1000) {
-            val intent = Intent(context, UserListActivity::class.java).apply {
+            val intent = Intent(context, NewContactsActivity::class.java).apply {
                 putExtra(com.contusfly.utils.Constants.TITLE, getString(R.string.title_contacts))
                 putExtra(com.contusfly.utils.Constants.MULTI_SELECTION, true)
                 putExtra(com.contusfly.utils.Constants.IS_MAKE_CALL, true)
@@ -407,7 +406,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     }
 
     private fun openDirectChatView(callLog: CallLog, view: View, toUser: String?) {
-        val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser!!)
+        val profileDetails = ContactManager.getProfileDetails(toUser!!)
         val mTempUserListWithoutOwnJid = callLog.userList
         mTempUserListWithoutOwnJid?.remove(SharedPreferenceManager.instance.currentUserJid)
         if (!mTempUserListWithoutOwnJid.isNullOrEmpty() && mTempUserListWithoutOwnJid.size >= 2) {
@@ -446,7 +445,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                 arrayListOf(profileDetails.jid)
             )
         } else {
-            val userProfile = ProfileDetailsUtils.getProfileDetails(jid)
+            val userProfile = FlyCore.getUserProfile(jid)
             if (userProfile != null && userProfile.isAdminBlocked) {
                 LogMessage.d(TAG, getString(R.string.user_block_message_label))
                 return
@@ -473,10 +472,9 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                     callLog.callType!!,
                     callLog.groupId,
                     false, false,
-                    CallUtils.getCallLogUserJidList(
+                    GroupCallUtils.getConferenceUserList(
                         callLog.fromUser,
-                        callLog.userList,
-                        false
+                        callLog.userList
                     ) as java.util.ArrayList<String>
                 )
             } else {
@@ -489,9 +487,9 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
 
     private fun isAdminBlocked(callLog: CallLog): Boolean {
         return if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
-            ProfileDetailsUtils.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
+            ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
         } else if (callLog.groupId!!.isNotEmpty()) {
-            ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
+            ContactManager.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
         } else false
     }
 

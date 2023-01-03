@@ -14,8 +14,8 @@ import com.contusfly.adapters.base.BaseChatAdapterHelper
 import com.contusfly.adapters.holders.*
 import com.contusfly.utils.ChatUserTimeUtils
 import com.contusfly.utils.Constants
-import com.contusfly.utils.ProfileDetailsUtils
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
+import com.contusflysdk.api.contacts.ContactManager.getDisplayName
 import com.contusflysdk.api.models.ChatMessage
 
 /**
@@ -37,10 +37,10 @@ class StarredMessagesAdapterHelper() : BaseChatAdapterHelper() {
         if (messageDate.contains("1970")) messageDate = Constants.EMPTY_STRING
         if (messageItem.getMessageChatType() == ChatTypeEnum.groupchat) {
             if (messageItem.isMessageSentByMe()) {
-                val toUser = ProfileDetailsUtils.getDisplayName(messageItem.getChatUserJid())
+                val toUser = getDisplayName(messageItem.getChatUserJid())
                 senderNameHolder.favouriteSenderReceiverName(Constants.YOU, toUser, messageDate)
             } else {
-                val fromUser = ProfileDetailsUtils.getDisplayName(messageItem.getChatUserJid())
+                val fromUser = getDisplayName(messageItem.getChatUserJid())
                 senderNameHolder.favouriteSenderReceiverName(fromUser, messageItem.getSenderUserName(), messageDate)
             }
         } else if (messageItem.isMessageSentByMe()) {

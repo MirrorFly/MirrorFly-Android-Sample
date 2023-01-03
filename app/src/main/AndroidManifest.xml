@@ -235,11 +235,6 @@
             android:exported="false"
             android:screenOrientation="portrait"/>
 
-        <activity
-            android:name=".activities.UserListActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"/>
-
         <service
             android:name=".MyFirebaseMessagingService"
             android:exported="false">

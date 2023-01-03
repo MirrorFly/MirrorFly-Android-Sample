@@ -10,14 +10,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.xmpp.chat.utils.LibConstants
-import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.activities.ChatActivity
 import com.contusfly.adapters.ViewAllLinksAdapter
 import com.contusfly.databinding.FragmentViewAllMediaBinding
 import com.contusfly.getChatType
 import com.contusfly.gone
-import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.Constants
 import com.contusfly.viewmodels.ViewAllMediaViewModel
 import com.contusflysdk.AppUtils
@@ -76,15 +74,10 @@ class ViewAllLinksFragment : Fragment() {
                     .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
         }
 
-        viewAllLinksAdapter.onLinkClickedCallback{ clickedMessage ->
+        viewAllLinksAdapter.onLinkClickedCallback{ url ->
             if (AppUtils.isNetConnected(requireContext())) {
-                val url = clickedMessage.messageTextContent
-                if (url.contains(BuildConfig.WEB_CHAT_LOGIN)) {
-                    ChatUtils.navigateToOnGoingCallPreviewScreen(requireContext(), clickedMessage.getChatUserJid(), url)
-                } else {
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    startActivity(browserIntent)
-                }
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(browserIntent)
             } else {
                 CustomToast.show(requireContext(), getString(R.string.msg_no_internet))
             }
