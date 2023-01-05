@@ -17,8 +17,10 @@ import androidx.lifecycle.ViewModelProvider
 import com.contus.flycommons.*
 import com.contusfly.R
 import com.contusfly.TAG
+import com.contusfly.activities.BackUpActivity
 import com.contusfly.activities.SettingsActivity
 import com.contusfly.databinding.FragmentChatsBinding
+import com.contusfly.launchActivity
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.MediaPermissions
 import com.contusfly.viewmodels.DashboardViewModel
@@ -100,7 +102,7 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
         super.onResume()
         settingsActivity = activity as SettingsActivity?
         settingsActivity!!.setActionBarTitle(resources.getString(R.string.chats))
-        settingsActivity!!.text_done.visibility = View.GONE
+        settingsActivity!!.showSearchMenu(false)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
@@ -179,6 +181,7 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
         fragmentChatsBinding.textClearConversation.setOnClickListener(this)
         fragmentChatsBinding.textDeleteConversation.setOnClickListener(this)
         fragmentChatsBinding.layoutTranslation.setOnClickListener(this)
+        fragmentChatsBinding.layoutChatBackup.setOnClickListener(this)
     }
 
     /**
@@ -301,6 +304,9 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
             R.id.layout_translate_language ->
                 if (AppUtils.isNetConnected(activity)) settingsActivity!!.performFragmentTransaction(TranslatedLanguageListFragment.newInstance())
                 else CustomToast.show(activity, activity?.getString(R.string.msg_no_internet))
+
+            R.id.layout_chat_backup ->
+                requireActivity().launchActivity<BackUpActivity> { }
 
         }
     }

@@ -6,14 +6,14 @@ import androidx.core.content.ContextCompat
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.call.SpeakingIndicatorListener
 import com.contus.webrtc.api.CallManager
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.CallStatus
 import com.contusfly.*
 import com.contusfly.call.groupcall.isNull
+import com.contusfly.call.groupcall.isReconnecting
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.LayoutPipModeBinding
 import com.contusfly.utils.*
 import com.contusfly.views.SetDrawable
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ChatUtils
 import com.contusflysdk.utils.Utils
@@ -44,10 +44,10 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
 
         setLocalUserView()
 
-        val callConnectedUserList = GroupCallUtils.getAvailableCallUsersList()
+        val callConnectedUserList = CallManager.getCallUsersList()
 
         LogMessage.e(TAG, "$CALL_UI Call Available Users == ${callConnectedUserList.size}")
-        LogMessage.d(TAG, "$CALL_UI Call type: ${GroupCallUtils.getCallType()}")
+        LogMessage.d(TAG, "$CALL_UI Call type: ${CallManager.getCallType()}")
 
         if (callConnectedUserList.contains(SharedPreferenceManager.getCurrentUserJid()))
             callConnectedUserList.remove(SharedPreferenceManager.getCurrentUserJid())
@@ -67,7 +67,7 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
     private fun setLocalUserView() {
         binding.userProfileName.text = Constants.YOU
         binding.viewSpeakingIndicator.onUserStoppedSpeaking(null)
-        if (GroupCallUtils.isVideoMuted()) {
+        if (CallManager.isVideoMuted()) {
             binding.userProfilePic.show()
             binding.userVideoSurface.gone()
             val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
@@ -81,6 +81,15 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
             binding.userVideoSurface.setMirror(!CallUtils.getIsBackCameraCapturing())
             CallManager.getLocalProxyVideoSink()?.setTarget(binding.userVideoSurface)
         }
+        if (CallManager.isCallOnHold()) {
+            binding.callerStatusLayout.show()
+            binding.callerStatusTextView.text = CallStatus.ON_HOLD
+        } else if(CallManager.isReconnecting()) {
+            binding.callerStatusLayout.show()
+            binding.callerStatusTextView.text = CallStatus.RECONNECTING
+        } else {
+            binding.callerStatusLayout.gone()
+        }
     }
 
     fun onVideoTrackAdded(userJid: String) {
@@ -93,7 +102,7 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
         if (lastUserJid != userJid)
             CallManager.getRemoteProxyVideoSink(lastUserJid)?.setTarget(null)
         lastUserJid = userJid
-        val profileDetails = ContactManager.getProfileDetails(userJid)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(userJid)
         val name = getProfileName(profileDetails, userJid)
         binding.userProfileName1.text = name
         binding.viewSpeakingIndicator1.onUserStoppedSpeaking(null)
@@ -106,6 +115,13 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
             binding.userVideoSurface1.show()
             binding.userProfilePic1.gone()
             CallManager.getRemoteProxyVideoSink(userJid)?.setTarget(binding.userVideoSurface1)
+        }
+
+        if (CallManager.getCallStatus(userJid) in arrayOf(CallStatus.ON_HOLD, CallStatus.RECONNECTING)) {
+            binding.participantStatusLayout.show()
+            binding.participantStatusTextView.text = CallManager.getCallStatus(userJid)
+        } else {
+            binding.participantStatusLayout.gone()
         }
     }
 
@@ -127,7 +143,7 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
         binding.userVideoSurface1.gone()
         var drawable = ContextCompat.getDrawable(context, R.drawable.ic_pip_default_profile)
         if (profileDetails != null) {
-            if (!profileDetails.isBlockedMe && profileDetails.isItSavedContact())
+            if (!profileDetails.isBlockedMe)
                 drawable = SetDrawable(context, profileDetails).setDrawable(profileDetails.name)
 
             var imageUrl = profileDetails.image ?: Constants.EMPTY_STRING
@@ -140,10 +156,10 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
     }
 
     fun onUserSpeaking(userJid: String, audioLevel: Int) {
-        if (userJid == GroupCallUtils.getLocalUserJid())
+        if (userJid == CallManager.getCurrentUserId())
             binding.viewSpeakingIndicator.onUserSpeaking(audioLevel)
         else {
-            if (!GroupCallUtils.isOneToOneCall() && CallUtils.isSpeakingUserCanBeShownOnTop(userJid, audioLevel)) {
+            if (!CallManager.isOneToOneCall() && CallUtils.isSpeakingUserCanBeShownOnTop(userJid, audioLevel)) {
                 setRemoteUserView(userJid)
                 binding.viewSpeakingIndicator1.onUserSpeaking(audioLevel)
             } else if (userJid == CallUtils.getPinnedUserJid()) {
@@ -153,7 +169,7 @@ class PIPViewHelper(private val context: Context, private val binding: LayoutPip
     }
 
     fun onUserStoppedSpeaking(userJid: String) {
-        if (userJid == GroupCallUtils.getLocalUserJid())
+        if (userJid == CallManager.getCurrentUserId())
             binding.viewSpeakingIndicator.onUserStoppedSpeaking(null)
         else if (lastUserJid == userJid)
             binding.viewSpeakingIndicator1.onUserStoppedSpeaking(object : SpeakingIndicatorListener {

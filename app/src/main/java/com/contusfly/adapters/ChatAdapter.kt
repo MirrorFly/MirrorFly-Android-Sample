@@ -6,17 +6,15 @@
 
 package com.contusfly.adapters
 
-import android.app.Activity
+import android.Manifest
 import android.content.Context
 import android.graphics.Typeface
-import android.os.Build
 import android.os.Bundle
 import android.text.Html
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
@@ -56,6 +54,8 @@ import com.contusflysdk.api.models.ContactChatMessage
 import com.contusflysdk.utils.Utils
 import com.location.googletranslation.GoogleTranslation
 import io.github.rockerhieu.emojicon.EmojiconTextView
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 /**
@@ -65,9 +65,16 @@ import io.github.rockerhieu.emojicon.EmojiconTextView
  * @version 2.0
  */
 
-class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var selectedMessages: ArrayList<String>,
-                  private val chatType: String, val activity: Context)
+class ChatAdapter(
+    private val mainlist: ArrayList<ChatMessage>,
+    private var selectedMessages: ArrayList<String>,
+    private val chatType: String,
+    val activity: Context,
+    val userJid: String)
     : RecyclerView.Adapter<RecyclerView.ViewHolder>(), MessageItemListener {
+
+    var isLinkLongclick:Boolean=false
+
 
     /**
      * The listener instance of OnChatItemClickListener
@@ -411,7 +418,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
             else if (key == Constants.NOTIFY_MESSAGE_MEDIA_STATUS_CHANGED) {
                 audioItemView.setAudioSenderMediaStatus(this, item)
                 if (item.isMediaDownloaded())
-                    audioPlayClick(item, position, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, true)
+                    audioPlayClick(item, this, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, true)
             } else if (key == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
                 if (item.isMessageRecalled())
                     getAudioView(this, item, position)
@@ -444,7 +451,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
             else if (key == Constants.NOTIFY_MESSAGE_MEDIA_STATUS_CHANGED) {
                 audioItemView.setAudioReceiverMediaStatus(this, item)
                 if (item.isMediaDownloaded())
-                    audioPlayClick(item, position, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, false)
+                    audioPlayClick(item, this, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, false)
             } else if (key == Constants.NOTIFY_MESSAGE_STATUS_CHANGED) {
                 if (item.isMessageRecalled())
                     getAudioView(this, item, position)
@@ -489,7 +496,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
     private fun handleImageMediaStatusChanged(imageSentViewHolder: ImageSentViewHolder, item: ChatMessage) {
         with(imageSentViewHolder){
             if (item.isMediaDownloaded() || item.isMediaUploaded())
-                imageItemViewHelper.handleImageLoading(item, this, Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaUploadStatus().toString()),
+                imageItemViewHelper.handleImageLoading(this,
                     Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaLocalStoragePath()),
                     Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaThumbImage()))
             imageItemViewHelper.setImageSenderMediaStatus(this, item)
@@ -780,7 +787,6 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
         /* View holder for the text view */
         val txtSenderViewHolder = holder as TextSentViewHolder
         with(txtSenderViewHolder) {
-            viewSender.contentDescription = "Sender_Text"
             val time: String?
             try {
                 adjustPadding(space, position, mainlist)
@@ -798,32 +804,32 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     txtSenderViewHolder.isRecallMessage = true
                     displayRecallInfoForSender(txtSenderViewHolder)
                     viewSender.isEnabled = true
-                    senderItemClick(txtSenderViewHolder.viewSender, item, position)
+                    senderItemClick(this, txtSenderViewHolder.viewSender, item)
                 } else {
                     txtSenderViewHolder.isRecallMessage = false
                     viewSender.isEnabled = true
-                    senderItemClick(viewSender, item, position)
+                    senderItemClick(this, viewSender, item)
                     imgChatStatus.show()
                     sentRecallImage.gone()
                     joinLinkView.gone()
                     setStatus(item, imgChatStatus)
                     replyViewUtils.showSenderReplyWindow(this, item, context)
-                    /*textReplyViewUtils.showSenderReplyWindow(txtSenderViewHolder, item, context);*/
                     with(txtChatSender) {
                         setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
                         setTextKeepState(getSpannedText(msg))
                         handleSenderTextSearch(getSpannedText(msg), holder)
                         if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
                             setJoinLinkView(item.chatUserJid, txtChatSender, joinLinkView, joinLinkLogo)
-                        movementMethod = ModifiedlinkMovementMethod(context, item.chatUserJid)
+                        var movelink=ModifiedlinkMovementMethod(context, item.chatUserJid,selectedMessages,isLinkLongclick)
+                        movelink.setOnclicklistener(txtChatSender,longClickListener,item,position,linkClickListener,linkbuttonclickstatusListener)
+                        movementMethod=movelink
                         isClickable = false
                         isLongClickable = false
                     }
                 }
                 replyViewUtils.markFavoriteItem(this, item)
-                /*textReplyViewUtils.markFavoriteItemForSender(txtSenderViewHolder, item);*/
                 ChatUtils.setSelectedChatItem(viewRowItem, item, selectedMessages, context)
-                setListenersForSenderTextMessages(this, item, position)
+                setListenersForSenderTextMessages(this, item)
             } catch (e: Exception) {
                 LogMessage.e(e)
             }
@@ -870,7 +876,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
             val stopIndex = startIndex + searchKey.length
             EmojiUtils.setMediaTextHighLightSearched(context,txtSendName, fromHtml.toString(), startIndex, stopIndex)
         } else {
-            txtSendName.setBackgroundColor(context!!.color(android.R.color.transparent))
+            txtSendName.setBackgroundColor(context.color(android.R.color.transparent))
             txtSendName.setTextKeepState(fromHtml)
         }
     }
@@ -895,8 +901,6 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 txtChatRevTime.setTextColor(ContextCompat.getColor(context, R.color.color_chat_msg_received_time))
                 txtChatReceiver.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
                 txtChatReceiver.setTextColor(ContextCompat.getColor(context, R.color.color_black))
-                setMarginLeft(viewReceiver, 0)
-                receiverTextView?.let { setMarginLeft(it, 0) }
                 receiverTextTranslated?.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
                 if (isTranslationChecked &&  mainlist[position].messageCustomField != null && mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED] != null
                     && mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED].equals("true")) {
@@ -905,30 +909,28 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     receiverTextTranslated?.text = mainlist[position].messageCustomField[Constants.TRANSLATED_MESSAGE_CONTENT]
                 } else {
                     receiverTextTranslated?.gone()
-                    setMarginLeft(viewReceiver, 0)
-                    receiverTextView?.let { setMarginLeft(it, 0) }
                     translatedlinearlayout?.gone()
                 }
-                receiverTextTranslation(mainlist, position, txtReceiverViewHolder)
+                receiverTextTranslation(mainlist, txtReceiverViewHolder)
                 handleRecallForReceivedTextMessage(item, this)
                 replyViewUtils.markFavoriteItem(this, item)
                 /*textReplyViewUtils.markFavoriteItemForReceiver(txtReceiverViewHolder, item);*/
                 ChatUtils.setSelectedChatItem(viewRowItem, item, selectedMessages, context)
-                setListenersForReceiverTextMessages(txtReceiverViewHolder, item, position)
+                setListenersForReceiverTextMessages(txtReceiverViewHolder, item)
             } catch (e: Exception) {
                 LogMessage.e(e)
             }
         }
     }
 
-    private fun receiverTextTranslation(mainlist: ArrayList<ChatMessage>, position: Int, txtReceiverViewHolder: TextReceivedViewHolder) {
+    private fun receiverTextTranslation(mainlist: ArrayList<ChatMessage>, txtReceiverViewHolder: TextReceivedViewHolder) {
         with(txtReceiverViewHolder) {
             receiverTextView?.setOnClickListener {
-                checkAndTranslateMessage(txtChatReceiver, receiverTextTranslated, translatedlinearlayout, mainlist, position)
+                checkAndTranslateMessage(this, txtChatReceiver, receiverTextTranslated, translatedlinearlayout)
             }
 
             receiverTextView?.setOnLongClickListener {
-                listener?.onSenderItemLongClick(mainlist[position], position)
+                listener?.onSenderItemLongClick(mainlist[layoutPosition], layoutPosition)
                 true
             }
         }
@@ -939,10 +941,10 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
             if (item.isMessageRecalled()) {
                 textViewHolder.isRecallMessage = true
                 displayRecallInfoForReceiver(this)
-                receiverItemClick(viewReceiver, item, position)
+                receiverItemClick(this, viewReceiver, item)
             } else {
                 textViewHolder.isRecallMessage = false
-                receiverItemClick(viewReceiver, item, position)
+                receiverItemClick(this, viewReceiver, item)
                 receivedRecallImage.gone()
                 receiverJoinLinkView.gone()
                 replyViewUtils.showReceiverReplyWindow(this, item, context)
@@ -953,7 +955,15 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     handleReceiverTextSearch(getSpannedText(msg), textViewHolder)
                     if (msg.contains(BuildConfig.WEB_CHAT_LOGIN))
                         setJoinLinkView(item.chatUserJid, txtChatReceiver, receiverJoinLinkView, receiverJoinLinkLogo)
-                    movementMethod = ModifiedlinkMovementMethod(context, item.chatUserJid)
+                    var movelink=ModifiedlinkMovementMethod(
+                        context,
+                        item.chatUserJid,
+                        selectedMessages,
+                        isLinkLongclick
+
+                    )
+                    movelink.setOnclicklistener(txtChatReceiver,longClickListener,item,absoluteAdapterPosition,linkClickListener,linkbuttonclickstatusListener)
+                    movementMethod=movelink
                     isClickable = false
                     isLongClickable = false
                 }
@@ -978,18 +988,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param message message date which is sent/received
      */
-    private fun getSpannedText(message: String?): Spanned {
-        val htmlText: Spanned
-        val chatMessage = getHtmlChatMessageText(message!!).replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
-        htmlText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-            Html.fromHtml(getHtmlChatMessageText(chatMessage), Html.FROM_HTML_MODE_LEGACY)
-        else
-            Html.fromHtml(getHtmlChatMessageText(chatMessage))
-
-        return if (htmlText.isEmpty() && chatMessage != "")
-            SpannableStringBuilder(getHtmlChatMessageText(chatMessage))
-        else
-            htmlText
+    private fun getSpannedText(message: String?): String {
+        return getHtmlChatMessageText(message!!)
     }
 
     /**
@@ -1047,8 +1047,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 replyViewUtils.showSenderReplyWindow(this, messageItem, context)
                 /* chatMessageUtils.senderReplyWindow(this, messageItem, context)*/
                 ChatUtils.setSelectedChatItem(viewRowItem, messageItem, selectedMessages, context)
-                setListenersForSenderImageMessages(this, messageItem, position)
-                senderItemClick(imageSenderImg, messageItem, position)
+                setListenersForSenderImageMessages(this, messageItem)
+                senderItemClick(this, imageSenderImg, messageItem)
                 senderDownloadClick(txtRetryView, cancelUpload, messageItem, viewSentCarbonDownload)
                 imgSentForward?.setOnClickListener { listener?.onSenderMediaForward(messageItem, position) }
             }
@@ -1084,9 +1084,9 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                         base64Img, searchEnabled, searchKey)
                 replyViewUtils.showReceiverReplyWindow(this, messageItem, context)
                 ChatUtils.setSelectedChatItem(viewRowItem, messageItem, selectedMessages, context)
-                setListenersForReceiverImageMessages(this, messageItem, position)
+                setListenersForReceiverImageMessages(this, messageItem)
                 receivedImageForward?.setOnClickListener { listener?.onSenderMediaForward(messageItem, position) }
-                receiverItemClick(imgRevImage, messageItem, position)
+                receiverItemClick(this, imgRevImage, messageItem)
                 receiverDownloadClick(viewDownload, txtRetryView, cancelDownload, messageItem)
                 receiverItemTranslate(mainlist, position, imgViewHolder)
             }
@@ -1119,8 +1119,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 replyViewUtils.showSenderReplyWindow(this, messageItem, context)
                 /* chatMessageUtils.senderReplyWindow(this, messageItem, context)*/
                 ChatUtils.setSelectedChatItem(viewRowItem, messageItem, selectedMessages, context)
-                setListenersForSenderVideoMessages(this, messageItem, position)
-                senderItemClick(imageSenderImg, messageItem, position)
+                setListenersForSenderVideoMessages(this, messageItem)
+                senderItemClick(this, imageSenderImg, messageItem)
                 senderDownloadClick(txtRetryView, cancelUpload, messageItem, viewSentCarbonDownload)
                 imgSentForward?.setOnClickListener { listener?.onSenderMediaForward(messageItem, position) }
             }
@@ -1151,8 +1151,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 replyViewUtils.showReceiverReplyWindow(this, messageItem, context)
                 //chatMessageUtils.receiverReplyWindow(this, messageItem, context)
                 ChatUtils.setSelectedChatItem(viewRowItem, messageItem, selectedMessages, context)
-                setListenersForReceiverVideoMessages(this, messageItem, position)
-                receiverItemClick(imgRevImage, messageItem, position)
+                setListenersForReceiverVideoMessages(this, messageItem)
+                receiverItemClick(this, imgRevImage, messageItem)
                 receiverDownloadClick(viewDownload, txtRetryView, cancelDownload, messageItem)
                 receivedImageForward?.setOnClickListener { listener?.onSenderMediaForward(messageItem, position) }
                 receiverItemTranslate(mainlist, position, videoReceiverViewHolder)
@@ -1175,65 +1175,91 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 translatedlinearlayout?.gone()
             }
             layoutTranslatedText.setOnClickListener {
-                checkAndTranslateMessage(txtRevChatCaption, txtTranslatedText, translatedlinearlayout, mainlist, position)
+                checkAndTranslateMessage(this, txtRevChatCaption, txtTranslatedText, translatedlinearlayout)
             }
 
             txtRevChatCaption.setOnClickListener {
-                checkAndTranslateMessage(txtRevChatCaption, txtTranslatedText, translatedlinearlayout, mainlist, position)
+                checkAndTranslateMessage(this, txtRevChatCaption, txtTranslatedText, translatedlinearlayout)
             }
 
             txtRevChatCaption.setOnClickListener {
-                checkAndTranslateMessage(txtRevChatCaption, txtTranslatedText, translatedlinearlayout, mainlist, position)
+                checkAndTranslateMessage(this, txtRevChatCaption, txtTranslatedText, translatedlinearlayout)
             }
 
             layoutTranslatedText.setOnLongClickListener {
-                listener?.onSenderItemLongClick(mainlist[position], position)
+                listener?.onSenderItemLongClick(mainlist[layoutPosition], layoutPosition)
                 true
             }
         }
     }
 
-    private fun checkAndTranslateMessage(txtRevChatCaption: EmojiconTextView, txtTranslatedText: EmojiAppCompatTextView?, translatedLinearLayout: LinearLayout?, mainlist: java.util.ArrayList<ChatMessage>, position: Int) {
-        if (!mainlist[position].isMessageRecalled)
-            if (selectedMessages.isNotEmpty()) {
-                listener?.onSenderItemClicked(mainlist[position], position)
-            } else if(isTranslationChecked && (mainlist[position].messageCustomField == null
-                        || mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED] == null
-                        || mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED].equals("false")
-                        || !mainlist[position].messageCustomField[Constants.TRANSLATED_LANGUAGE].equals(selectedLanguage))) {
-                val pressTime = System.currentTimeMillis()
-                if (pressTime - lastPressTime <= doublePRESSINTERVAL) {
-                    activity.checkInternetAndExecute(true) {
-                        com.contusfly.utils.LogMessage.d(TAG, "#translate Initiated")
-                        GoogleTranslation.getInstance().getTranslatedText(context, txtRevChatCaption.text.toString(), selectedLanguage, googleTranslatedKey,
-                            object : GoogleTranslation.GoogleTranslationListener {
-                                override fun onSuccess(s: String) {
-                                    com.contusfly.utils.LogMessage.d(TAG, "#translate Success")
-                                    FlyMessenger.setCustomValue(mainlist[position].messageId, Constants.TRANSLATED_MESSAGE_CONTENT, s)
-                                    FlyMessenger.setCustomValue(mainlist[position].messageId, Constants.IS_MESSAGE_TRANSLATED, "true")
-                                    FlyMessenger.setCustomValue(mainlist[position].messageId, Constants.TRANSLATED_LANGUAGE, selectedLanguage)
-                                    txtTranslatedText?.show()
-                                    translatedLinearLayout?.show()
-                                    txtTranslatedText?.text = s
-                                    val hashMap = hashMapOf<String, String>()
-                                    hashMap[Constants.TRANSLATED_MESSAGE_CONTENT] = s
-                                    hashMap[Constants.IS_MESSAGE_TRANSLATED] = "true"
-                                    hashMap[Constants.TRANSLATED_LANGUAGE] = selectedLanguage
-                                    mainlist[position].messageCustomField = hashMap
-                                }
+    private fun checkAndTranslateMessage(holder:RecyclerView.ViewHolder, txtRevChatCaption: EmojiconTextView, txtTranslatedText: EmojiAppCompatTextView?, translatedLinearLayout: LinearLayout?) {
+      with(holder) {
+          if (!mainlist[layoutPosition].isMessageRecalled)
+              if (selectedMessages.isNotEmpty()) {
+                  listener?.onSenderItemClicked(mainlist[layoutPosition], layoutPosition)
+              } else if (isTranslationChecked && (mainlist[layoutPosition].messageCustomField == null
+                          || mainlist[layoutPosition].messageCustomField[Constants.IS_MESSAGE_TRANSLATED] == null
+                          || mainlist[layoutPosition].messageCustomField[Constants.IS_MESSAGE_TRANSLATED].equals(
+                      "false"
+                  )
+                          || !mainlist[layoutPosition].messageCustomField[Constants.TRANSLATED_LANGUAGE].equals(
+                      selectedLanguage
+                  ))
+              ) {
+                  val pressTime = System.currentTimeMillis()
+                  if (pressTime - lastPressTime <= doublePRESSINTERVAL) {
+                      activity.checkInternetAndExecute(true) {
+                          com.contusfly.utils.LogMessage.d(TAG, "#translate Initiated")
+                          GoogleTranslation.getInstance().getTranslatedText(context,
+                              txtRevChatCaption.text.toString(),
+                              selectedLanguage,
+                              googleTranslatedKey,
+                              object : GoogleTranslation.GoogleTranslationListener {
+                                  override fun onSuccess(s: String) {
+                                      com.contusfly.utils.LogMessage.d(TAG, "#translate Success")
+                                      FlyMessenger.setCustomValue(
+                                          mainlist[layoutPosition].messageId,
+                                          Constants.TRANSLATED_MESSAGE_CONTENT,
+                                          s
+                                      )
+                                      FlyMessenger.setCustomValue(
+                                          mainlist[layoutPosition].messageId,
+                                          Constants.IS_MESSAGE_TRANSLATED,
+                                          "true"
+                                      )
+                                      FlyMessenger.setCustomValue(
+                                          mainlist[layoutPosition].messageId,
+                                          Constants.TRANSLATED_LANGUAGE,
+                                          selectedLanguage
+                                      )
+                                      txtTranslatedText?.show()
+                                      translatedLinearLayout?.show()
+                                      txtTranslatedText?.text = s
+                                      val hashMap = hashMapOf<String, String>()
+                                      hashMap[Constants.TRANSLATED_MESSAGE_CONTENT] = s
+                                      hashMap[Constants.IS_MESSAGE_TRANSLATED] = "true"
+                                      hashMap[Constants.TRANSLATED_LANGUAGE] = selectedLanguage
+                                      mainlist[layoutPosition].messageCustomField = hashMap
+                                  }
 
-                                override fun onFailed(s: String) {
-                                    com.contusfly.utils.LogMessage.d(TAG, "#translate Failed")
-                                    txtTranslatedText?.gone()
-                                    translatedLinearLayout?.gone()
-                                    Toast.makeText(context, s, Toast.LENGTH_SHORT).show()
-                                    FlyMessenger.setCustomValue(mainlist[position].messageId, Constants.IS_MESSAGE_TRANSLATED, "false")
-                                }
-                            })
-                    }
-                }
-                lastPressTime = pressTime
-            }
+                                  override fun onFailed(s: String) {
+                                      com.contusfly.utils.LogMessage.d(TAG, "#translate Failed")
+                                      txtTranslatedText?.gone()
+                                      translatedLinearLayout?.gone()
+                                      Toast.makeText(context, s, Toast.LENGTH_SHORT).show()
+                                      FlyMessenger.setCustomValue(
+                                          mainlist[layoutPosition].messageId,
+                                          Constants.IS_MESSAGE_TRANSLATED,
+                                          "false"
+                                      )
+                                  }
+                              })
+                      }
+                  }
+                  lastPressTime = pressTime
+              }
+      }
     }
 
     /**
@@ -1253,15 +1279,15 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 adjustPadding(space, position, mainlist)
                 audioItemView.disableSenderAudioViews(this)
                 audioItemView.audioSenderItemView(this, time, item)
-                audioPlayClick(item, position, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, true)
-                mediaController.checkStateOfPlayer(imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, position)
+                audioPlayClick(item, this, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, true)
+                mediaController.checkStateOfPlayer(imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, layoutPosition)
                 replyViewUtils.showSenderReplyWindow(this, item, context)
                 /*new AudioReplyViewUtils().showSenderReplyWindow(audioViewHolder, item, context, messageDetail);*/
                 setSelectedChatItem(viewRowItem, item)
-                setListenersForAudioMessages(this, item, position)
+                setListenersForAudioMessages(this, item)
                 uploadClick(viewRetry, viewCarbonRetry, progressUploadDownloadLayout, item)
                 audioMirrorFlySeekBar.isEnabled = selectedMessages.isEmpty()
-                sentAudioForwardImage?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                sentAudioForwardImage?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
                 if (item.mediaChatMessage.isAudioRecorded) {
                     audioViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_recorded_icon)
                 } else {
@@ -1275,16 +1301,16 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 adjustPadding(space, position, mainlist)
                 audioItemView.disableReceiverAudioViews(this)
                 audioItemView.audioReceiverItemView(this, time, item)
-                audioPlayClick(item, position, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, false)
-                mediaController.checkStateOfPlayer(imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, position)
+                audioPlayClick(item, this, imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, false)
+                mediaController.checkStateOfPlayer(imgAudioPlay, audioMirrorFlySeekBar, txtAudioDuration, layoutPosition)
                 audRevStarred.visibility = if (item.isMessageStarred()) View.VISIBLE else View.GONE
                 replyViewUtils.showReceiverReplyWindow(this, item, context)
                 /*new AudioReplyViewUtils().showReceiverReplyWindow(audioReceiverViewHolder, item, context);*/
                 setSelectedChatItem(viewRowItem, item)
-                setListenersForReceiverAudioMessages(this, item, position)
+                setListenersForReceiverAudioMessages(this, item)
                 downloadClick(viewRetry, progressUploadDownloadLayout, item)
                 audioMirrorFlySeekBar.isEnabled = selectedMessages.isEmpty()
-                sentAudioForwardImage?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                sentAudioForwardImage?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
                 if (item.mediaChatMessage.isAudioRecorded) {
                     audioReceiverViewHolder.imgAudioType.setImageResource(R.drawable.ic_audio_recorded_icon)
                 } else {
@@ -1318,11 +1344,11 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 replyViewUtils.showSenderReplyWindow(this, item, context)
                 /*locationReplyViewUtils.showSenderReplyWindow(locationSenderViewHolder, item, context, messageDetail);*/
                 ChatUtils.setSelectedChatItem(viewRowItem, item, selectedMessages, context)
-                setListenersForSenderLocationMessages(this, item, position)
-                senderItemClick(imageSendLocation, item, position)
+                setListenersForSenderLocationMessages(this, item)
+                senderItemClick(this, imageSendLocation, item)
                 if(item.isMessageAcknowledged() || item.isMessageDelivered() || item.isMessageSeen())
                     imgForwardLocation?.show()
-                imgForwardLocation?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                imgForwardLocation?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
             }
         } catch (e: Exception) {
             LogMessage.e(com.contus.flycommons.Constants.TAG, e)
@@ -1350,10 +1376,10 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 replyViewUtils.showReceiverReplyWindow(this, item, context)
                 /*locationReplyViewUtils.showReceiverReplyWindow(locationReceiverViewHolder, item, context);*/
                 ChatUtils.setSelectedChatItem(viewRowItem, item, selectedMessages, context)
-                setListenersForReceiverLocationMessages(this, item, position)
-                receiverItemClick(imageReceiveLocation, item, position)
+                setListenersForReceiverLocationMessages(this, item)
+                receiverItemClick(this, imageReceiveLocation, item)
                 imgForwardLocation?.show()
-                imgForwardLocation?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                imgForwardLocation?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
             }
         } catch (e: Exception) {
             LogMessage.e(com.contus.flycommons.Constants.TAG, e)
@@ -1385,9 +1411,9 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * ViewHolder.
      */
     private fun uploadClick(retry: View, carbonRetry: View?, cancelUpload: View, messageItem: ChatMessage) {
-        retry.setOnClickListener { v: View? -> listener?.onRetryClicked(messageItem) }
-        carbonRetry?.setOnClickListener { v: View? -> listener?.onDownloadClicked(messageItem) }
-        cancelUpload.setOnClickListener { v: View? -> listener?.onCancelUploadClicked(messageItem) }
+        retry.setOnClickListener { listener?.onRetryClicked(messageItem) }
+        carbonRetry?.setOnClickListener { listener?.onDownloadClicked(messageItem) }
+        cancelUpload.setOnClickListener { listener?.onCancelUploadClicked(messageItem) }
     }
 
     /**
@@ -1400,8 +1426,8 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * ViewHolder.
      */
     private fun downloadClick(download: View, cancelDownload: View, messageItem: ChatMessage) {
-        download.setOnClickListener { v: View? -> listener?.onDownloadClicked(messageItem) }
-        cancelDownload.setOnClickListener { v: View? -> listener?.onCancelDownloadClicked(messageItem) }
+        download.setOnClickListener { listener?.onDownloadClicked(messageItem) }
+        cancelDownload.setOnClickListener { listener?.onCancelDownloadClicked(messageItem) }
     }
 
     /**
@@ -1424,10 +1450,10 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     setFileSenderView(this, item, time)
                     handleFileTextSearch(item.mediaChatMessage.mediaFileName,fileViewHolder.fileNameText)
                     setSelectedChatItem(fileSentViewLayout, item)
-                    setListenersForSentFileMessages(this, item, position)
-                    senderItemClick(fileSentViewLayout, item, position)
+                    setListenersForSentFileMessages(this, item)
+                    senderItemClick(this, fileSentViewLayout, item)
                     uploadClick(fileUploadViewLayout, fileCarbonDownloadView, fileUploadCancelLayout, item)
-                    imgFileForward?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                    imgFileForward?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
                 }
             } else {
                 val viewHolder = holder as FileReceivedViewHolder
@@ -1440,10 +1466,10 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                     replyViewUtils.showReceiverReplyWindow(this, item, context)
                     handleFileTextSearch(item.mediaChatMessage.mediaFileName,viewHolder.fileNameText)
                     ChatUtils.setSelectedChatItem(fileReceivedViewLayout, item, selectedMessages, context)
-                    setListenersForReceivedFileMessages(this, item, position)
-                    receiverItemClick(fileReceivedViewLayout, item, position)
+                    setListenersForReceivedFileMessages(this, item)
+                    receiverItemClick(this, fileReceivedViewLayout, item)
                     downloadClick(fileDownloadLayout, fileCancelLayout, item)
-                    imgFileForward?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                    imgFileForward?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
                 }
             }
         } catch (e: Exception) {
@@ -1524,11 +1550,11 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
                 replyViewUtils.showReceiverReplyWindow(this, item, context)
                 setSelectedChatItem(viewRowItem, item)
                 setSearchContactText(txtSendName,SpannableStringBuilder(contactName))
-                setListenersForReceivedContactMessages(this, item, position, registeredJid)
-                receiverItemClick(viewRowItem, item, position)
+                setListenersForReceivedContactMessages(this, item, registeredJid)
+                receiverItemClick(this, viewRowItem, item)
                 if(item.isMessageAcknowledged() || item.isMessageDelivered() || item.isMessageSeen())
                     imgForwardContact?.show()
-                imgForwardContact?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+                imgForwardContact?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
             }
         }
     }
@@ -1551,11 +1577,11 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
             replyViewUtils.showSenderReplyWindow(this, item, context)
             setSearchContactText(txtSendName,SpannableStringBuilder(contactName))
             setSelectedChatItem(viewRowItem, item)
-            setListenersForContactMessages(this, item, position, registeredJid)
-            senderItemClick(viewRowItem, item, position)
+            setListenersForContactMessages(this, item, registeredJid)
+            senderItemClick(this, viewRowItem, item)
             if(item.isMessageAcknowledged() ||  item.isMessageDelivered() || item.isMessageSeen())
                 imgForwardContact?.show()
-            imgForwardContact?.setOnClickListener { listener?.onSenderMediaForward(item, position) }
+            imgForwardContact?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
         }
     }
 
@@ -1658,7 +1684,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      */
     private fun getHtmlChatMessageText(message: String): String {
         val text = context.getString(R.string.chat_text)
-        return message + text
+        return message + text + text
     }
 
     /**
@@ -1666,13 +1692,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param txtSenderViewHolder The view holding the child items.
      * @param item                The data set used to render the content of child views.
-     * @param position            The position of the item within the adapter's data set.
      */
-    private fun setListenersForSenderTextMessages(txtSenderViewHolder: TextSentViewHolder, item: ChatMessage, position: Int) {
+    private fun setListenersForSenderTextMessages(txtSenderViewHolder: TextSentViewHolder, item: ChatMessage) {
         with(txtSenderViewHolder) {
-            replyMessageSentView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageSentView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1683,14 +1708,13 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param txtReceiverViewHolder The view holding the child items.
      * @param item                  The data set used to render the content of child views.
-     * @param position              The position of the item within the adapter's data set.
      */
     private fun setListenersForReceiverTextMessages(txtReceiverViewHolder: TextReceivedViewHolder,
-                                                    item: ChatMessage, position: Int) {
+                                                    item: ChatMessage) {
         with(txtReceiverViewHolder) {
-            replyMessageReceivedView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageReceivedView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageReceivedView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageReceivedView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1701,13 +1725,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param imgViewHolder The view holding the child items.
      * @param item          The data set used to render the content of child views.
-     * @param position      The position of the item within the adapter's data set.
      */
-    private fun setListenersForSenderImageMessages(imgViewHolder: ImageSentViewHolder, item: ChatMessage, position: Int) {
+    private fun setListenersForSenderImageMessages(imgViewHolder: ImageSentViewHolder, item: ChatMessage) {
         with(imgViewHolder) {
-            replyMessageSentView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageSentView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1718,13 +1741,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param imgViewHolder The view holding the child items.
      * @param item          The data set used to render the content of child views.
-     * @param position      The position of the item within the adapter's data set.
      */
-    private fun setListenersForReceiverImageMessages(imgViewHolder: ImageReceivedViewHolder, item: ChatMessage, position: Int) {
+    private fun setListenersForReceiverImageMessages(imgViewHolder: ImageReceivedViewHolder, item: ChatMessage) {
         with(imgViewHolder) {
-            replyMessageReceivedView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageReceivedView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageReceivedView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageReceivedView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1735,13 +1757,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param videoSenderViewHolder The view holding the child items.
      * @param item                  The data set used to render the content of child views.
-     * @param position              The position of the item within the adapter's data set.
      */
-    private fun setListenersForSenderVideoMessages(videoSenderViewHolder: VideoSentViewHolder, item: ChatMessage, position: Int) {
+    private fun setListenersForSenderVideoMessages(videoSenderViewHolder: VideoSentViewHolder, item: ChatMessage) {
         with(videoSenderViewHolder) {
-            replyMessageSentView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageSentView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1752,14 +1773,13 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param videoReceiverViewHolder The view holding the child items.
      * @param item                    The data set used to render the content of child views.
-     * @param position                The position of the item within the adapter's data set.
      */
     private fun setListenersForReceiverVideoMessages(videoReceiverViewHolder: VideoReceivedViewHolder,
-                                                     item: ChatMessage, position: Int) {
+                                                     item: ChatMessage) {
         with(videoReceiverViewHolder) {
-            replyMessageReceivedView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageReceivedView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageReceivedView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageReceivedView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1770,17 +1790,17 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * Register a callback to be invoked when this view is clicked. If this view is not
      * clickable, it becomes clickable.
      *
+     * @param holder    View holder of current view in adapter
      * @param senderItem  The view which renders the contents of the item.
      * @param messageItem The message object which possess the data rendered in the ViewHolder.
-     * @param position    The position of the item within the adapter's data set.
      */
-    private fun senderItemClick(senderItem: View, messageItem: ChatMessage, position: Int) {
-        with(senderItem) {
-            setOnClickListener { v: View? ->
-                if (!messageItem.isMessageRecalled) listener?.onSenderItemClicked(messageItem, position)
+    private fun senderItemClick(holder: RecyclerView.ViewHolder, senderItem: View, messageItem: ChatMessage) {
+        with(holder) {
+            senderItem.setOnClickListener {
+                if (!messageItem.isMessageRecalled) listener?.onSenderItemClicked(messageItem, layoutPosition)
             }
-            setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(messageItem, position)
+            senderItem.setOnLongClickListener {
+                listener?.onSenderItemLongClick(messageItem, layoutPosition)
                 true
             }
         }
@@ -1790,15 +1810,15 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * Register a callback to be invoked when this view is clicked. If this view is not
      * clickable, it becomes clickable.
      *
+     * @param holder    View holder of current view in adapter
      * @param receiverItem The view which renders the contents of the item.
      * @param messageItem  The message object which possess the data rendered in the ViewHolder.
-     * @param position     The position of the item within the adapter's data set.
      */
-    private fun receiverItemClick(receiverItem: View, messageItem: ChatMessage, position: Int) {
-        with(receiverItem) {
-            setOnClickListener { v: View? -> if (!messageItem.isMessageRecalled) listener?.onReceiverItemClicked(messageItem, position) }
-            setOnLongClickListener { v: View? ->
-                listener?.onReceiverItemLongClick(messageItem, position)
+    private fun receiverItemClick(holder: RecyclerView.ViewHolder, receiverItem: View, messageItem: ChatMessage) {
+        with(holder) {
+            receiverItem.setOnClickListener { if (!messageItem.isMessageRecalled) listener?.onReceiverItemClicked(messageItem, layoutPosition) }
+            receiverItem.setOnLongClickListener {
+                listener?.onReceiverItemLongClick(messageItem, layoutPosition)
                 true
             }
         }
@@ -1815,9 +1835,9 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * @param carbonDownloadView The carbon download view placed in the ViewHolder.
      */
     private fun senderDownloadClick(retry: View, cancelUpload: View, messageItem: ChatMessage, carbonDownloadView: View) {
-        carbonDownloadView.setOnClickListener { v: View? -> listener?.onDownloadClicked(messageItem) }
-        cancelUpload.setOnClickListener { v: View? -> listener?.onCancelUploadClicked(messageItem) }
-        retry.setOnClickListener { v: View? -> listener?.onRetryClicked(messageItem) }
+        carbonDownloadView.setOnClickListener { listener?.onDownloadClicked(messageItem) }
+        cancelUpload.setOnClickListener { listener?.onCancelUploadClicked(messageItem) }
+        retry.setOnClickListener { listener?.onRetryClicked(messageItem) }
     }
 
     /**
@@ -1830,9 +1850,9 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * @param messageItem    The message object which possess the data rendered in the ViewHolder.
      */
     private fun receiverDownloadClick(download: View, retry: View, cancelDownload: View, messageItem: ChatMessage) {
-        download.setOnClickListener { v: View? -> listener?.onDownloadClicked(messageItem) }
-        cancelDownload.setOnClickListener { v: View? -> listener?.onCancelDownloadClicked(messageItem) }
-        retry.setOnClickListener { v: View? -> listener?.onDownloadClicked(messageItem) }
+        download.setOnClickListener { listener?.onDownloadClicked(messageItem) }
+        cancelDownload.setOnClickListener { listener?.onCancelDownloadClicked(messageItem) }
+        retry.setOnClickListener { listener?.onDownloadClicked(messageItem) }
     }
 
 
@@ -1841,13 +1861,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param locationHolder The view holding the child items.
      * @param item           The data set used to render the content of child views.
-     * @param position       The position of the item within the adapter's data set.
      */
-    private fun setListenersForSenderLocationMessages(locationHolder: LocationSentViewHolder, item: ChatMessage, position: Int) {
-        with(locationHolder.replyMessageSentView) {
-            this?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            this?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+    private fun setListenersForSenderLocationMessages(locationHolder: LocationSentViewHolder, item: ChatMessage) {
+        with(locationHolder) {
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1858,13 +1877,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param locationHolder The view holding the child items.
      * @param item           The data set used to render the content of child views.
-     * @param position       The position of the item within the adapter's data set.
      */
-    private fun setListenersForReceiverLocationMessages(locationHolder: LocationReceivedViewHolder, item: ChatMessage, position: Int) {
-        with(locationHolder.replyMessageReceivedView) {
-            this?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            this?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+    private fun setListenersForReceiverLocationMessages(locationHolder: LocationReceivedViewHolder, item: ChatMessage) {
+        with(locationHolder) {
+            replyMessageReceivedView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageReceivedView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -1874,84 +1892,87 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      * Handle the audio play click
      *
      * @param item            Message Item data
-     * @param position        Position of the chat item
+     * @param holder          View holder of current view in adapter
      * @param playImage       Play button of the audio view
      * @param mirrorFlySeekBar         Seek bar of the audio
      * @param durationView    Duration text view
      * @param doesSentMessage Boolean to identify whether the audio message is posted in the
      * chat activity.
      */
-    private fun audioPlayClick(item: ChatMessage, position: Int, playImage: ImageView, mirrorFlySeekBar: MirrorFlySeekBar,
+    private fun audioPlayClick(item: ChatMessage, holder: RecyclerView.ViewHolder, playImage: ImageView, mirrorFlySeekBar: MirrorFlySeekBar,
                                durationView: TextView, doesSentMessage: Boolean) {
-        val media = item.getMediaChatMessage()
-        playImage.setOnClickListener { v: View? ->
-            with(mediaController) {
-                if (currentAudioPosition != -1 && position != currentAudioPosition)
-                    resetAudioPlayer()
-                setMediaResource(media.getMediaLocalStoragePath(), media.getMediaDuration(), playImage, doesSentMessage)
-                setMediaSeekBar(mirrorFlySeekBar)
-                setMediaTimer(durationView)
-                currentAudioPosition = position
-                handlePlayer(doesSentMessage)
-                listener?.onAudioPlayed()
-            }
-        }
-
-        mirrorFlySeekBar.setOnSeekBarChangeListener((object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (selectedMessages.isEmpty()) {
+        with(holder) {
+            val media = item.getMediaChatMessage()
+            playImage.setOnClickListener {
+                if (ChatUtils.checkWritePermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                     with(mediaController) {
+                        if (currentAudioPosition != -1 && layoutPosition != currentAudioPosition)
+                            resetAudioPlayer(false)
                         setMediaResource(
                             media.getMediaLocalStoragePath(),
                             media.getMediaDuration(),
                             playImage,
                             doesSentMessage
                         )
-                        if (fromUser) mediaController.mediaPlayer?.seekTo(progress);
-                        updateSeekBarProgress(progress)
+                        setMediaSeekBar(mirrorFlySeekBar)
+                        setMediaTimer(durationView)
+                        currentAudioPosition = layoutPosition
+                        handlePlayer(doesSentMessage)
+                        listener?.onAudioPlayed()
                     }
                 } else {
-                    mirrorFlySeekBar.progress = 0
-                    listener?.onSenderItemLongClick(item, position)
+                    listener?.mediaPermissionCheck()
                 }
             }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-                /*No Implementation Needed*/
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                /*No Implementation Needed*/
-            }
-        }))
-
-        mirrorFlySeekBar.setLongClickListener(object : MirrorFlySeekBar.LongClickListener {
-            override fun onLongClick() {
-                listener?.onSenderItemLongClick(item, position)
-            }
-        })
+            setAudioSeekBarListener(item, this, playImage, mirrorFlySeekBar, durationView)
+        }
     }
 
     /**
-     * Sets the listener to the child views present in the parent view.
+     * Handle the audio seekbar click
      *
-     * @param audioViewHolder The view holding the child items.
-     * @param item            The data set used to render the content of child views.
-     * @param position        The position of the item within the adapter's data set.
+     * @param item            Message Item data
+     * @param holder          View holder of current view in adapter
+     * @param playImage       Play button of the audio view
+     * @param mirrorFlySeekBar         Seek bar of the audio
+     * @param doesSentMessage Boolean to identify whether the audio message is posted in the
+     * chat activity.
      */
-    private fun setListenersForAudioMessages(audioViewHolder: AudioSentViewHolder, item: ChatMessage, position: Int) {
-        with(audioViewHolder.replyMessageSentView) {
-            this?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            this?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
-                true
-            }
-        }
-        with(audioViewHolder.audioMirrorFlySeekBar){
-            this.setOnTouchListener(object : View.OnTouchListener {
-                override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                    v!!.getParent().requestDisallowInterceptTouchEvent(true)
-                    return false
+    private fun setAudioSeekBarListener(item: ChatMessage, holder: RecyclerView.ViewHolder, playImage: ImageView, mirrorFlySeekBar: MirrorFlySeekBar,
+                                         durationView: TextView) {
+        with(holder) {
+            val media = item.getMediaChatMessage()
+            mirrorFlySeekBar.setOnSeekBarChangeListener((object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
+                    if (selectedMessages.isEmpty()) {
+
+                        mediaController.updateSeekbarChanges(progress,layoutPosition,
+                            media.getMediaLocalStoragePath(),fromUser,durationView,
+                            mirrorFlySeekBar, playImage)
+
+                    } else {
+                        mirrorFlySeekBar.progress = 0
+                        listener?.onSenderItemLongClick(item, layoutPosition)
+                    }
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    /*No Implementation Needed*/
+                }
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    mediaController.onStopTrackingTouch(seekBar,media.getMediaLocalStoragePath())
+                }
+            }))
+
+            mirrorFlySeekBar.setLongClickListener(object : MirrorFlySeekBar.LongClickListener {
+                override fun onLongClick() {
+                    listener?.onSenderItemLongClick(item, layoutPosition)
                 }
             })
         }
@@ -1960,26 +1981,46 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
     /**
      * Sets the listener to the child views present in the parent view.
      *
+     * @param audioViewHolder The view holding the child items.
+     * @param item            The data set used to render the content of child views.
+     */
+    private fun setListenersForAudioMessages(audioViewHolder: AudioSentViewHolder, item: ChatMessage) {
+        with(audioViewHolder) {
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
+                true
+            }
+        }
+        with(audioViewHolder.audioMirrorFlySeekBar) {
+            this.setOnTouchListener { v, _ ->
+                v!!.parent.requestDisallowInterceptTouchEvent(true)
+                false
+            }
+        }
+    }
+
+    /**
+     * Sets the listener to the child views present in the parent view.
+     *
      * @param audioReceiverViewHolder The view holding the child items.
      * @param item                    The data set used to render the content of child views.
-     * @param position                The position of the item within the adapter's data set.
      */
     private fun setListenersForReceiverAudioMessages(audioReceiverViewHolder: AudioReceivedViewHolder,
-                                                     item: ChatMessage, position: Int) {
-        with(audioReceiverViewHolder.replyMessageSentView) {
-            this?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            this?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+                                                     item: ChatMessage) {
+        with(audioReceiverViewHolder) {
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
         with(audioReceiverViewHolder.audioMirrorFlySeekBar){
-            this.setOnTouchListener(object : View.OnTouchListener {
-                override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                    v!!.getParent().requestDisallowInterceptTouchEvent(true)
-                    return false
-                    } })
+            this.setOnTouchListener { v, _ ->
+                v!!.parent.requestDisallowInterceptTouchEvent(true)
+                false
             }
+        }
     }
 
     /**
@@ -1987,13 +2028,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param fileViewHolder The view holding the child items.
      * @param item           The data set used to render the content of child views.
-     * @param position       The position of the item within the adapter's data set.
      */
-    private fun setListenersForSentFileMessages(fileViewHolder: FileSentViewHolder, item: ChatMessage, position: Int) {
-        with(fileViewHolder.replyMessageSentView) {
-            this?.setOnClickListener { v: View -> onReplyViewClicked(item, position) }
-            this?.setOnLongClickListener { v: View ->
-                listener?.onSenderItemLongClick(item, position)
+    private fun setListenersForSentFileMessages(fileViewHolder: FileSentViewHolder, item: ChatMessage) {
+        with(fileViewHolder) {
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -2004,13 +2044,12 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param fileViewHolder The view holding the child items.
      * @param item           The data set used to render the content of child views.
-     * @param position       The position of the item within the adapter's data set.
      */
-    private fun setListenersForReceivedFileMessages(fileViewHolder: FileReceivedViewHolder, item: ChatMessage, position: Int) {
-        with(fileViewHolder.replyMessageReceivedView) {
-            this?.setOnClickListener { v: View -> onReplyViewClicked(item, position) }
-            this?.setOnLongClickListener { v: View ->
-                listener?.onSenderItemLongClick(item, position)
+    private fun setListenersForReceivedFileMessages(fileViewHolder: FileReceivedViewHolder, item: ChatMessage) {
+        with(fileViewHolder) {
+            replyMessageReceivedView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageReceivedView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
         }
@@ -2036,20 +2075,19 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param contactHolder  The view holding the child items.
      * @param item           The data set used to render the content of child views.
-     * @param position       The position of the item within the adapter's data set.
      * @param registeredJid  The jid of the shared contact to open the particular chat window
      */
-    private fun setListenersForContactMessages(contactHolder: ContactSentViewHolder, item: ChatMessage, position: Int,
+    private fun setListenersForContactMessages(contactHolder: ContactSentViewHolder, item: ChatMessage,
                                                registeredJid: String?) {
         with(contactHolder) {
-            replyMessageSentView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageSentView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
             contactActionText.setOnClickListener {
                 if (!item.isMessageRecalled())
-                    listener?.onContactClick(item, position, registeredJid)
+                    listener?.onContactClick(item, layoutPosition, registeredJid)
             }
         }
     }
@@ -2059,18 +2097,17 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
      *
      * @param contactHolder The view holding the child items.
      * @param item          The data set used to render the content of child views.
-     * @param position      The position of the item within the adapter's data set.
+     * @param registeredJid  Register jid of the received contact
      * if the message button is clicked.
      */
-    private fun setListenersForReceivedContactMessages(contactHolder: ContactReceivedViewHolder, item: ChatMessage,
-                                                       position: Int, registeredJid: String?) {
+    private fun setListenersForReceivedContactMessages(contactHolder: ContactReceivedViewHolder, item: ChatMessage, registeredJid: String?) {
         with(contactHolder) {
-            replyMessageSentView?.setOnClickListener { v: View? -> onReplyViewClicked(item, position) }
-            replyMessageSentView?.setOnLongClickListener { v: View? ->
-                listener?.onSenderItemLongClick(item, position)
+            replyMessageSentView?.setOnClickListener { onReplyViewClicked(item, layoutPosition) }
+            replyMessageSentView?.setOnLongClickListener {
+                listener?.onSenderItemLongClick(item, layoutPosition)
                 true
             }
-            contactActionText.setOnClickListener { listener!!.onContactClick(item, position, registeredJid) }
+            contactActionText.setOnClickListener { listener!!.onContactClick(item, layoutPosition, registeredJid) }
         }
     }
 
@@ -2177,13 +2214,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
     /**
      * Sets the media status related to the media messages.
      *
-     * @param txtRetry        Text view to display the retry
-     * @param download        The download view of the media
-     * @param progressBar     The progress bar for displaying media status
-     * @param status          The status of the media
-     * @param item            The instance of the message
-     * @param imgPlay         The image view for play button in video
-     * @param cancelImageview Cancelling upload/download option
+     * @param mediaStatus        Media status of the message
      */
     override fun setMediaStatus(mediaStatus: MediaStatus) {
         if (mediaStatus.item!!.messageType == MessageType.VIDEO)
@@ -2350,9 +2381,37 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
 
     }
 
-    fun getMediaContoller(): MediaController {
-        return mediaController;
+    fun getMediaController(): MediaController {
+        return mediaController
     }
+
+
+    private val longClickListener: ModifiedlinkMovementMethod.OnLinkLongClickListener =
+        object:ModifiedlinkMovementMethod.OnLinkLongClickListener {
+
+            override fun onLongClick(textView: TextView?, url: String?,view:ChatMessage,position:Int,onclickLinkStatus:Boolean): Boolean {
+                isLinkLongclick=onclickLinkStatus
+                listener?.onSenderItemLongClick(view, position)
+                return true
+            }
+        }
+
+    private val linkClickListener: ModifiedlinkMovementMethod.OnLinkClickListener =
+        object:ModifiedlinkMovementMethod.OnLinkClickListener {
+
+            override fun onClick(textView: TextView?, url: String?,view:ChatMessage,position:Int): Boolean {
+                listener?.onSenderItemClicked(view, position)
+                return true
+            }
+        }
+
+    private val linkbuttonclickstatusListener: ModifiedlinkMovementMethod.OnLinkClickStatusListener =
+        object:ModifiedlinkMovementMethod.OnLinkClickStatusListener {
+            override fun onLinkClickStatus(onclickLinkStatus:Boolean): Boolean {
+                isLinkLongclick=onclickLinkStatus
+                return true
+            }
+        }
 
     /**
      * Instantiates a new adapter chat data.
@@ -2361,7 +2420,7 @@ class ChatAdapter(private val mainlist: ArrayList<ChatMessage>, private var sele
         /*The inflater which used to inflate the chat view*/
         val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         chatAdapterHelper = ChatAdapterHelper(inflater)
-        chatMsgTime = ChatMsgTime()
+        chatMsgTime = ChatMsgTime(Calendar.getInstance())
         imageItemViewHelper = ImageItemViewHelper(context, this)
         videoItemViewHelper = VideoItemViewHelper(context, this)
         audioItemView = AudioItemView(this)

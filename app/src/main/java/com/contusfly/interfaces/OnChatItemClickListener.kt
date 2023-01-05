@@ -111,4 +111,8 @@ interface OnChatItemClickListener {
      * Handle the audio play click
      */
     fun onAudioPlayed()
+
+    /*
+    * Storage Permission Check and Allow */
+    fun mediaPermissionCheck()
 }

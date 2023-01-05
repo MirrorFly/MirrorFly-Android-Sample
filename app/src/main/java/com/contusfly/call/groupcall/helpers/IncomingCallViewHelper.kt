@@ -13,7 +13,6 @@ import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
-import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.call.groupcall.isCallNotConnected
@@ -40,7 +39,7 @@ class IncomingCallViewHelper(
     }
 
     fun setUpCallUI() {
-        if (GroupCallUtils.isCallNotConnected() && GroupCallUtils.isInComingCall())
+        if (CallManager.isCallNotConnected() && CallManager.isInComingCall())
             setUpIncomingCall()
         else
             hideIncomingCallLayout()
@@ -53,7 +52,7 @@ class IncomingCallViewHelper(
     fun setUpIncomingCall() {
         LogMessage.d(TAG, "$CALL_UI setUpCallSwipeButton()")
         binding.layoutCallIncoming.show()
-        if (GroupCallUtils.isVideoCall())
+        if (CallManager.isVideoCall())
             binding.btnCallSwipe.setImageDrawable(
                 ContextCompat.getDrawable(
                     context,
@@ -149,7 +148,7 @@ class IncomingCallViewHelper(
                 binding.imageCallAnswer.isEnabled = false
                 binding.imageCallReject.isEnabled = false
                 /* check permissions */
-                if (GroupCallUtils.getCallType() == CallType.AUDIO_CALL && CallManager.isAudioCallPermissionsGranted() || GroupCallUtils.getCallType() == CallType.VIDEO_CALL && CallManager.isVideoCallPermissionsGranted())
+                if (CallManager.getCallType() == CallType.AUDIO_CALL && CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false) || CallManager.getCallType() == CallType.VIDEO_CALL && CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false))
                     activityOnClickListener.answer()
                 else {
                     CallManager.declineCall()

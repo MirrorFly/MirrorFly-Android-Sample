@@ -45,6 +45,7 @@ class Constants {
         const val NOTIFY_MESSAGE = "notify_message"
         const val NOTIFY_UNREAD_ICON = "notify_unread_icon"
         const val SDK_DATA = "data"
+        const val TOTAL_PAGES = "total_pages"
         const val DIAL_CODE = "dialCode"
         const val COUNTRY_CODE = "countryCode"
         const val MOBILE_NO = "mobileNumber"
@@ -132,7 +133,7 @@ class Constants {
         const val IS_FIRST_LOGIN = "is_first"
         const val FROM_SPLASH = "from_splash"
         const val EMAIL = "email"
-
+        const val ASK_PERMISSION = "ask_permission"
         const val USER_PROFILE_NAME = "profile_name"
         const val EMAIL_PATTERN = ("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
                 + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,3})$")
@@ -237,6 +238,7 @@ class Constants {
 
         const val READ_PHONE_STATE_PERMISSION_ASKED = "read_phone_state_asked_before"
         const val RECORD_AUDIO_PERMISSION_ASKED = "read_phone_state_asked_before"
+        const val BLUETOOTH_PERMISSION_ASKED = "bluetooth_permission_asked_before"
 
         /**
          * Notifying action for removing action menu from chat activity
@@ -291,6 +293,7 @@ class Constants {
         const val RESET_PIN = "reset_pin"
         const val PIN_SCREEN = "pin_screen"
         const val CLOSE_DIALOG = "close_dialog"
+        const val ADMIN_BLOCKED = "admin_blocked"
 
         const val SEEKER_POS = "seeker_pos_in_sec"
         const val FROM_GROUP_INFO = "from_group_info"
@@ -325,5 +328,12 @@ class Constants {
         const val TRANSLATED_MESSAGE_CONTENT = "translated_message_content"
         const val IS_MESSAGE_TRANSLATED = "is_message_translated"
         const val TRANSLATED_LANGUAGE = "translated_language"
+
+        /*Pagination Load Type*/
+        const val PREV_LOAD="prevload"
+        const val NEXT_LOAD="nextload"
+        const val NO_DATA="nodata"
+
+        const val IS_EXISTING = "isExisting"
     }
 }

@@ -27,6 +27,7 @@ import com.contus.flynetwork.ApiCalls
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.AppLifecycleListener
 import com.contusfly.R
+import com.contusfly.TAG
 import com.contusfly.databinding.ActivityPinBinding
 import com.contusfly.fragments.BottomSheetOtpFragment
 import com.contusfly.showToast
@@ -200,30 +201,34 @@ class PinActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener
             }
 
             override fun afterTextChanged(s: Editable) {
-                when (s.length) {
-                    1 -> {
-                        setPinFillDrawable(mutableListOf(binding.filledPin1))
-                        hidePinFilledView(Arrays.asList(binding.filledPin2, binding.filledPin3, binding.filledPin4))
-                        setPinEmptyDrawable(mutableListOf(binding.pin2, binding.pin3, binding.pin4))
+                try {
+                    when (s.length) {
+                        1 -> {
+                            setPinFillDrawable(mutableListOf(binding.filledPin1))
+                            hidePinFilledView(mutableListOf(binding.filledPin2, binding.filledPin3, binding.filledPin4))
+                            setPinEmptyDrawable(mutableListOf(binding.pin2, binding.pin3, binding.pin4))
+                        }
+                        2 -> {
+                            setPinFillDrawable(mutableListOf(binding.filledPin1, binding.filledPin2))
+                            hidePinFilledView(mutableListOf(binding.filledPin3, binding.filledPin4))
+                            setPinEmptyDrawable(mutableListOf(binding.pin3, binding.pin4))
+                        }
+                        3 -> {
+                            setPinFillDrawable(mutableListOf(binding.filledPin1, binding.filledPin2, binding.filledPin3))
+                            hidePinFilledView(mutableListOf(binding.filledPin4))
+                            setPinEmptyDrawable(mutableListOf(binding.pin4))
+                        }
+                        4 -> {
+                            setPinFillDrawable(mutableListOf(binding.filledPin1, binding.filledPin2, binding.filledPin3, binding.filledPin4))
+                            validateAndUnlock(s.toString())
+                        }
+                        else -> {
+                            hidePinFilledView(mutableListOf(binding.filledPin1, binding.filledPin2, binding.filledPin3, binding.filledPin4))
+                            setPinEmptyDrawable(mutableListOf(binding.pin1, binding.pin2, binding.pin3, binding.pin4))
+                        }
                     }
-                    2 -> {
-                        setPinFillDrawable(mutableListOf(binding.filledPin1, binding.filledPin2))
-                        hidePinFilledView(mutableListOf(binding.filledPin3, binding.filledPin4))
-                        setPinEmptyDrawable(mutableListOf(binding.pin3, binding.pin4))
-                    }
-                    3 -> {
-                        setPinFillDrawable(mutableListOf(binding.filledPin1, binding.filledPin2, binding.filledPin3))
-                        hidePinFilledView(mutableListOf(binding.filledPin4))
-                        setPinEmptyDrawable(mutableListOf(binding.pin4))
-                    }
-                    4 -> {
-                        setPinFillDrawable(mutableListOf(binding.filledPin1, binding.filledPin2, binding.filledPin3, binding.filledPin4))
-                        validateAndUnlock(s.toString())
-                    }
-                    else -> {
-                        hidePinFilledView(mutableListOf(binding.filledPin1, binding.filledPin2, binding.filledPin3, binding.filledPin4))
-                        setPinEmptyDrawable(mutableListOf(binding.pin1, binding.pin2, binding.pin3, binding.pin4))
-                    }
+                } catch (e: Exception) {
+                    com.contusfly.utils.LogMessage.e(TAG, "Pin Entry issue ==> ${e.message}")
                 }
             }
         })
@@ -596,53 +601,11 @@ class PinActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedListener
      * to send the otp
      */
     private fun sendOtp() {
-        if (AppUtils.isNetConnected(applicationContext)) {
-            progressDialog!!.setMessage(getString(R.string.sending_otp))
-            progressDialog!!.isIndeterminate = true
-            progressDialog!!.setCancelable(false)
-            progressDialog!!.show()
-
-            launch(exceptionHandler) {
-
-                val mobileNUmber = Prefs.getString(com.contusfly.utils.Constants.USER_MOBILE_NUMBER).replace(" ", "").replace("+", "")
-
-                val otpResponse = apiCalls.pinGetOtp(mobileNUmber).await()
-
-                if (otpResponse.isSuccessful) {
-
-                    val response = otpResponse.body()!!
-
-                    when {
-                        Constants.STATUS_CODE_SUCCESS == response.status.toString() -> {
-                            sendVerificationCode()
-                        }
-                        Constants.STATUS_CODE_SECURITY_TOKEN_ERROR == response.status.toString() -> {
-                            LogMessage.e("TAG", "Token refresh error")
-                            withContext(Dispatchers.Main.immediate) {
-                                showToast(response.message)
-                            }
-                        }
-                        else -> {
-                            withContext(Dispatchers.Main.immediate) {
-                                setOnClickListerForSendOTP()
-                                showToast(response.message)
-                            }
-                        }
-                    }
-
-                } else {
-                    withContext(Dispatchers.Main.immediate) {
-                        setOnClickListerForSendOTP()
-                        dismissProgress()
-                        showToast(Constants.ERROR_SERVER)
-                    }
-                }
-            }
-
-        } else {
-            dismissProgress()
-            CustomToast.show(this, getString(R.string.msg_no_internet))
-        }
+        progressDialog!!.setMessage(getString(R.string.sending_otp))
+        progressDialog!!.isIndeterminate = true
+        progressDialog!!.setCancelable(false)
+        progressDialog!!.show()
+        sendVerificationCode()
     }
 
     /**

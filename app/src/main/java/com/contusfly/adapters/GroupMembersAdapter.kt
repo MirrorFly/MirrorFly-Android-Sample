@@ -41,7 +41,7 @@ class GroupMembersAdapter(val context: Context, private var profilesList: ArrayL
     inner class GroupMemberViewHolder(var viewBinding: ListParticipantsItemBinding) : BaseViewHolder(viewBinding.root){
         init{
             viewBinding.contentView.clicks().throttleFirst(1000, TimeUnit.MILLISECONDS).subscribe {
-                onParticipantClicked(adapterPosition,profilesList.get(adapterPosition))
+                onParticipantClicked(layoutPosition,profilesList.get(layoutPosition))
             }
         }
     }

@@ -15,21 +15,20 @@ import com.contus.call.SpeakingIndicatorListener
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.CallStatus
 import com.contus.webrtc.api.CallManager
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.TextureViewRenderer
 import com.contusfly.*
 import com.contusfly.adapters.BaseViewHolder
 import com.contusfly.call.SetDrawable
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.CallUserItemBinding
 import com.contusfly.utils.Constants
+import com.contusfly.utils.MediaUtils
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.utils.ChatUtils
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 import com.jakewharton.rxbinding3.view.clicks
 import org.webrtc.RendererCommon
-import org.webrtc.SurfaceViewRenderer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -46,12 +45,12 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     /**
      * Surface views map
      */
-    private var callUsersSurfaceViews = ConcurrentHashMap<String, SurfaceViewRenderer>(8)
+    private var callUsersSurfaceViews = ConcurrentHashMap<String, TextureViewRenderer>(8)
 
     /**
      * contains the surface view initialisation status
      */
-    private var surfaceViewStatusMap = ConcurrentHashMap<SurfaceViewRenderer, Boolean>(8)
+    private var surfaceViewStatusMap = ConcurrentHashMap<TextureViewRenderer, Boolean>(8)
 
     fun onPinnedListView(pinnedListView : (userJid:String) -> Unit) {
         onPinnedListView = pinnedListView
@@ -79,7 +78,6 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
             LogMessage.i(TAG, "$CALL_UI #surface initializing surface view: ${holder.binding.viewVideoSurface}")
             holder.binding.viewVideoSurface.init(CallManager.getRootEglBase()?.eglBaseContext, null)
             holder.binding.viewVideoSurface.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
-            holder.binding.viewVideoSurface.setZOrderMediaOverlay(true)
             surfaceViewStatusMap[holder.binding.viewVideoSurface] = true
         }
 
@@ -107,7 +105,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
 
     private fun setMirrorView(holder: CallUserViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI  setMirrorView position: $position userJid:${callUserList[position]}")
-        if (callUserList[position] == GroupCallUtils.getLocalUserJid()) {
+        if (callUserList[position] == CallManager.getCurrentUserId()) {
             holder.binding.viewVideoSurface.setMirror(!CallUtils.getIsBackCameraCapturing())
         } else {
             holder.binding.viewVideoSurface.setMirror(false)
@@ -116,7 +114,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
 
     private fun setUpAudioMuted(holder: CallUserViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI #surface setUpAudioMuted position: $position userJid:${callUserList[position]}")
-        if ((callUserList[position] == GroupCallUtils.getLocalUserJid() && GroupCallUtils.isAudioMuted()) || CallManager.isRemoteAudioMuted(callUserList[position])) {
+        if ((callUserList[position] == CallManager.getCurrentUserId() && CallManager.isAudioMuted()) || CallManager.isRemoteAudioMuted(callUserList[position])) {
             holder.binding.imageAudioMuted.show()
         } else {
             holder.binding.imageAudioMuted.gone()
@@ -126,7 +124,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setUpVideoMuted(holder: CallUserViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI  setUpVideoMuted position: $position userJid:${callUserList[position]}")
         when (callUserList[position]) {
-            GroupCallUtils.getLocalUserJid() -> if (GroupCallUtils.isVideoMuted()) {
+            CallManager.getCurrentUserId() -> if (CallManager.isVideoMuted()) {
                 setUserInfo(holder, position)
                 hideSurface(holder)
             } else showSurface(holder)
@@ -144,7 +142,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setUserInfo(holder: CallUserViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI  setUserInfo position: $position userJid:${callUserList[position]}")
         holder.binding.textUserName.show()
-        if (callUserList[position] == GroupCallUtils.getLocalUserJid()) {
+        if (callUserList[position] == CallManager.getCurrentUserId()) {
             setLocalUserInfo(holder, position)
         } else {
             setRemoteUserInfo(holder, position)
@@ -154,7 +152,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setLocalUserInfo(holder: CallUserViewHolder, position: Int) {
         holder.binding.textUserName.text = Constants.YOU
         val image = SharedPreferenceManager.getString(Constants.USER_PROFILE_IMAGE)
-        val profileDetails = ContactManager.getProfileDetails(callUserList[position])
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(callUserList[position])
         val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
 
         val setDrawable = SetDrawable(context, profileDetails)
@@ -163,7 +161,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun setRemoteUserInfo(holder: CallUserViewHolder, position: Int) {
-        val profileDetails = ContactManager.getProfileDetails(callUserList[position])
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(callUserList[position])
         if (profileDetails != null) {
             val name = Utils.returnEmptyStringIfNull(profileDetails.name)
             val image = profileDetails.image
@@ -185,7 +183,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
         LogMessage.d(TAG, "$CALL_UI setSurfaceViewToVideoSink available surfaces: ${callUsersSurfaceViews.size} unique surfaces:${callUsersSurfaceViews.values.distinct().count()}")
 
         when {
-            callUserList[position] == GroupCallUtils.getLocalUserJid() -> {
+            callUserList[position] == CallManager.getCurrentUserId() -> {
                 try {
                     CallManager.getLocalProxyVideoSink()?.setTarget(holder.binding.viewVideoSurface)
                 } catch (e: Exception) {
@@ -299,7 +297,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
 
     private fun updateViewSize(holder: CallUserViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI  updateViewSize position: $position userJid:${callUserList[position]}")
-        if (callUserList[position] == GroupCallUtils.getLocalUserJid()) {
+        if (callUserList[position] == CallManager.getCurrentUserId()) {
             setUserInfo(holder, position)
         }
         val linearLayoutParams = holder.binding.rootLayout.layoutParams as RecyclerView.LayoutParams
@@ -319,8 +317,8 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
             callUserList.add(userJid)
             notifyItemInserted(callUserList.indexOf(userJid))
         } else if (!callUserList.contains(userJid)) {
-            if (userJid == GroupCallUtils.getLocalUserJid() || !callUserList.contains(
-                    GroupCallUtils.getLocalUserJid())) {
+            if (userJid == CallManager.getCurrentUserId() || !callUserList.contains(
+                    CallManager.getCurrentUserId())) {
                 callUserList.add(userJid)
                 notifyItemInserted(callUserList.indexOf(userJid))
             } else {
@@ -355,17 +353,17 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun updateConnectionStatus(index: Int) {
-        LogMessage.d(TAG, "$CALL_UI  updateConnectionStatus() position: $index userJid:${callUserList[index]} callStatus:${GroupCallUtils.getCallStatus(callUserList[index])}")
+        LogMessage.d(TAG, "$CALL_UI  updateConnectionStatus() position: $index userJid:${callUserList[index]} callStatus:${CallManager.getCallStatus(callUserList[index])}")
         val bundle = Bundle()
         bundle.putInt(CallActions.NOTIFY_VIEW_STATUS_UPDATED, 1)
         notifyItemChanged(index, bundle)
     }
 
     private fun updateConnectionStatus(holder: CallUserViewHolder, index: Int) {
-        LogMessage.d(TAG, "$CALL_UI  updateConnectionStatus position: $index userJid:${callUserList[index]} callStatus:${GroupCallUtils.getCallStatus(callUserList[index])}")
-        when (GroupCallUtils.getCallStatus(callUserList[index])) {
+        LogMessage.d(TAG, "$CALL_UI  updateConnectionStatus position: $index userJid:${callUserList[index]} callStatus:${CallManager.getCallStatus(callUserList[index])}")
+        when (CallManager.getCallStatus(callUserList[index])) {
             CallStatus.RINGING, CallStatus.CONNECTING, CallStatus.CALLING, CallStatus.DISCONNECTED -> {
-                if (callUserList[index] != GroupCallUtils.getLocalUserJid()) {
+                if (callUserList[index] != CallManager.getCurrentUserId()) {
                     showStatusInView(holder, index)
                 } else
                     holder.binding.callerStatusLayout.gone()
@@ -383,11 +381,11 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun showStatusInView(holder: CallUserViewHolder, index: Int) {
         LogMessage.d(TAG, "$CALL_UI  showStatusInView position: $index userJid:${callUserList[index]}")
         setUpVideoMuted(holder, index)
-        val callerStatus = GroupCallUtils.getCallStatus(callUserList[index])
+        val callerStatus = CallManager.getCallStatus(callUserList[index])
         holder.binding.callerStatusLayout.show()
         holder.binding.callerStatusTextView.text = callerStatus
         if ((CallStatus.CONNECTING == callerStatus || CallStatus.CALLING == callerStatus)
-            && GroupCallUtils.isOnGoingVideoCall()) {
+            && CallManager.isOnGoingVideoCall()) {
             holder.binding.imgProfileImage.show()
         }
     }
@@ -428,7 +426,7 @@ class GroupCallListAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun updateUserSpeaking(holder: CallUserViewHolder, position: Int, audioLevel: Int) {
-        if (audioLevel == 0 || GroupCallUtils.isUserAudioMuted(callUserList[position]))
+        if (audioLevel == 0 || CallManager.isUserAudioMuted(callUserList[position]))
             updateUserStoppedSpeaking(holder, position)
         else {
             holder.binding.imageAudioMuted.gone()

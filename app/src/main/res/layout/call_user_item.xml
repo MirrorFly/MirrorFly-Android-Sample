@@ -9,13 +9,14 @@
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        app:cardCornerRadius="@dimen/margin_12"
         app:cardBackgroundColor="@color/caller_tile_background">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <org.webrtc.SurfaceViewRenderer
+            <com.contus.webrtc.TextureViewRenderer
                 android:id="@+id/view_video_surface"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

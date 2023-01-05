@@ -8,8 +8,8 @@ import android.graphics.BlendMode
 import android.graphics.BlendModeColorFilter
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
-import android.os.Bundle
 import android.os.Build
+import android.os.Bundle
 import android.text.*
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
@@ -21,30 +21,27 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.annotation.ColorInt
 import androidx.annotation.IdRes
 import androidx.appcompat.app.AppCompatActivity
-import androidx.annotation.ColorInt
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
 import com.contus.flycommons.*
-import com.contusfly.models.Chat
-import com.contusfly.utils.MediaPermissions
-import com.contus.flycommons.ChatType
-import com.contus.flycommons.ChatTypeEnum
-import com.contus.flycommons.Constants
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.api.CallManager
 import com.contusfly.chat.AndroidUtils
+import com.contusfly.models.Chat
 import com.contusfly.utils.DebounceOnClickListener
+import com.contusfly.utils.MediaPermissions
 import com.contusfly.utils.MediaUtils
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager.getCurrentUserJid
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomDrawable
 import com.contusfly.views.SetDrawable
-import com.contusflysdk.api.ChatManager
 import com.contusflysdk.AppUtils
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.DeleteChatType
 import com.contusflysdk.api.MessageStatus
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
@@ -54,6 +51,7 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketAddress
+import java.text.DecimalFormat
 import kotlin.math.abs
 import kotlin.math.ceil
 
@@ -188,7 +186,6 @@ fun Boolean.ifElse(functionOne: () -> Unit, functionTwo: () -> Unit) {
         functionTwo()
 }
 
-fun RecentChat.isItSavedContact() = contactType == ContactType.LIVE_CONTACT
 fun RecentChat.isDeletedContact() = contactType == ContactType.DELETED_CONTACT
 fun RecentChat.isSingleChat() = !isGroup && !isBroadCast
 
@@ -229,7 +226,7 @@ fun AppCompatImageView.loadUserProfileImage(context: Context, recentChat: Recent
     if (recentChat.isBlockedMe || recentChat.isAdminBlocked) {
         imageUrl = Constants.EMPTY_STRING
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
-    } else if (!recentChat.isItSavedContact() || recentChat.isDeletedContact()) {
+    } else if (recentChat.isDeletedContact()) {
         imageUrl = recentChat.profileImage ?: Constants.EMPTY_STRING
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
     } else if (TextUtils.isEmpty(imageUrl) || this.drawable == null)
@@ -266,7 +263,7 @@ fun CustomDrawable.getDefaultDrawable(recentChat: RecentChat): Drawable {
     return when {
         recentChat.isGroup -> this.context.getDefaultDrawable(ChatType.TYPE_GROUP_CHAT)
         else -> {
-            val profileDetails:ProfileDetails? = ContactManager.getProfileDetails(recentChat.jid)
+            val profileDetails:ProfileDetails? = ProfileDetailsUtils.getProfileDetails(recentChat.jid)
             if(profileDetails?.isBlockedMe!! || profileDetails.isAdminBlocked || profileDetails.isDeletedContact()){
                 this.context.getDefaultDrawable(profileDetails.getChatType())
             }else{
@@ -294,7 +291,7 @@ fun Context.drawable(drawable: Int): Drawable = ContextCompat.getDrawable(this, 
 
 fun Context.getDefaultDrawable(chatType: String): Drawable {
     return when (chatType) {
-        ChatType.TYPE_CHAT -> drawable(R.drawable.ic_profile)
+        ChatType.TYPE_CHAT -> drawable(R.drawable.ic_sng_bg)
         ChatType.TYPE_GROUP_CHAT -> drawable(R.drawable.ic_grp_bg)
         ChatType.TYPE_BROADCAST_CHAT -> drawable(R.drawable.ic_broadcast)
         else -> drawable(R.drawable.ic_profile)
@@ -427,7 +424,7 @@ fun ReplyParentChatMessage.getSenderName(): String {
 }
 
 fun Chat.getUsername(): String {
-    val profileDetails = ContactManager.getProfileDetails(toUser)
+    val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser)
     return if (profileDetails == null) {
         toUser
     } else {
@@ -435,12 +432,21 @@ fun Chat.getUsername(): String {
     }
 }
 
-fun ProfileDetails.isItSavedContact() = contactType == ContactType.LIVE_CONTACT
+fun ProfileDetails.isUnknownContact() = !isGroupProfile && !isLiveContact() && !isDeletedContact() && mobileNumber.isNotNumber()
 fun ProfileDetails.isDeletedContact() = contactType == ContactType.DELETED_CONTACT
+fun ProfileDetails.isLiveContact() = contactType == ContactType.LIVE_CONTACT
 fun ProfileDetails.getChatType(): String {
     return when {
         isGroupProfile -> ChatType.TYPE_GROUP_CHAT
         else -> ChatType.TYPE_CHAT
+    }
+}
+fun String.isNotNumber() : Boolean {
+    return try {
+        this.toDouble()
+        false
+    } catch (e: NumberFormatException) {
+        true
     }
 }
 
@@ -499,8 +505,7 @@ fun showAlertDialog(activity: Activity, title: String) {
 }
 
 fun isOnAnyCall(): Boolean {
-    return GroupCallUtils.isOnGoingVideoCall() || GroupCallUtils.isOnGoingAudioCall()
-    //|| GroupCallUtils.isIsOnGoingConferenceCall() || GroupCallUtils.isIsOnGoingMeetingCall()
+    return CallManager.isOnGoingCall()
 }
 
 fun View.setOnClickListener(debounceInterval: Long, listenerBlock: (View) -> Unit) =
@@ -554,5 +559,19 @@ suspend fun hasActiveInternet(): Boolean {
         true
     } catch (e: IOException) {
         false
+    }
+}
+
+fun getFileSizeInStringFormat(size: Long): String? {
+    val df = DecimalFormat("0.00")
+    val sizeKb = 1024.0f
+    val sizeMb = sizeKb * sizeKb
+    val sizeGb = sizeMb * sizeKb
+    val sizeTerra = sizeGb * sizeKb
+    return when {
+        size < sizeMb -> df.format(size / sizeKb.toDouble()) + " KB"
+        size < sizeGb -> df.format(size / sizeMb.toDouble()) + " MB"
+        size < sizeTerra -> df.format(size / sizeGb.toDouble()) + " GB"
+        else -> ""
     }
 }

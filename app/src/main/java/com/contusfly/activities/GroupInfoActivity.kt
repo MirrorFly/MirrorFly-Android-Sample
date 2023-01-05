@@ -6,6 +6,7 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -15,11 +16,13 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.contusfly.R
 import com.contus.flycommons.*
 import com.contus.flycommons.Constants
 import com.contus.flycommons.LogMessage
+import com.contus.flycommons.exception.ErrorCode
+import com.contus.flycommons.exception.FlyException
 import com.contusfly.*
+import com.contusfly.R
 import com.contusfly.activities.parent.ChatParent
 import com.contusfly.adapters.GroupMembersAdapter
 import com.contusfly.databinding.ActivityGroupInfoBinding
@@ -41,9 +44,10 @@ import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.utils.ImageUtils
+import com.contusflysdk.utils.FilePathUtils
+import com.contusflysdk.utils.ImagePopUpUtils
 import com.contusflysdk.utils.*
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.utils.VideoRecUtils
@@ -53,8 +57,6 @@ import net.opacapp.multilinecollapsingtoolbar.CollapsingToolbarLayout
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.util.*
-import kotlin.collections.ArrayList
 
 class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedListener ,DialogInterface.OnClickListener{
 
@@ -143,7 +145,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     private val isGroupMember: Boolean
             by lazy {
-                GroupManager.isMemberOfGroup(
+                ChatManager.getAvailableFeatures().isGroupChatEnabled &&  GroupManager.isMemberOfGroup(
                     groupProfileDetails.jid,
                     SharedPreferenceManager.getString(Constants.USER_JID)
                 )
@@ -219,7 +221,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         initListeners()
         loadGroupExistence()
         loadAdapterData()
-        GroupManager.getGroupMembersList(GroupManager.doesFetchingMembersListFromServedRequired(groupProfileDetails.jid), groupProfileDetails.jid) { isSuccess, _, data ->
+        GroupManager.getGroupMembersList(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.doesFetchingMembersListFromServedRequired(groupProfileDetails.jid), groupProfileDetails.jid) { isSuccess, throwable, data ->
             if (isSuccess) {
                 var groupMembers: MutableList<ProfileDetails> =
                     data.getData() as ArrayList<ProfileDetails>
@@ -236,7 +238,8 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                 groupMembersList.addAll(groupMembers)
                 groupMembersAdapter.notifyDataSetChanged()
             } else {
-                showToast(getString(R.string.error_fetching_group_members))
+                if (!(throwable is FlyException && throwable.errorCode == ErrorCode.FORBIDDEN_ACTION))
+                    showToast(getString(R.string.error_fetching_group_members))
             }
         }
     }
@@ -317,7 +320,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         //   Checks the group information is not null
         if (groupProfileDetails != null) {
             when {
-                GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()) -> {
+                ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()) -> {
                     binding.leaveGroup.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_leave_group, 0, 0, 0)
                     binding.leaveGroup.text = getString(R.string.label_leave_group)
                 }
@@ -460,7 +463,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         editIcon = menu.get(R.id.action_edit)
-        if (GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+        if (ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
             editIcon!!.setIcon(R.drawable.ic_image_edit)
             editIcon!!.show()
             binding.editName.show()
@@ -470,7 +473,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                 loadGroupExistence()
             }
             if (isToolbarCollapsed) {
-                editIcon!!.icon.applySourceColorFilter(
+                editIcon!!.icon?.applySourceColorFilter(
                     ContextCompat.getColor(
                         context!!,
                         R.color.color_text
@@ -525,7 +528,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     }
 
     private fun setEditPrivelages(){
-        if(GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())){
+        if(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())){
             binding.editName.show()
             editIcon!!.show()
         }else{
@@ -549,7 +552,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         if (isSuccess) {
             when (dialogMode) {
                 DIALOGMODE.REMOVE_GROUP ->
-                    if(GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+                    if(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
                         removeUserFromGroup()
                     }
                     else{
@@ -558,7 +561,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                 DIALOGMODE.EXIT_GROUP -> exitFromGroup()
                 DIALOGMODE.DELETE_GROUP -> onDeleteGroup()
                 DIALOGMODE.MAKE_ADMIN ->
-                    if(GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+                    if(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
                         makeAdmin()
                     }
                     else{
@@ -654,7 +657,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             2 -> openChatView()
             3 -> openInfoView()
             4 -> {
-                if(GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+                if(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
                     dialogMode = DIALOGMODE.REMOVE_GROUP
                     showConfirmDialog(getString(R.string.msg_are_you_sure_remove))
                 }
@@ -724,14 +727,18 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      * Handles the gallery action.
      */
     private fun handleGalleryAction() {
-        if (MediaPermissions.isReadFilePermissionAllowed(context)) {
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (MediaPermissions.isReadFilePermissionAllowed(context)) {
+                PickFileUtils.chooseImageFromGallery(this)
+            } else activity?.let {
+                MediaPermissions.requestCameraStoragePermissions(
+                    it,
+                    permissionAlertDialog,
+                    galleryPermissionLauncher
+                )
+            }
+        } else {
             PickFileUtils.chooseImageFromGallery(this)
-        } else activity?.let {
-            MediaPermissions.requestCameraStoragePermissions(
-                it,
-                permissionAlertDialog,
-                galleryPermissionLauncher
-            )
         }
     }
 
@@ -739,9 +746,9 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun setProfileImage(image: String) {
 
         if (image.startsWith(storagePrefix) && File(Utils.returnEmptyStringIfNull(image)).exists()) {
-            com.contusflysdk.utils.MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
+            MediaUtils.loadImageWithGlide(this, image, binding.profileImage, null)
         } else {
-            com.contusflysdk.utils.MediaUtils.loadImageWithGlideSecure(
+            MediaUtils.loadImageWithGlideSecure(
                 this,
                 if (image.isBlank()) null else image,
                 binding.profileImage,
@@ -761,8 +768,11 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun setUserData() {
         setToolbarTitle(groupProfileDetails.name)
         setProfileImage(groupProfileDetails.image ?: emptyStringFE())
-        binding.subTitle.text =
-            "${GroupManager.getMembersCountOfGroup(groupProfileDetails.jid)} members"
+        try {
+            binding.subTitle.text = "${GroupManager.getMembersCountOfGroup(groupProfileDetails.jid)} members"
+        } catch (e: Exception) {
+            binding.subTitle.text = "0 members"
+        }
         setMuteNotificationStatus(groupProfileDetails.isMuted)
         if (!isGroupMember) binding.muteSwitch.isEnabled = false
     }
@@ -806,7 +816,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         val now = System.currentTimeMillis()
         if (now - lastClicktime < 300) return
         lastClicktime = now
-        if (position != groupMembersList.size - 1 || !GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+        if (position != groupMembersList.size - 1 || ChatManager.getAvailableFeatures().isGroupChatEnabled && !GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
             lastKnownPosition = position
             phoneNumber = profile.mobileNumber
             mDialog!!.showListDialog(
@@ -856,7 +866,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             userList.add(usersList[i].jid)
             i++
         }
-        startActivityForResult(Intent(this, NewContactsActivity::class.java)
+        startActivityForResult(Intent(this, UserListActivity::class.java)
             .putExtra(com.contusfly.utils.Constants.ADD_PARTICIAPANTS, true)
             .putExtra(com.contusfly.utils.Constants.FROM_GROUP_INFO, true)
             .putExtra(com.contusfly.utils.Constants.GROUP_ID, groupProfileDetails.jid)
@@ -884,11 +894,11 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     }
 
     private fun refreshParticipantData(jid: String) {
-        val isGroupMember = GroupManager.isMemberOfGroup(groupProfileDetails.jid, jid)
+        val isGroupMember = ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid, jid)
         if (isGroupMember) {
             val index = groupMembersList.indexOfFirst { it.jid == jid }
             if (index.isValidIndex()) {
-                groupMembersList[index] = ContactManager.getProfileDetails(jid)!!
+                groupMembersList[index] = ProfileDetailsUtils.getProfileDetails(jid)!!
                 groupMembersAdapter.notifyItemChanged(index)
             }
         }
@@ -912,7 +922,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         isUnknownParticipant = false
         val arrayGroupMenu: Array<String> = if ( ChatType.TYPE_BROADCAST_CHAT == groupProfileDetails.getChatType())
                 resources.getStringArray(R.array.array_broadcast_user_menu)
-            else if (GroupManager.isAdmin(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+            else if (ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isAdmin(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
             if (profileDetails.isGroupAdmin)
                 resources.getStringArray(R.array.array_group_admin_user_menu)
             else
@@ -946,14 +956,14 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      * Show the dialog for remove admin or make admin
      */
     private fun doAdminActions() {
-        val clickedUserIsAdmin = GroupManager.isAdmin(groupProfileDetails.jid!!, usersList[lastKnownPosition].jid)
+        val clickedUserIsAdmin = ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isAdmin(groupProfileDetails.jid!!, usersList[lastKnownPosition].jid)
         if (clickedUserIsAdmin) {
             // Remove admin
             dialogMode = DIALOGMODE.REMOVE_ADMIN
             showConfirmDialog(getString(R.string.msg_are_you_sure_remove_admin))
         } else {
             // Make admin
-            if(GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
+            if(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid())) {
                 dialogMode = DIALOGMODE.MAKE_ADMIN
                 showConfirmDialog(getString(R.string.msg_are_you_sure_make_admin))
             }
@@ -1015,7 +1025,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      * Validate the participant affiliation and show/hide the option
      */
     private fun validateParticipantOption() {
-        isGroupAdmin = GroupManager.isAdmin(groupProfileDetails.jid!!, SharedPreferenceManager.getCurrentUserJid())
+        isGroupAdmin = ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isAdmin(groupProfileDetails.jid!!, SharedPreferenceManager.getCurrentUserJid())
         if (ChatType.TYPE_BROADCAST_CHAT == groupProfileDetails.getChatType() || isGroupAdmin) {
             binding.addParticipant.text = context!!.resources.getString(R.string.add_participants)
             binding.addParticipant.isEnabled = true
@@ -1074,7 +1084,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun exitOrDeleteGroup() {
         try {
             dialogMode = when {
-                GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()) -> {
+                ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()) -> {
                     mDialog!!.showAlertDialog(
                         getString(R.string.msg_are_you_sure_exit),
                         getString(R.string.action_leave),
@@ -1131,7 +1141,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails = ProfileDetailsUtils.getProfileDetails(groupProfileDetails.jid)!!
         groupProfileDetails.let {
             if (it.isAdminBlocked) navigateToDashboard()
             else {
@@ -1157,7 +1167,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
             Constants.EDIT_REQ_CODE -> handleEditGroupName(intentData)
             RequestCode.TAKE_PHOTO -> handleCameraIntent(mFileCameraTemp)
             RequestCode.FROM_GALLERY -> handleGalleryIntent(intentData)
-            RequestCode.CROP_IMAGE -> if(GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()))
+            RequestCode.CROP_IMAGE -> if(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()))
                     uploadImage()
                 else
                     CustomToast.show(context,getString(R.string.mgs_not_a_group_member))
@@ -1167,7 +1177,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun handleEditGroupName(intentData: Intent?) {
         if (intentData!!.getStringExtra(Constants.TITLE) != groupProfileDetails.nickName) {
             if(intentData.getStringExtra(Constants.TITLE).toString().trim().isNotEmpty()) {
-                if (GroupManager.isMemberOfGroup(groupProfileDetails.jid, SharedPreferenceManager.getCurrentUserJid()))
+                if (ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid, SharedPreferenceManager.getCurrentUserJid()))
                     updateGroupInfo(intentData.getStringExtra(Constants.TITLE), groupProfileDetails.image)
                 else CustomToast.show(context, getString(R.string.mgs_not_a_group_member))
             } else CustomToast.show(context, getString(R.string.msg_group_name_cannot_be_empty))
@@ -1213,6 +1223,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      * @param imgUrl Url of the Group image
      */
     private fun updateGroupInfo(name: String?, imgUrl: String?) {
+
         try {
 
             if (!::progressDialog.isInitialized || !progressDialog.isShowing) {
@@ -1250,7 +1261,7 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      */
     private fun loadGroupNameAndImage() {
 
-        groupProfileDetails = ContactManager.getProfileDetails(groupProfileDetails.jid)!!
+        groupProfileDetails = ProfileDetailsUtils.getProfileDetails(groupProfileDetails.jid)!!
         groupProfileDetails.let {
             val groupImage = Utils.returnEmptyStringIfNull(it.image)
 

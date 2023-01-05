@@ -4,31 +4,21 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Vibrator
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import com.contus.webrtc.api.CallManager
+import com.contus.flycommons.getMessage
 import com.contusfly.BuildConfig
 import com.contusfly.R
-import com.contusfly.TAG
 import com.contusfly.databinding.ActivityQrCodeScannerBinding
-import com.contusfly.utils.LogMessage
 import com.contusfly.utils.UserInterfaceUtils.Companion.setUpToolBar
 import com.contusflysdk.AppUtils
-import com.contusflysdk.api.WebLoginDataManager
-import com.contusflysdk.model.WebLogin
+import com.contusflysdk.api.FlyCore
 import com.contusflysdk.utils.UpDateWebPassword
 import com.contusflysdk.views.CustomToast
-import com.github.nkzawa.socketio.client.IO
-import com.github.nkzawa.socketio.client.Socket
 import com.google.zxing.ResultPoint
 import com.google.zxing.client.android.Intents
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
 import com.journeyapps.barcodescanner.DecoratedBarcodeView
-import org.json.JSONException
-import org.json.JSONObject
-import java.net.URISyntaxException
-import java.util.*
 
 class QrCodeScannerActivity : BaseActivity(), BarcodeCallback {
 
@@ -40,27 +30,14 @@ class QrCodeScannerActivity : BaseActivity(), BarcodeCallback {
     private var updateWebPassword: UpDateWebPassword? = null
 
     /**
-     * Initialize the instance of the [Socket] for multiplexing.
-     */
-    private var mSocket: Socket? = null
-
-    /**
      * The view reference of the BarcodeView object.
      */
     private var barcodeView: DecoratedBarcodeView? = null
-
-    private var webLoginSuccess = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         qrCodeScannerBinding = ActivityQrCodeScannerBinding.inflate(layoutInflater)
         setContentView(qrCodeScannerBinding.root)
-        try {
-            mSocket = IO.socket(CallManager.getSignalServerUrl())
-        } catch (e: URISyntaxException) {
-            LogMessage.e(TAG, e)
-        }
-        connectSocket()
 
         updateWebPassword = UpDateWebPassword()
 
@@ -76,52 +53,22 @@ class QrCodeScannerActivity : BaseActivity(), BarcodeCallback {
         barcodeView!!.decodeSingle(this)
     }
 
-    /**
-     * Connects the Socket.IO Client.
-     */
-    private fun connectSocket() {
-        webLoginSuccess = true
-        mSocket!!.connect().on(Socket.EVENT_CONNECT) { args: Array<Any?>? -> }.on(Socket.EVENT_CONNECT_ERROR) { args: Array<Any?>? ->
-            runOnUiThread {
-                if(AppUtils.isNetConnected(this)) {
-                    CustomToast.show(this, getString(R.string.error_occurred_label))
-                    finish()
-                }
-            }
-        }.on("loginStatus") { args: Array<Any?>? ->
-            runOnUiThread {
-                LogMessage.d(TAG, "Web Connection Response" + Arrays.toString(args))
-                val jsonObject = JSONObject(args?.get(0).toString())
-                if (jsonObject.getInt("statusCode") == 200 && webLoginSuccess) {
-                    val vibrator = getSystemService(AppCompatActivity.VIBRATOR_SERVICE) as Vibrator
-                    if (vibrator.hasVibrator()) {
-                        vibrator.vibrate(50)
-                    }
-                    webLoginSuccess = false
-                    finish()
-                } else if (webLoginSuccess) {
-                    webLoginSuccess = false
-                    WebLoginDataManager.webLoginDetailsCleared()
-                    CustomToast.show(this, jsonObject.getString("message"))
-                    finish()
-                }
-            }
-        }
-    }
-
     override fun barcodeResult(result: BarcodeResult?) {
-        try {
-            LogMessage.d(TAG, result!!.result.text)
-            val webLogin = WebLoginDataManager.getBarcodeResult(result.result.text)
-            if (!WebLoginDataManager.isWebLoginDetailsAvailable(webLogin)) {
-                // Insert the web login details into the respective table.
-                WebLoginDataManager.insertWebLoginDetails(webLogin)
-                //Emit Object to Socket
-                WebLoginDataManager.webLoginProcess(mSocket, webLogin!!.qrUniqeToken)
+        FlyCore.loginWebChatViaQRCode(result!!.result.text) { isSuccess, _, data ->
+            if (isSuccess) {
+                val vibrator = getSystemService(VIBRATOR_SERVICE) as Vibrator
+                if (vibrator.hasVibrator()) {
+                    vibrator.vibrate(50)
+                }
+                finish()
+            } else {
+                if (AppUtils.isNetConnected(this)) {
+                    CustomToast.show(this, getString(R.string.error_occurred_label))
+                }else{
+                    CustomToast.show(this, data.getMessage())
+                }
+                finish()
             }
-            else finish()
-        } catch (e: JSONException) {
-            LogMessage.e(TAG, e)
         }
     }
 

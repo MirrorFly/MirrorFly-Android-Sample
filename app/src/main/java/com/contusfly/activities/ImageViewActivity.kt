@@ -7,8 +7,8 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import com.contusflysdk.api.contacts.ContactManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -24,6 +24,7 @@ import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.CommonUtils
 import com.contusfly.utils.CommonUtils.Companion.showBottomSheetView
+import com.contusfly.utils.MediaUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusfly.views.PermissionAlertDialog
@@ -31,10 +32,7 @@ import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ProfileDetails
-import com.contusflysdk.api.utils.ImageUtils
-import com.contusflysdk.api.utils.PickFileUtils
 import com.contusflysdk.utils.*
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.RequestCode
 import com.contusflysdk.utils.VideoRecUtils
 import com.contusflysdk.views.CustomToast
@@ -122,7 +120,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
 
         if(readPermissionGranted) {
-            com.contusfly.utils.PickFileUtils.chooseImageFromGallery(this)
+            PickFileUtils.chooseImageFromGallery(this)
         }
     }
 
@@ -203,8 +201,8 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     }
 
     private fun profileImageUrlUpdate() {
-        val profile = if (groupId != null && groupId!!.isNotEmpty()) ContactManager.getProfileDetails(groupId!!)
-        else ContactManager.getProfileDetails(userId!!)
+        val profile = if (groupId != null && groupId!!.isNotEmpty()) ProfileDetailsUtils.getProfileDetails(groupId!!)
+        else ProfileDetailsUtils.getProfileDetails(userId!!)
         if (profile!!.isAdminBlocked) imageUrl = Constants.EMPTY_STRING
     }
 
@@ -223,7 +221,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
 
     private fun updateUserProfile(jid: String) {
         if(userId == jid) {
-            val profileDetail = ContactManager.getProfileDetails(jid)
+            val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
             if (profileDetail?.image!!.startsWith(storagePath))
                 com.contusfly.utils.MediaUtils.loadImageWithGlide(this, profileDetail.image!!, groupImage, ContextCompat.getDrawable(this, errorImage))
             else
@@ -286,7 +284,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
                 pickImageFromGallery()
             }
             R.id.action_remove -> {
-                if(groupId != null && GroupManager.isMemberOfGroup(groupId!!,SharedPreferenceManager.getCurrentUserJid())) {
+                if(groupId != null && ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupId!!,SharedPreferenceManager.getCurrentUserJid())) {
                     isImageUpdate = false
                     mDialog!!.showAlertDialog(
                         getString(R.string.msg_are_you_sure_remove_group_photo),
@@ -305,9 +303,13 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
      * Open the gallery to pick a new image to modify the group icon.
      */
     private fun pickImageFromGallery() {
-        if (MediaPermissions.isReadFilePermissionAllowed(this)) {
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (MediaPermissions.isReadFilePermissionAllowed(this)) {
+                PickFileUtils.chooseImageFromGallery(this)
+            } else MediaPermissions.requestCameraStoragePermissions(this, permissionAlertDialog, galleryPermissionLauncher)
+       } else {
             PickFileUtils.chooseImageFromGallery(this)
-        } else MediaPermissions.requestCameraStoragePermissions(this, permissionAlertDialog, galleryPermissionLauncher)
+       }
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
@@ -357,7 +359,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
             RequestCode.TAKE_PHOTO -> handleCameraIntent(mFileCameraTemp)
             RequestCode.FROM_GALLERY -> handleGalleryIntent(data)
             RequestCode.CROP_IMAGE ->
-                if(groupId != null && GroupManager.isMemberOfGroup(groupId!!,SharedPreferenceManager.getCurrentUserJid()))
+                if(groupId != null && ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupId!!,SharedPreferenceManager.getCurrentUserJid()))
                     uploadImage()
                 else {
                     CustomToast.show(context, getString(R.string.mgs_not_a_group_member))
@@ -516,7 +518,7 @@ class ImageViewActivity : BaseActivity(), DialogInterface.OnClickListener, Commo
     }
 
     private fun setUserProfileImage(jid: String, status: Boolean) {
-        val profileDetail = ContactManager.getProfileDetails(jid)
+        val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
         if (profileDetail != null) {
             profileDetail.image = if (status) Constants.EMPTY_STRING else profileDetail.image
             if (profileDetail.image!!.startsWith(storagePath))

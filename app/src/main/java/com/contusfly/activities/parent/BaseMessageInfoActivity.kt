@@ -48,6 +48,7 @@ import com.contusflysdk.api.models.ContactChatMessage
 import com.contusflysdk.api.models.ReplyParentChatMessage
 import com.contusflysdk.utils.InviteContactUtils
 import com.contusflysdk.utils.Utils
+import java.util.*
 
 /**
  * The class BaseMessageInfoActivity shows single/group chat message in common.
@@ -322,7 +323,7 @@ open class BaseMessageInfoActivity : BaseActivity(), CommonDialogClosedListener 
      * @param txtTime Time of the message
      */
     private fun loadMessageTime(message: ChatMessage?, txtTime: TextView) {
-        val time = ChatMsgTime().getDaySentMsg(this, message!!.getMessageSentTime())
+        val time = ChatMsgTime(Calendar.getInstance()).getDaySentMsg(this, message!!.getMessageSentTime())
         txtTime.text = time
     }
 

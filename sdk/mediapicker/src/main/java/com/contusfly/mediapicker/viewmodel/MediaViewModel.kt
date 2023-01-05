@@ -63,23 +63,16 @@ class MediaViewModel : ViewModel() {
 
     var supportedFormats = listOf(*PickerConstants.supportedFormats)
 
+    var canImageShow = true
+    var canVideoShow = true
 
     fun getImageBuckets(mContext: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             val uri = MediaStore.Files.getContentUri("external")
-            val projection = arrayOf(
-                MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
-                MediaStore.Images.ImageColumns.DATA,
-                MediaStore.Images.ImageColumns.MIME_TYPE,
-                MediaStore.Images.ImageColumns.DATE_MODIFIED
-            )
+            val projection = getProjection()
             // Return only video and image metadata.
-            val selection = (MediaStore.Files.FileColumns.MEDIA_TYPE + "="
-                    + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
-                    + " OR "
-                    + MediaStore.Files.FileColumns.MEDIA_TYPE + "="
-                    + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
-            val order = MediaStore.Images.ImageColumns.DATE_MODIFIED
+            val selection = getSelection()
+            val order = getOrder()
             val cursor: Cursor? =
                 mContext.contentResolver.query(uri, projection, selection, null, order)
             var path = ""
@@ -171,19 +164,10 @@ class MediaViewModel : ViewModel() {
     fun getImagesInFolder(mContext: Context, folderName: String, image: Image) {
         viewModelScope.launch(Dispatchers.IO) {
             val uri = MediaStore.Files.getContentUri("external")
-            val projection = arrayOf(
-                MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
-                MediaStore.Images.ImageColumns.DATA,
-                MediaStore.Images.ImageColumns.MIME_TYPE,
-                MediaStore.Images.ImageColumns.DATE_MODIFIED
-            )
+            val projection = getProjection()
             // Return only video and image metadata.
-            val selection = (MediaStore.Files.FileColumns.MEDIA_TYPE + "="
-                    + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
-                    + " OR "
-                    + MediaStore.Files.FileColumns.MEDIA_TYPE + "="
-                    + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
-            val order = MediaStore.Images.ImageColumns.DATE_MODIFIED
+            val selection = getSelection()
+            val order = getOrder()
             val cursor: Cursor? =
                 mContext.contentResolver.query(uri, projection, selection, null, order)
             var path = ""
@@ -436,5 +420,51 @@ class MediaViewModel : ViewModel() {
         isMultiSelectEnable.postValue(true)
         isItemMultiSelected.postValue(true)
         deletedPhotoMediaList.postValue(deletedList)
+    }
+
+    private fun getOrder(): String {
+        return if (canImageShow)
+            MediaStore.Images.ImageColumns.DATE_MODIFIED
+        else
+            MediaStore.Video.VideoColumns.DATE_MODIFIED
+    }
+
+    private fun getProjection(): Array<String> {
+        return if (canImageShow) {
+            arrayOf(
+                MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.ImageColumns.DATA,
+                MediaStore.Images.ImageColumns.MIME_TYPE,
+                MediaStore.Images.ImageColumns.DATE_MODIFIED
+            )
+        } else {
+            arrayOf(
+                MediaStore.Video.VideoColumns.BUCKET_DISPLAY_NAME,
+                MediaStore.Video.VideoColumns.DATA,
+                MediaStore.Video.VideoColumns.MIME_TYPE,
+                MediaStore.Video.VideoColumns.DATE_MODIFIED
+            )
+        }
+    }
+
+    private fun getSelection(): String {
+        return if (canImageShow && canVideoShow) {
+            (MediaStore.Files.FileColumns.MEDIA_TYPE + "="
+                    + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
+                    + " OR "
+                    + MediaStore.Files.FileColumns.MEDIA_TYPE + "="
+                    + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
+        } else if (canImageShow) {
+            (MediaStore.Files.FileColumns.MEDIA_TYPE + "="
+                    + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE)
+        } else {
+            (MediaStore.Files.FileColumns.MEDIA_TYPE + "="
+                    + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
+        }
+    }
+
+    fun setPreCondition(canImageShow: Boolean, canVideoShow: Boolean) {
+        this.canImageShow = canImageShow
+        this.canVideoShow = canVideoShow
     }
 }

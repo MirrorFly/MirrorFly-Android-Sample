@@ -147,4 +147,9 @@
     <color name="color_transparent_bg">#23000000</color>
 
     <color name="color_red_light">#FF3939</color>
+    <color name="color_text_label_sdk">#959595</color>
+
+    <color name="search_box_color">#EBEBEB</color>
+    <color name="button_disable_color">#767676</color>
+    <color name="color_chat_tag_header">#C1C1C1</color>
 </resources>

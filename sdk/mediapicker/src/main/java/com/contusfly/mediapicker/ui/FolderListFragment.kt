@@ -12,6 +12,7 @@ import com.contusfly.mediapicker.`interface`.FolderListClickListener
 import com.contusfly.mediapicker.databinding.FragmentFolderListBinding
 import com.contusfly.mediapicker.model.FolderDetail
 import com.contusfly.mediapicker.ui.adapter.FolderListAdapter
+import com.contusfly.mediapicker.utils.PickerConstants
 import com.contusfly.mediapicker.viewmodel.MediaViewModel
 
 
@@ -46,6 +47,12 @@ class FolderListFragment : BaseFragment(), FolderListClickListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (!hasInitializedRootView) {
+            val extras = requireActivity().intent.extras
+            if (extras != null) {
+                val canImageShow = extras.getBoolean(PickerConstants.IMAGE_CAN_SHOW, true)
+                val canVideoShow = extras.getBoolean(PickerConstants.VIDEO_CAN_SHOW, true)
+                mediaViewModel.setPreCondition(canImageShow, canVideoShow)
+            }
             hasInitializedRootView = true
             Log.d("getImageBuckets", "Called")
             mediaViewModel.getImageBuckets(requireContext())
@@ -58,7 +65,6 @@ class FolderListFragment : BaseFragment(), FolderListClickListener {
                 adapter = folderListAdapter
                 addItemDecoration(GridItemDecoration(requireContext(), 3))
             }
-
             setObservers()
         }
     }
@@ -97,8 +103,7 @@ class FolderListFragment : BaseFragment(), FolderListClickListener {
             try {
                 val appInfo = pm.getApplicationInfo(
                     packageName,
-                    PackageManager.GET_META_DATA
-                )
+                    PackageManager.GET_META_DATA)
                 val appName = pm.getApplicationLabel(appInfo)
                 menu.add(
                     0, index, Menu.NONE, appName

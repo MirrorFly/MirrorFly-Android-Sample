@@ -68,76 +68,104 @@ constructor(val application: Application) : CoroutineScope {
     }
 
     private fun sendTextMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        FlyMessenger.sendTextMessage(messageObject.toJid, TextUtils.htmlEncode(messageObject.textMessage), messageObject.replyMessageId, object : SendMessageListener {
-            override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
-                if (isSuccess && chatMessage != null && messageListener != null)
-                    messageListener.onSendMessageSuccess(chatMessage)
-            }
-        })
-    }
-
-    private fun sendLocationMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        FlyMessenger.sendLocationMessage(messageObject.toJid, messageObject.latitude, messageObject.longitude, messageObject.replyMessageId, object : SendMessageListener {
-            override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
-                if (isSuccess && chatMessage != null && messageListener != null)
-                    messageListener.onSendMessageSuccess(chatMessage)
-            }
-        })
-    }
-
-    private fun sendContactMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        FlyMessenger.sendContactMessage(messageObject.toJid, messageObject.contactName, messageObject.contactNumbers, messageObject.replyMessageId, object : SendMessageListener {
-            override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
-                if (isSuccess && chatMessage != null && messageListener != null)
-                    messageListener.onSendMessageSuccess(chatMessage)
-            }
-        })
-    }
-
-    private fun sendDocumentMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        messageObject.file?.let {
-            FlyMessenger.sendDocumentMessage(messageObject.toJid, it, messageObject.fileName, messageObject.replyMessageId, object : SendMessageListener {
+        try {
+            FlyMessenger.sendTextMessage(messageObject.toJid, messageObject.textMessage, messageObject.replyMessageId, object : SendMessageListener {
                 override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
                     if (isSuccess && chatMessage != null && messageListener != null)
                         messageListener.onSendMessageSuccess(chatMessage)
                 }
             })
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun sendLocationMessage(messageObject: MessageObject, messageListener: MessageListener?) {
+        try {
+            FlyMessenger.sendLocationMessage(messageObject.toJid, messageObject.latitude, messageObject.longitude, messageObject.replyMessageId, object : SendMessageListener {
+                override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
+                    if (isSuccess && chatMessage != null && messageListener != null)
+                        messageListener.onSendMessageSuccess(chatMessage)
+                }
+            })
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun sendContactMessage(messageObject: MessageObject, messageListener: MessageListener?) {
+        try {
+            FlyMessenger.sendContactMessage(messageObject.toJid, messageObject.contactName, messageObject.contactNumbers, messageObject.replyMessageId, object : SendMessageListener {
+                override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
+                    if (isSuccess && chatMessage != null && messageListener != null)
+                        messageListener.onSendMessageSuccess(chatMessage)
+                }
+            })
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun sendDocumentMessage(messageObject: MessageObject, messageListener: MessageListener?) {
+        try {
+            messageObject.file?.let {
+                FlyMessenger.sendDocumentMessage(messageObject.toJid, it, messageObject.fileName, messageObject.replyMessageId, object : SendMessageListener {
+                    override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
+                        if (isSuccess && chatMessage != null && messageListener != null)
+                            messageListener.onSendMessageSuccess(chatMessage)
+                    }
+                })
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     private fun sendImageMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        messageObject.file?.let {
-            FlyMessenger.sendImageMessage(messageObject.toJid, it, messageObject.base64Thumbnail,
-                messageObject.caption, messageObject.replyMessageId, object : SendMessageListener {
-                    override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
-                        if (isSuccess && chatMessage != null && messageListener != null)
-                            messageListener.onSendMessageSuccess(chatMessage)
-                    }
-                })
+        try {
+            messageObject.file?.let {
+                FlyMessenger.sendImageMessage(messageObject.toJid, it, messageObject.base64Thumbnail,
+                    messageObject.caption, messageObject.replyMessageId, object : SendMessageListener {
+                        override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
+                            if (isSuccess && chatMessage != null && messageListener != null)
+                                messageListener.onSendMessageSuccess(chatMessage)
+                        }
+                    })
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     private fun sendAudioMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        messageObject.file?.let {
-            FlyMessenger.sendAudioMessage(messageObject.toJid, it, messageObject.audioDuration, messageObject.isAudioRecorded,
-                messageObject.replyMessageId, object : SendMessageListener {
-                    override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
-                        if (isSuccess && chatMessage != null && messageListener != null)
-                            messageListener.onSendMessageSuccess(chatMessage)
-                    }
-                })
+        try {
+            messageObject.file?.let {
+                FlyMessenger.sendAudioMessage(messageObject.toJid, it, messageObject.audioDuration, messageObject.isAudioRecorded,
+                    messageObject.replyMessageId, object : SendMessageListener {
+                        override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
+                            if (isSuccess && chatMessage != null && messageListener != null)
+                                messageListener.onSendMessageSuccess(chatMessage)
+                        }
+                    })
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     private fun sendVideoMessage(messageObject: MessageObject, messageListener: MessageListener?) {
-        messageObject.file?.let {
-            FlyMessenger.sendVideoMessage(messageObject.toJid, it, messageObject.caption,
-                messageObject.replyMessageId, object : SendMessageListener {
-                    override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
-                        if (isSuccess && chatMessage != null && messageListener != null)
-                            messageListener.onSendMessageSuccess(chatMessage)
-                    }
-                })
+        try {
+            messageObject.file?.let {
+                FlyMessenger.sendVideoMessage(messageObject.toJid, it, messageObject.caption,
+                    messageObject.replyMessageId, object : SendMessageListener {
+                        override fun onResponse(isSuccess: Boolean, chatMessage: ChatMessage?) {
+                            if (isSuccess && chatMessage != null && messageListener != null)
+                                messageListener.onSendMessageSuccess(chatMessage)
+                        }
+                    })
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

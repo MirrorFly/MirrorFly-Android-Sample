@@ -114,7 +114,7 @@ class UserListActivity : BaseContactActivity() {
         })
 
         menuItem?.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
-            override fun onMenuItemActionExpand(item: MenuItem?): Boolean {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                 if (!addParticipants) mSearchView.maxWidth = Integer.MAX_VALUE
                 with(menu) {
                     get(R.id.action_settings).hide()
@@ -124,7 +124,7 @@ class UserListActivity : BaseContactActivity() {
                 return true
             }
 
-            override fun onMenuItemActionCollapse(item: MenuItem?): Boolean {
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
                 with(menu) {
                     get(R.id.action_done).isVisible = addParticipants
                     get(R.id.action_settings).isVisible = !addParticipants && !isMakeCall

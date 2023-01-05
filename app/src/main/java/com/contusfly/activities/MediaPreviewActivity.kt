@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Point
 import android.graphics.Rect
-import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.*
 import android.text.Editable
@@ -33,27 +32,25 @@ import com.contusfly.interfaces.MessageListener
 import com.contusfly.mediapicker.model.Image
 import com.contusfly.models.FileObject
 import com.contusfly.models.MediaPreviewModel
+import com.contusfly.models.MessageObject
 import com.contusfly.utils.*
 import com.contusfly.viewmodels.MediaPreviewViewModel
+import com.contusfly.views.CustomAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusfly.views.KeyboardHeightProvider
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.utils.FilePathUtils
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
 import com.fxn.pix.Options
 import com.fxn.pix.Pix
 import dagger.android.AndroidInjection
+import io.github.rockerhieu.emojicon.EmojiconEditText
 import io.github.rockerhieu.emojicon.EmojiconGridFragment
 import io.github.rockerhieu.emojicon.EmojiconsFragment
 import io.github.rockerhieu.emojicon.emoji.Emojicon
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.IOException
 import java.util.*
 import javax.inject.Inject
 import kotlin.collections.ArrayList
@@ -170,7 +167,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     /**
      * List of selected files from Quick Share
      */
-    private var selectedUsers: List<ProfileDetails>? = null
+    private var selectedUsers: List<String>? = null
 
     /**
      * The Boolean List is contains All image list
@@ -183,16 +180,13 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     private var jidList: java.util.ArrayList<String>? = null
 
     /**
-     * List Contian  user chat typelist
-     */
-    private var chatTypeList: java.util.ArrayList<String>? = null
-
-    /**
      * The Array List Contains Uri List
      */
     private var uriList: java.util.ArrayList<Uri>? = null
 
     private var remainingMessagesCount = 0
+
+    private var emojiEditText: EmojiconEditText? =null
 
     /**
      * View to the files number
@@ -231,6 +225,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             viewModel.getUnsentMessage(it)
         }
 
+        initializeCaptionListener()
         if (intent.getBooleanExtra(Constants.IS_IMAGE, false)) {
             handlePreviewFromGallery()
         } else if (intentKeyShare != null && intentKeyShare == Constants.SHARE) {
@@ -240,7 +235,6 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         }
 
         initializeAdapterForViewPager()
-        initializeCaptionListener()
 
         mediaPreviewAdapter = MediaPreviewAdapter(this, selectedImageList, imagePosition, this)
         mediaPreviewBinding.imagesPreviewList.apply {
@@ -255,7 +249,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         mediaPreviewBinding.viewOverlay.setOnClickListener(this)
 
         emojiHandler = EmojiHandler(this)
-        emojiHandler!!.attachKeyboardListeners(mediaPreviewBinding.imageCaption)
+        emojiHandler!!.attachKeyboardListeners(emojiEditText!!)
         emojiHandler!!.setIconImageView(mediaPreviewBinding.emoji)
         emojiHandler!!.setIsBlackTheme(true)
         emojiHandler!!.setHandledFrom(TAG)
@@ -300,12 +294,13 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     }
 
     private fun initializeCaptionListener() {
-        mediaPreviewBinding.imageCaption.setHorizontallyScrolling(false)
-        mediaPreviewBinding.imageCaption.maxLines = 6
-        mediaPreviewBinding.imageCaption.filters =
+        emojiEditText = mediaPreviewBinding.imageCaption
+        emojiEditText!!.setHorizontallyScrolling(false)
+        emojiEditText!!.maxLines = 6
+        emojiEditText!!.filters =
             arrayOf(InputFilter.LengthFilter(Constants.MAX_CAPTION_LENGTH))
 
-        mediaPreviewBinding.imageCaption.addTextChangedListener(object : TextWatcher {
+        emojiEditText!!.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                 /*No Implementation Needed*/
             }
@@ -321,7 +316,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             }
         })
 
-        mediaPreviewBinding.imageCaption.setOnFocusChangeListener { _, hasFocus ->
+        emojiEditText!!.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 mediaPreviewBinding.groupAddMore.gone()
                 mediaPreviewBinding.emoji.show()
@@ -337,11 +332,11 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             }
         }
 
-        mediaPreviewBinding.imageCaption.setOnLongClickListener {
+        emojiEditText!!.setOnLongClickListener {
             if (emojiHandler!!.isEmojiShowing) {
                 emojiHandler!!.hideEmoji()
-                mediaPreviewBinding.imageCaption.requestFocus()
-                mediaPreviewBinding.imageCaption.showSoftKeyboard()
+                emojiEditText!!.requestFocus()
+                emojiEditText!!.showSoftKeyboard()
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
                 checkAndShowPreviewList()
                 showChatKeyboard = false
@@ -390,8 +385,8 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     }
 
     private fun onKeyboardVisibilityChanged(shown: Boolean) {
-        if (!shown && mediaPreviewBinding.imageCaption.hasFocus() && !showingEmojiKeyboard && !isResumedNotCalled) {
-            mediaPreviewBinding.imageCaption.clearFocus()
+        if (!shown && emojiEditText!!.hasFocus() && !showingEmojiKeyboard && !isResumedNotCalled) {
+            emojiEditText!!.clearFocus()
         }
         Handler(Looper.getMainLooper()).postDelayed({
             isResumedNotCalled = false
@@ -406,8 +401,8 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         if (jidList?.size!! > 1) {
             val participantsNameList: MutableList<String> = ArrayList()
             selectedUsers!!.forEach {
-                if(!it.jid.equals(SharedPreferenceManager.getCurrentUserJid())) {
-                    participantsNameList.add(it.name)
+                if(!it.equals(SharedPreferenceManager.getCurrentUserJid())) {
+                    participantsNameList.add(ProfileDetailsUtils.getProfileDetails(it)!!.name)
                 }
             }
             setUserName(participantsNameList.sorted().joinToString(", "))
@@ -429,7 +424,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             it?.let {
                 if (selectedImageList.isNotEmpty())
                     selectedImageList[0].caption = it
-                mediaPreviewBinding.imageCaption.setText(it)
+                emojiEditText!!.setText(it)
                 setCaptionLength(it.length)
             }
         })
@@ -444,7 +439,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             viewModel.unsentMessage.value?.let { message ->
                 if (selectedImageList.isNotEmpty())
                     selectedImageList[0].caption = message
-                mediaPreviewBinding.imageCaption.setText(message)
+                emojiEditText!!.setText(message)
                 setCaptionLength(message.length)
             }
             setAddMoreVisibility()
@@ -463,7 +458,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
             viewModel.checkVideoSize(image, destinationFile)
         } else {
             val mediaPreviewModel = MediaPreviewModel(intent.getStringExtra(Constants.FILE_PATH)!!,
-                mediaPreviewBinding.imageCaption.text.toString().trim { it <= ' ' }, Constants.EMPTY_STRING, false)
+                emojiEditText!!.text.toString().trim { it <= ' ' }, Constants.EMPTY_STRING, false)
             SharedPreferenceManager.setBoolean(Constants.AUDIO_RECORD_PERMISSION_ASKED, true)
             selectedImageList.add(mediaPreviewModel)
             checkAndShowPreviewList()
@@ -477,9 +472,8 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         isFromQuickShare = true
         progressDialog = DoProgressDialog(this)
         fileObjects = intent.getParcelableArrayListExtra("FILE_OBJECTS")!!
-        selectedUsers = intent.getParcelableArrayListExtra("USERS")
+        selectedUsers = intent.getStringArrayListExtra("USERS")
         jidList = intent.getStringArrayListExtra(Constants.INTENT_KEY_JID_LIST)
-        chatTypeList = intent.getStringArrayListExtra(Constants.INTENT_KEY_CHAT_TYPE_LIST)
         uriList = intent.getParcelableArrayListExtra(Constants.INTENT_KEY_RECEIVED_FILES)
         isImageList = java.util.ArrayList<Boolean>()
         for (uri in uriList!!) createAdapterObject(uri)
@@ -488,7 +482,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         remainingMessagesCount = fileObjects.size
         if (fileObjects[0].fileMimeType == FileMimeType.APPLICATION || fileObjects[0].fileMimeType == FileMimeType.AUDIO)
             mediaPreviewBinding.bottomLayout.visibility = View.GONE
-        mediaPreviewBinding.imageCaption.setText(fileObjects[0].caption)
+        emojiEditText!!.setText(fileObjects[0].caption)
         mediaPreviewBinding.previewProgress.previewProgress.gone()
 
         jidList?.get(0)?.let { viewModel.getProfileDetails(it) }
@@ -511,11 +505,11 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         LogMessage.d(TAG, "log mime type in createAdapterObject = $mimeType")
         if (mimeType!!.startsWith("image/")) {
             multipleImages = MediaPreviewModel(filePathFromUri!!,
-                mediaPreviewBinding.imageCaption.text.toString().trim { it <= ' ' }, Constants.EMPTY_STRING, true)
+                emojiEditText!!.text.toString().trim { it <= ' ' }, Constants.EMPTY_STRING, true)
             selectedImageList.add(multipleImages)
         } else if (mimeType.startsWith("video/")) {
             multipleImages = MediaPreviewModel(filePathFromUri!!,
-                mediaPreviewBinding.imageCaption.text.toString().trim { it <= ' ' }, Constants.EMPTY_STRING, false)
+                emojiEditText!!.text.toString().trim { it <= ' ' }, Constants.EMPTY_STRING, false)
             selectedImageList.add(multipleImages)
         }
     }
@@ -561,11 +555,11 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     override fun onBackPressed() {
         if (SystemClock.elapsedRealtime() - lastClickTime < 1000) return
         lastClickTime = SystemClock.elapsedRealtime()
-        mediaPreviewBinding.imageCaption.clearFocus()
+        emojiEditText!!.clearFocus()
         when {
             emojiHandler!!.isEmojiShowing -> {
                 emojiHandler!!.hideEmoji()
-                mediaPreviewBinding.imageCaption.clearFocus()
+                emojiEditText!!.clearFocus()
             }
             isFromCamera -> backToCamera()
             isFromQuickShare -> finishQuickShare()
@@ -600,8 +594,8 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     }
 
     override fun onItemClick(view: View?, position: Int) {
-        if (isFromQuickShare) fileObjects[viewPagerPosition].caption = mediaPreviewBinding.imageCaption!!.text.toString().trim { it <= ' ' }
-        else selectedImageList[viewPagerPosition].caption = mediaPreviewBinding.imageCaption!!.text.toString().trim { it <= ' ' }
+        if (isFromQuickShare) fileObjects[viewPagerPosition].caption = emojiEditText!!.text.toString().trim { it <= ' ' }
+        else selectedImageList[viewPagerPosition].caption = emojiEditText!!.text.toString().trim { it <= ' ' }
         mediaPreviewBinding.mediaList.currentItem = position
         mediaViewPagerAdapter.notifyDataSetChanged()
     }
@@ -613,7 +607,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     override fun onPageSelected(position: Int) {
         hideKeyboard()
         if (emojiHandler!!.isEmojiShowing) emojiHandler!!.hideEmoji()
-        mediaPreviewBinding.imageCaption.clearFocus()
+        emojiEditText!!.clearFocus()
         checkAndShowPreviewList()
 
         /*
@@ -621,23 +615,23 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
          */
         if (isFromQuickShare) {
             if (fileObjects[position].fileMimeType == FileMimeType.VIDEO || fileObjects[position].fileMimeType == FileMimeType.IMAGE) {
-                mediaPreviewBinding.imageCaption.setText(if (fileObjects[position].caption.isEmpty()) "" else fileObjects[position].caption)
-                setCaptionLength(mediaPreviewBinding.imageCaption.text.toString().length)
-                mediaPreviewBinding.imageCaption.show()
+                emojiEditText!!.setText(if (fileObjects[position].caption.isEmpty()) "" else fileObjects[position].caption)
+                setCaptionLength(emojiEditText!!.text.toString().length)
+                emojiEditText!!.show()
                 mediaPreviewBinding.emoji.show()
             } else {
-                mediaPreviewBinding.imageCaption.gone()
+                emojiEditText!!.gone()
                 mediaPreviewBinding.emoji.gone()
                 mediaPreviewBinding.captionCount.gone()
             }
         } else {
-            mediaPreviewBinding.imageCaption.setText(
+            emojiEditText!!.setText(
                 if (Utils.returnEmptyStringIfNull(selectedImageList[position].caption).isNotEmpty())
                     selectedImageList[position].caption else ""
             )
-            setCaptionLength(mediaPreviewBinding.imageCaption.text.toString().length)
+            setCaptionLength(emojiEditText!!.text.toString().length)
         }
-        mediaPreviewBinding.imageCaption.setSelection(mediaPreviewBinding.imageCaption.text!!.length)
+        emojiEditText!!.setSelection(emojiEditText!!.text!!.length)
         /*
          * Update the view pager adapter and horizontal view adapter
          */
@@ -654,10 +648,10 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         if (state == ViewPager.SCROLL_STATE_DRAGGING) {
             if (isFromQuickShare) {
                 fileObjects[mediaPreviewBinding.mediaList.currentItem].caption =
-                    mediaPreviewBinding.imageCaption.text.toString().trim { it <= ' ' }
+                    emojiEditText!!.text.toString().trim { it <= ' ' }
             } else {
                 selectedImageList[mediaPreviewBinding.mediaList.currentItem].caption =
-                    mediaPreviewBinding.imageCaption.text.toString().trim { it <= ' ' }
+                    emojiEditText!!.text.toString().trim { it <= ' ' }
             }
         }
         viewPagerState = state
@@ -670,7 +664,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         hideKeyboard()
         if (emojiHandler!!.isEmojiShowing) {
             emojiHandler!!.hideEmoji()
-            mediaPreviewBinding.imageCaption.clearFocus()
+            emojiEditText!!.clearFocus()
             showingEmojiKeyboard = false
         }
     }
@@ -696,7 +690,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
                 } else {
                     showingEmojiKeyboard = false
                 }
-                emojiHandler!!.setKeypad(mediaPreviewBinding.imageCaption)
+                emojiHandler!!.setKeypad(emojiEditText!!)
                 setEmojiKeyBoardListener()
                 mediaPreviewBinding.imagesPreviewList.gone()
             }
@@ -716,7 +710,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
                 hideKeyboard()
                 if (emojiHandler!!.isEmojiShowing) {
                     emojiHandler!!.hideEmoji()
-                    mediaPreviewBinding.imageCaption.clearFocus()
+                    emojiEditText!!.clearFocus()
                     showingEmojiKeyboard = false
                 }
             }
@@ -736,12 +730,30 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
         hideKeyboard()
         mediaPreviewBinding.sendMedia.isEnabled = false
         if (isFromQuickShare) {
-            fileObjects[viewPagerPosition].caption = mediaPreviewBinding.imageCaption!!.text.toString().trim { it <= ' ' }
+            fileObjects[viewPagerPosition].caption = emojiEditText!!.text.toString().trim { it <= ' ' }
             progressDialog = DoProgressDialog(this)
             progressDialog!!.showProgress()
-            startCopyingFilesToMirrorFlyDirectoryAndSend()
+            var isPermissionAvailable = true
+            val features = ChatManager.getAvailableFeatures()
+            for (files in  fileObjects) {
+                when (files.fileMimeType) {
+                    FileMimeType.IMAGE -> isPermissionAvailable = features.isImageAttachmentEnabled
+                    FileMimeType.VIDEO -> isPermissionAvailable = features.isVideoAttachmentEnabled
+                    FileMimeType.AUDIO -> isPermissionAvailable = features.isAudioAttachmentEnabled
+                    FileMimeType.APPLICATION -> isPermissionAvailable = features.isDocumentAttachmentEnabled
+                }
+                if (!isPermissionAvailable)
+                    break
+            }
+            if (isPermissionAvailable) {
+                startCopyingFilesToMirrorFlyDirectoryAndSend()
+            } else {
+                CustomAlertDialog().showFeatureRestrictionAlert(this)
+                progressDialog!!.dismiss()
+                mediaPreviewBinding.sendMedia.isEnabled = true
+            }
         } else {
-            selectedImageList[viewPagerPosition].caption = mediaPreviewBinding.imageCaption!!.text.toString().trim { it <= ' ' }
+            selectedImageList[viewPagerPosition].caption = emojiEditText!!.text.toString().trim { it <= ' ' }
             if (toUser != null) {
                 handleCaptionImage(toUser!!)
             }
@@ -760,9 +772,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
 
     private fun sendMediaFilesForSingleUser() {
         if (AppUtils.isNetConnected(this)) {
-            val usersJID = java.util.ArrayList<String>()
-            for (user in selectedUsers!!) usersJID.add(user.jid)
-            shareMessagesController.sendMediaMessagesForSingleUser(fileObjects, usersJID)
+            shareMessagesController.sendMediaMessagesForSingleUser(fileObjects, selectedUsers!!)
 
             val handler = Handler()
             handler.postDelayed({
@@ -778,10 +788,10 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
 
     private fun navigateToAppropriateScreen() {
         if (selectedUsers!!.size == 1) {
-            val userRoster: ProfileDetails = selectedUsers!![0]
+            val userId = selectedUsers!![0]
             val intent = Intent(this, ChatActivity::class.java)
-            intent.putExtra(Constants.JID, userRoster.jid)
-            intent.putExtra(Constants.CHAT_TYPE, userRoster.getChatType())
+            intent.putExtra(Constants.JID, userId)
+            intent.putExtra(Constants.CHAT_TYPE, ProfileDetailsUtils.getProfileDetails(userId))
             intent.putExtra(Constants.FROM_QUICK_SHARE, true)
             startActivity(intent)
         } else if (selectedUsers!!.size > 1) {
@@ -797,40 +807,16 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     private fun handleCaptionImage(toUser: String) {
         val replyMessageId = ReplyHashMap.getReplyId(toUser)
         if (intent.getBooleanExtra(Constants.IS_IMAGE, false)) {
-            mediaPreviewBinding.previewProgress.previewProgress.show()
-            val sentMessages = arrayListOf<ChatMessage>()
-            for (item in selectedImageList) {
-                val messageObject = if (item.isImage) messagingClient.composeImageMessage(toUser, item.path, item.caption, replyMessageId)
-                else messagingClient.composeVideoMessage(toUser, item.path, item.caption, replyMessageId).second
-                messageObject?.let {
-                    messagingClient.sendMessage(it, object : MessageListener {
-                        override fun onSendMessageSuccess(message: ChatMessage) {
-                            sentMessages.add(message)
-                            if (sentMessages.size == selectedImageList.size) {
-                                mediaPreviewBinding.previewProgress.previewProgress.gone()
-                                ReplyHashMap.saveReplyId(toUser, Constants.EMPTY_STRING)
-                                SharedPreferenceManager.setString(
-                                    Constants.REPLY_MESSAGE_USER,
-                                    Constants.EMPTY_STRING
-                                )
-                                SharedPreferenceManager.setString(
-                                    Constants.REPLY_MESSAGE_ID,
-                                    Constants.EMPTY_STRING
-                                )
-                                viewModel.setUnSentMessageForAnUser(toUser, Constants.EMPTY_STRING)
-                                ChatParent.startActivity(
-                                    this@MediaPreviewActivity,
-                                    toUser,
-                                    viewModel.profileDetails.value!!.getChatType()
-                                )
-                            }
-                        }
-                    })
-                }
-            }
+            sendGalleryAttachments(toUser, replyMessageId)
         } else {
+            if (!ChatManager.getAvailableFeatures().isVideoAttachmentEnabled) {
+                mediaPreviewBinding.previewProgress.previewProgress.gone()
+                CustomAlertDialog().showFeatureRestrictionAlert(this)
+                mediaPreviewBinding.sendMedia.isEnabled = true
+                return
+            }
             val messageObject = messagingClient.composeVideoMessage(toUser, intent.getStringExtra(Constants.FILE_PATH)!!,
-                mediaPreviewBinding.imageCaption.text.toString().trim { it <= ' ' }, replyMessageId).second
+                emojiEditText!!.text.toString().trim { it <= ' ' }, replyMessageId).second
             messageObject?.let {
                 messagingClient.sendMessage(it, object : MessageListener {
                     override fun onSendMessageSuccess(message: ChatMessage) {
@@ -850,6 +836,46 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
                             toUser,
                             viewModel.profileDetails.value!!.getChatType()
                         )
+                    }
+                })
+            }
+        }
+    }
+
+    private fun sendGalleryAttachments(toUser: String, replyMessageId: String) {
+        mediaPreviewBinding.previewProgress.previewProgress.show()
+        val sentMessages = arrayListOf<ChatMessage>()
+        for (item in selectedImageList) {
+            var messageObject: MessageObject?
+            if (item.isImage) {
+                if (!ChatManager.getAvailableFeatures().isImageAttachmentEnabled) {
+                    mediaPreviewBinding.previewProgress.previewProgress.gone()
+                    CustomAlertDialog().showFeatureRestrictionAlert(this)
+                    mediaPreviewBinding.sendMedia.isEnabled = true
+                    break
+                }
+                messageObject = messagingClient.composeImageMessage(toUser, item.path, item.caption, replyMessageId)
+            } else {
+                if (!ChatManager.getAvailableFeatures().isVideoAttachmentEnabled) {
+                    mediaPreviewBinding.previewProgress.previewProgress.gone()
+                    CustomAlertDialog().showFeatureRestrictionAlert(this)
+                    mediaPreviewBinding.sendMedia.isEnabled = true
+                    break
+                }
+                messageObject = messagingClient.composeVideoMessage(toUser, item.path, item.caption, replyMessageId).second
+            }
+            messageObject?.let {
+                messagingClient.sendMessage(it, object : MessageListener {
+                    override fun onSendMessageSuccess(message: ChatMessage) {
+                        sentMessages.add(message)
+                        if (sentMessages.size == selectedImageList.size) {
+                            mediaPreviewBinding.previewProgress.previewProgress.gone()
+                            ReplyHashMap.saveReplyId(toUser, Constants.EMPTY_STRING)
+                            SharedPreferenceManager.setString(Constants.REPLY_MESSAGE_USER, Constants.EMPTY_STRING)
+                            SharedPreferenceManager.setString(Constants.REPLY_MESSAGE_ID, Constants.EMPTY_STRING)
+                            viewModel.setUnSentMessageForAnUser(toUser, Constants.EMPTY_STRING)
+                            ChatParent.startActivity(this@MediaPreviewActivity, toUser, viewModel.profileDetails.value!!.getChatType())
+                        }
                     }
                 })
             }
@@ -921,15 +947,15 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
 
     private fun handleCursorAndKeyboardVisibility() {
         if (showChatKeyboard) {
-            mediaPreviewBinding.imageCaption.requestFocus()
+            emojiEditText!!.requestFocus()
             val imm =
                 this@MediaPreviewActivity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(mediaPreviewBinding.imageCaption, InputMethodManager.SHOW_IMPLICIT)
+            imm.showSoftInput(emojiEditText!!, InputMethodManager.SHOW_IMPLICIT)
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
             showChatKeyboard = false
         } else {
             if (showingEmojiKeyboard)
-                mediaPreviewBinding.imageCaption.requestFocus()
+                emojiEditText!!.requestFocus()
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
         }
     }
@@ -937,7 +963,7 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     override fun onPause() {
         super.onPause()
         keyboardHeightProvider?.onPause()
-        if (mediaPreviewBinding.imageCaption.hasFocus() && !emojiHandler!!.isEmojiShowing) {
+        if (emojiEditText!!.hasFocus() && !emojiHandler!!.isEmojiShowing) {
             isResumedNotCalled = true
         }
         if (isSoftKeyboardShown) showChatKeyboard = true
@@ -950,11 +976,11 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
     }
 
     override fun onEmojiconBackspaceClicked(v: View?) {
-        EmojiconsFragment.backspace(mediaPreviewBinding.imageCaption)
+        EmojiconsFragment.backspace(emojiEditText!!)
     }
 
     override fun onEmojiconClicked(emojicon: Emojicon) {
-        EmojiconsFragment.input(mediaPreviewBinding.imageCaption, emojicon)
+        EmojiconsFragment.input(emojiEditText!!, emojicon)
     }
 
     private fun getKeyboardListener() = object : KeyboardHeightProvider.KeyboardListener {

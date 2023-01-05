@@ -1,10 +1,9 @@
 package com.contusfly.fragments
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
-import android.os.Bundle
-import android.os.Parcelable
-import android.os.SystemClock
+import android.os.*
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -19,48 +18,47 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.flycommons.*
+import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
-import com.contus.flycommons.getMessage
 import com.contus.flycommons.returnEmptyIfNull
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
-import com.contusfly.R
 import com.contusfly.activities.ArchivedChatsActivity
 import com.contusfly.activities.ChatActivity
 import com.contusfly.activities.DashboardActivity
 import com.contusfly.activities.parent.DashboardParent
 import com.contusfly.adapters.RecentChatListAdapter
 import com.contusfly.adapters.RecentChatSearchAdapter
+import com.contusfly.chatTag.adapter.RecentChatTagAdapter
+import com.contusfly.chatTag.interfaces.ListItemClickListener
 import com.contusfly.databinding.FragmentRecentChatBinding
+import com.contusfly.helpers.PaginationScrollListener
 import com.contusfly.interfaces.RecentChatEvent
-import com.contusfly.utils.AppConstants
+import com.contusfly.models.ProfileDetailsShareModel
+import com.contusfly.utils.*
 import com.contusfly.utils.Constants
-import com.contusfly.utils.LogMessage
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CustomRecyclerView
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.RecentChat
-import com.contusflysdk.models.RecentSearch
-import com.contusflysdk.utils.ItemClickSupport
+import com.contusflysdk.model.ChatTagModel
 import com.contusflysdk.utils.Utils
-import kotlinx.coroutines.CoroutineExceptionHandler
+import com.contusflysdk.views.CustomToast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlin.coroutines.CoroutineContext
+import com.contusfly.R
 
 /**
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
+class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener {
 
-    private val exceptionHandler = CoroutineExceptionHandler { context, exception ->
-        println("Coroutine Exception ${TAG}:  ${exception.printStackTrace()}")
-    }
+    private lateinit var mContext: Context
 
     private lateinit var recentChatBinding: FragmentRecentChatBinding
 
@@ -71,12 +69,24 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
 
     private lateinit var emptyView: TextView
 
-    private  var dialogFragment:ProfileDialogFragment? = null
+    private var dialogFragment: ProfileDialogFragment? = null
 
-    private  var item:RecentChat? = null
+    private var item: RecentChat? = null
+
+    var chatJidList = ArrayList<String>()
+
+    /**
+     * The handler to delay the recent chat list
+     */
+    private lateinit var mHandler: Handler
 
     private val mAdapter by lazy {
-        RecentChatListAdapter(requireContext(), viewModel.recentChatAdapter, viewModel.selectedRecentChats, viewModel.typingAndGoneStatus)
+        RecentChatListAdapter(
+            requireContext(),
+            viewModel.recentChatAdapter,
+            viewModel.selectedRecentChats,
+            viewModel.typingAndGoneStatus
+        )
     }
 
     private var mRecentChatListType = DashboardParent.RecentChatListType.RECENT
@@ -85,21 +95,36 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         ViewModelProvider(requireActivity()).get(DashboardViewModel::class.java)
     }
 
-    private val mRecentSearchList = ArrayList<RecentSearch>()
+    private val mRecentSearchList = ArrayList<com.contusfly.models.RecentSearch>()
 
-    private lateinit var searchKey: String
+    private var searchKey: String = Constants.EMPTY_STRING
+
+    var contactCount: Int = 0
 
     /**
      * Store onclick time to avoid double click
      */
     private var lastClickTime: Long = 0
 
-    private val mSearchAdapter by lazy { RecentChatSearchAdapter(requireContext(), mRecentSearchList) }
+    private val mSearchAdapter by lazy {
+        RecentChatSearchAdapter(
+            requireContext(),
+            mRecentSearchList
+        )
+    }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?): View {
+    private lateinit var chatTagAdapter: RecentChatTagAdapter
+
+    private var chatTagList = ArrayList<ChatTagModel>()
+    private var chatTagselectedposition: Int = 0
+    private var isRestartActivity:Boolean=false
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?): View {
         // Inflate the layout for this fragment
         recentChatBinding = FragmentRecentChatBinding.inflate(inflater, container, false)
+        mContext = activity!!.baseContext
         initView(recentChatBinding)
         setListeners()
         setObservers()
@@ -108,17 +133,37 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.getRecentChats()
+        chatTagAdapterinitialize()
+        getChatTagData()
+        getRecentChatData()
     }
 
-    private fun isListTypeRecentChat() = mRecentChatListType == DashboardParent.RecentChatListType.RECENT
+    fun getChatTagData() {
+
+        viewModel.getChatTagData()
+    }
+
+    fun getRecentChatData() {
+
+        viewModel.getInitialChatList()
+    }
+
+    private fun isListTypeRecentChat() =
+        mRecentChatListType == DashboardParent.RecentChatListType.RECENT
 
     private fun initView(recentChatBinding: FragmentRecentChatBinding) {
         emptyView = recentChatBinding.emptyList.textEmptyView
         emptyView.text = getString(R.string.msg_no_results)
-        emptyView.setTextColor(ResourcesCompat.getColor(resources, R.color.color_text_no_list, null))
+        emptyView.setTextColor(
+            ResourcesCompat.getColor(
+                resources,
+                R.color.color_text_no_list,
+                null
+            )
+        )
         listRecent = recentChatBinding.viewListContacts
         mAdapter.setHasStableIds(true)
+        mHandler = Handler(Looper.getMainLooper())
         setRecentChatAdapter()
 
         mAdapter.onProfileClickedCallback { itemPosition ->
@@ -130,7 +175,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             if (SystemClock.elapsedRealtime() - lastClickTime < 1000)
                 return@onProfileClickedCallback
             lastClickTime = SystemClock.elapsedRealtime()
-            dialogFragment = ProfileDialogFragment.newInstance(ContactManager.getProfileDetails(item!!.jid)!!)
+            dialogFragment =
+                ProfileDialogFragment.newInstance(ProfileDetailsUtils.getProfileDetails(item!!.jid)!!)
             val ft = childFragmentManager.beginTransaction()
             val prev = childFragmentManager.findFragmentByTag("dialog")
             if (prev != null)
@@ -141,19 +187,18 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
     }
 
     private fun setListeners() {
-        val clickSupport = ItemClickSupport.addTo(listRecent)
-
+        val clickSupport = ItemClickSupport(listRecent)
 
         clickSupport.setOnItemClickListener { _, position, _ ->
             if (mRecentChatListType == DashboardParent.RecentChatListType.RECENT && position.isValidIndex())
-                if (position > 0 && position < viewModel.recentChatList.value!!.size-1)
+                if (position > 0 && position < viewModel.recentChatList.value!!.size - 1)
                     handleOnItemClicked(position)
                 else
                     startActivity(Intent(context, ArchivedChatsActivity::class.java))
         }
 
         clickSupport.setOnItemLongClickListener { _, position, _ ->
-            if (mRecentChatListType == DashboardParent.RecentChatListType.RECENT && position > 0 && position < viewModel.recentChatList.value!!.size-1) {
+            if (mRecentChatListType == DashboardParent.RecentChatListType.RECENT && position > 0 && position < viewModel.recentChatList.value!!.size - 1) {
                 handleOnItemLongClicked(position)
             }
             true
@@ -165,6 +210,12 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
     }
 
     private fun setObservers() {
+        viewModel.updateMessageStatus.observe(
+            viewLifecycleOwner,
+            Observer { updateMessageUpdate(it) })
+        viewModel.onTypingStatusGoneUpdate.observe(viewLifecycleOwner, Observer {
+            onTypingAndGoneStatusUpdate(it)
+        })
         viewModel.updateMessageStatus.observe(viewLifecycleOwner, Observer { updateMessageUpdate(it) })
 
         viewModel.groupCreatedLiveData.observe(viewLifecycleOwner, Observer {
@@ -181,13 +232,19 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             onGroupNewUserAdded(it)
         })
 
-        viewModel.groupUserRemovedLiveData.observe(viewLifecycleOwner, Observer { onGroupUserRemoved(it) })
+        viewModel.groupUserRemovedLiveData.observe(
+            viewLifecycleOwner,
+            Observer { onGroupUserRemoved(it) })
 
-        viewModel.groupAdminChangedLiveData.observe(viewLifecycleOwner, Observer { onGroupAdminChanged(it) })
+        viewModel.groupAdminChangedLiveData.observe(
+            viewLifecycleOwner,
+            Observer { onGroupAdminChanged(it) })
 
         viewModel.searchKeyLiveData.observe(viewLifecycleOwner, Observer { doSearch(it) })
 
-        viewModel.refreshTheRecentChatList.observe(viewLifecycleOwner, { viewModel.getRecentChats() })
+        viewModel.refreshTheRecentChatList.observe(
+            viewLifecycleOwner,
+            { viewModel.getRecentChats() })
 
         viewModel.profileUpdatedLiveData.observe(viewLifecycleOwner, Observer {
             LogMessage.i(TAG, "profileUpdatedLiveData observed")
@@ -198,7 +255,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         viewModel.isContactSyncSuccess.observe(viewLifecycleOwner, { viewModel.getRecentChats() })
 
         viewModel.isUserBlockedUnblockedMe.observe(viewLifecycleOwner, Observer {
-            val index = viewModel.recentChatList.value!!.indexOfFirst { recent -> recent.jid ?: Constants.EMPTY_STRING == it.first.trim() }
+            val index =
+                viewModel.recentChatList.value!!.indexOfFirst { recent -> recent.jid ?: Constants.EMPTY_STRING == it.first.trim() }
             if (index.isValidIndex()) {
                 mAdapter.mainlist.get(index).isBlockedMe = !mAdapter.mainlist.get(index).isBlockedMe
                 val bundle = Bundle()
@@ -211,19 +269,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         })
 
         viewModel.isUserBlockedByAdmin.observe(viewLifecycleOwner, Observer {
-            try {
-                val index = viewModel.recentChatList.value!!.indexOfFirst { recent -> recent.jid ?: Constants.EMPTY_STRING == it.first.trim() }
-                if (index.isValidIndex()) {
-                    viewModel.recentChatList.value!![index].isAdminBlocked = it.second
-                    val bundle = Bundle()
-                    bundle.putInt(Constants.NOTIFY_PROFILE_ICON, 2)
-                    mAdapter.notifyItemChanged(index, bundle)
-                    mSearchAdapter.notifyItemChanged(index, bundle)
-                }
-                updateProfileDialog(it.first.trim())
-            } catch (e: Exception) {
-                LogMessage.d(TAG, "#admin blocked status exception: ${e.message}")
-            }
+            userBlockedByAdmin(it)
         })
 
         viewModel.recentChatList.observe(viewLifecycleOwner, Observer {
@@ -234,6 +280,15 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             LogMessage.i(TAG, "recentChatDiffResult observed")
             initRecentChatAdapter(it)
         })
+
+        viewModel.notifyRecentChatRemoved.observe(viewLifecycleOwner) {
+            if (it.isValidIndex())
+                mAdapter.notifyItemRemoved(it)
+        }
+
+        viewModel.notifyRecentChatInserted.observe(viewLifecycleOwner) {
+            mAdapter.notifyItemRangeInserted(it.first, it.second)
+        }
 
         viewModel.recentDeleteChatPosition.observe(viewLifecycleOwner, Observer {
             mAdapter.notifyItemRemoved(it)
@@ -267,10 +322,24 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
                 mAdapter.notifyItemRangeChanged(recentPair.third, recentPair.second + 1, bundle)
             } else initRecentChatAdapter(null)
         })
-
-        viewModel.filterRecentChatList.observe(viewLifecycleOwner, Observer { observeFilteredRecentChatList(it) })
-        viewModel.filterProfileList.observe(viewLifecycleOwner, Observer { observeFilteredContactsList(it) })
-        viewModel.messageList.observe(viewLifecycleOwner, Observer { observeFilteredMessageList(it.first, it.second) })
+        viewModel.fetchingError.observe(viewLifecycleOwner) {
+            fetchingFailObserver(it)
+        }
+        viewModel.addSearchLoader.observe(viewLifecycleOwner) {
+            mSearchAdapter.addLoadingFooter()
+        }
+        viewModel.removeSearchLoader.observe(viewLifecycleOwner) {
+            mSearchAdapter.removeLoadingFooter()
+        }
+        viewModel.filterRecentChatList.observe(
+            viewLifecycleOwner,
+            Observer { observeFilteredRecentChatList(it) })
+        viewModel.filterProfileList.observe(
+            viewLifecycleOwner,
+            Observer { observeFilteredContactsList(it) })
+        viewModel.messageList.observe(
+            viewLifecycleOwner,
+            Observer { observeFilteredMessageList(it.first, it.second) })
         viewModel.changedPinPosition.observe(viewLifecycleOwner, Observer {
             getRecentChatFor(viewModel.recentChatAdapter[it].jid, RecentChatEvent.PIN_EVENT)
         })
@@ -283,23 +352,94 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
 
         viewModel.showMessage.observe(viewLifecycleOwner, Observer { showMessage(it) })
 
-        viewModel.archiveChatStatus.observe(viewLifecycleOwner, {
+        viewModel.archiveChatStatus.observe(viewLifecycleOwner) {
             LogMessage.i(TAG, "archiveChatStatus observed")
             mAdapter.setArchiveStatus(it)
-        })
+        }
 
-        viewModel.archiveChatUpdated.observe(viewLifecycleOwner, {
+        viewModel.archiveChatUpdated.observe(viewLifecycleOwner) {
             updateArchiveChatsStatus(it.first, it.second)
+        }
+
+        viewModel.selectedArchiveChats.observe(viewLifecycleOwner) {
+            updateArchiveChatsList(it)
+        }
+
+        viewModel.chatTagList.observe(viewLifecycleOwner, Observer {
+            chatTaglistUpdate(it)
         })
 
-        viewModel.selectedArchiveChats.observe(viewLifecycleOwner, {
-            updateArchiveChatsList(it)
+        viewModel.restartactivityRecentChatListlivedata.observe(viewLifecycleOwner, Observer {
+            isRestartActivity=true
+            getChatTagData()
         })
     }
 
+    private fun chatTaglistUpdate(it: ArrayList<ChatTagModel>) {
+        if(chatTagList.size>it.size){
+            chatTagselectedposition=0
+        }
+        chatTagList = it
+        if(chatTagList.size==0)chatTagselectedposition=0
+        chatTagAdapter.updatelist(chatTagList,chatTagselectedposition)
+        if(isRestartActivity){
+            isRestartActivity=false
+            getRecentChatListBasedOnTagData()
+        }
+    }
+
+    private fun chatTagAdapterinitialize() {
+        var linearlayoutmanager = LinearLayoutManager(mContext)
+        linearlayoutmanager.orientation = LinearLayoutManager.HORIZONTAL
+        recentChatBinding.chatTagRecyclerview.layoutManager = linearlayoutmanager
+
+        chatTagAdapter = RecentChatTagAdapter(mContext, object : ListItemClickListener {
+
+            override fun itemclicklistener(position: Int) {
+                chatTagselectedposition = position
+                getRecentChatListBasedOnTagData()
+                chatTagAdapter.updateSelectedPosition(position)
+                CommonUtils.scrollToCenter(
+                    linearlayoutmanager,
+                    recentChatBinding.chatTagRecyclerview,
+                    position
+                )
+            }
+
+        }, chatTagList)
+
+        recentChatBinding.chatTagRecyclerview.adapter = chatTagAdapter
+    }
+
+    private fun getRecentChatListBasedOnTagData() {
+        if (chatTagselectedposition == 0) {
+            viewModel.getRecentChats()
+        } else {
+            viewModel.getRecentChatListBasedOnTagData(chatTagList.get(chatTagselectedposition).memberIdlist)
+        }
+    }
+
+
+    private fun userBlockedByAdmin(it: Pair<String, Boolean>) {
+        try {
+            val index =
+                viewModel.recentChatList.value!!.indexOfFirst { recent -> recent.jid ?: Constants.EMPTY_STRING == it.first.trim() }
+            if (index.isValidIndex()) {
+                viewModel.recentChatList.value!![index].isAdminBlocked = it.second
+                val bundle = Bundle()
+                bundle.putInt(Constants.NOTIFY_PROFILE_ICON, 2)
+                mAdapter.notifyItemChanged(index, bundle)
+                mSearchAdapter.notifyItemChanged(index, bundle)
+            }
+            updateProfileDialog(it.first.trim())
+        } catch (e: Exception) {
+            LogMessage.d(TAG, "#admin blocked status exception: ${e.message}")
+        }
+    }
+
     private fun updateProfileDialog(jid: String) {
-        if(item != null && dialogFragment != null && dialogFragment!!.context != null && dialogFragment!!.profileDetails.jid == jid){
-            dialogFragment!!.profileDetails = ContactManager.getProfileDetails(jid)!!
+        if (item != null && dialogFragment != null && dialogFragment!!.context != null && dialogFragment!!.profileDetails.jid == jid) {
+            dialogFragment!!.profileDetails = ProfileDetailsUtils.getProfileDetails(jid)!!
             dialogFragment!!.refreshView()
         }
     }
@@ -321,14 +461,23 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
     }
 
     private fun updateSearchAdapter(jid: String) {
-        val index = viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
+        val index =
+            viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
         if (index.isValidIndex())
             mAdapter.notifyDataSetChanged()
+
+        val searchIndex = mRecentSearchList.indexOfFirst { it.jid == jid }
+        if (searchIndex.isValidIndex() && searchKey.isNotEmpty()) {
+            mRecentChatListType = DashboardParent.RecentChatListType.SEARCH
+            mRecentSearchList.clear()
+            viewModel.filterRecentChatList(this.searchKey)
+        }
     }
 
     private fun updateRecentChatAdapter(jid: String, payloads: Bundle? = null) {
-        val index = viewModel.recentChatList.value?.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
-        if (index?.isValidIndex() == true) {
+        val index =
+            viewModel.recentChatList.value?.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
+        if (index?.isValidIndex() == true && jid.isNotEmpty()) {
             val recent = FlyCore.getRecentChatOf(jid)
             recent?.let {
                 viewModel.recentChatList.value!![index] = recent
@@ -342,7 +491,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
     private fun updateArchiveChatsStatus(jid: String, archiveStatus: Boolean) {
         if (isListTypeRecentChat()) {
             if (archiveStatus) {
-                val index = viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
+                val index =
+                    viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
                 if (index.isValidIndex()) {
                     viewModel.recentChatList.value!!.removeAt(index)
                     viewModel.recentChatAdapter.removeAt(index)
@@ -359,11 +509,6 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
                 getRecentChatFor(jid, RecentChatEvent.ARCHIVE_EVENT)
             }
         }
-    }
-
-
-    fun refreshRecentChatList(){
-        viewModel.getRecentChats()
     }
 
     /**
@@ -384,7 +529,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
                 if (viewModel.pinnedListPosition.contains(position))
                     viewModel.pinnedListPosition.remove(position)
             } else if (!selectedChats.isGroupInOfflineMode && (!selectedChats.isGroup && !viewModel.selectedRecentChats[0].isGroup
-                        || viewModel.selectedRecentChats.isNotEmpty())) {
+                        || viewModel.selectedRecentChats.isNotEmpty())
+            ) {
                 viewModel.selectedRecentChats.add(selectedChats)
                 viewModel.pinnedListPosition.add(position)
             }
@@ -400,7 +546,10 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
      */
     private fun handleOnItemLongClicked(position: Int) {
         val selectedChats = viewModel.recentChatList.value!![position]
-        if (!selectedChats.isGroupInOfflineMode && !viewModel.selectedRecentChats.contains(selectedChats)) {
+        if (!selectedChats.isGroupInOfflineMode && !viewModel.selectedRecentChats.contains(
+                selectedChats
+            )
+        ) {
             if (!viewModel.pinnedListPosition.contains(position))
                 viewModel.pinnedListPosition.add(position)
             viewModel.selectedRecentChats.add(selectedChats)
@@ -420,15 +569,22 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             return
 
         if (searchKey.isEmpty()) {
+            listRecent.setEmptyView(emptyView)
+            viewModel.setSearchUserListFetching(false)
+            mHandler.removeCallbacks(filterContactRunnable)
             mRecentChatListType = DashboardParent.RecentChatListType.RECENT
             setAdapterBasedOnSearchType()
         } else {
             this.searchKey = searchKey
+            viewModel.setSearchUserListFetching(true)
             mRecentChatListType = DashboardParent.RecentChatListType.SEARCH
+            listRecent.setEmptyView(null)
             mRecentSearchList.clear()
+            contactCount = 0
             viewModel.filterRecentChatList(this.searchKey)
-            val index = viewModel.filterRecentChatList.value!!.indexOfFirst { recent -> recent.jid.trim() == searchKey }
-            if (index.isValidIndex()){
+            val index =
+                viewModel.filterRecentChatList.value!!.indexOfFirst { recent -> recent.jid.trim() == searchKey }
+            if (index.isValidIndex()) {
                 mAdapter.mainlist.get(index).isBlockedMe = !mAdapter.mainlist.get(index).isBlockedMe
                 val bundle = Bundle()
                 bundle.putInt(Constants.NOTIFY_PROFILE_ICON, 2)
@@ -437,10 +593,14 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
 
         }
     }
+
     private fun updateMessageUpdate(messageId: String) {
         val index = viewModel.recentChatList.value?.indexOfFirst { it.lastMessageId == messageId }
         if (index?.isValidIndex() == true) {
-            getRecentChatFor(viewModel.recentChatList.value!![index].jid, RecentChatEvent.MESSAGE_UPDATED)
+            getRecentChatFor(
+                viewModel.recentChatList.value!![index].jid,
+                RecentChatEvent.MESSAGE_UPDATED
+            )
         }
     }
 
@@ -499,15 +659,18 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         * Hide empty view */
         if (viewModel.recentChatAdapter.isNotEmpty()) {
             if (viewModel.recentChatAdapter.size == 2 &&
-                viewModel.recentChatAdapter[0].jid == null && viewModel.recentChatAdapter[1].jid == null) {
+                viewModel.recentChatAdapter[0].jid == null && viewModel.recentChatAdapter[1].jid == null
+            ) {
                 emptyViewVisibleOrGone()
             } else {
                 recentChatBinding.noMessageView.root.visibility = View.GONE
             }
         }
-        val listPositions = findAndReplaceNewItem(viewModel.recentChatAdapter, viewModel.selectedRecentChats)
+        val listPositions =
+            findAndReplaceNewItem(viewModel.recentChatAdapter, viewModel.selectedRecentChats)
         if (listPositions.first.isValidIndex() && listPositions.second.isValidIndex())
-            viewModel.selectedRecentChats[listPositions.second] = viewModel.recentChatAdapter[listPositions.first]
+            viewModel.selectedRecentChats[listPositions.second] =
+                viewModel.recentChatAdapter[listPositions.first]
         else mAdapter.notifyDataSetChanged()
     }
 
@@ -515,12 +678,16 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         var archiveChats: MutableList<RecentChat>? = null
         FlyCore.getArchivedChatList { _, _, data ->
             archiveChats = (data["data"] as MutableList<RecentChat>)
-            recentChatBinding.noMessageView.root.visibility = if (archiveChats?.size == 0) View.VISIBLE else View.GONE
+            recentChatBinding.noMessageView.root.visibility =
+                if (archiveChats?.size == 0) View.VISIBLE else View.GONE
         }
     }
 
     @Synchronized
-    private fun findAndReplaceNewItem(recyclerList: List<RecentChat>, selectedList: List<RecentChat>): Pair<Int, Int> {
+    private fun findAndReplaceNewItem(
+        recyclerList: List<RecentChat>,
+        selectedList: List<RecentChat>
+    ): Pair<Int, Int> {
         if (selectedList.isNotEmpty()) {
             for (i in recyclerList.indices)
                 for (j in selectedList.indices)
@@ -538,20 +705,56 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             setEmptyView(emptyView)
             itemAnimator = null
             adapter = mAdapter
+            setScrollListener(this, layoutManager as LinearLayoutManager)
         }
+    }
+
+    private fun setScrollListener(
+        recyclerView: CustomRecyclerView,
+        layoutManager: LinearLayoutManager
+    ) {
+        recyclerView.addOnScrollListener(object :
+            PaginationScrollListener(layoutManager, handler = mHandler) {
+            override fun loadMoreItems() {
+                if (searchKey.isNotBlank()) {
+                    viewModel.filterContactsList(searchKey, chatJidList)
+                } else {
+                    if(chatTagselectedposition==0)
+                    viewModel.nextSetOfRecentChatList()
+                }
+            }
+
+            override fun isLastPage(): Boolean {
+                return false
+            }
+
+            override fun isFetching(): Boolean {
+                return if (searchKey.isNotBlank())
+                    viewModel.getSearchUserListFetching()
+                else
+                    return false
+            }
+        })
     }
 
     fun isRecentListInitialized(): Boolean {
         return ::listRecent.isInitialized
     }
 
+    private fun fetchingFailObserver(it: Boolean) {
+        if (it)
+            CustomToast.show(context, getString(R.string.msg_no_internet))
+    }
+
     fun setAdapterBasedOnSearchType() {
         if (this::listRecent.isInitialized && mRecentChatListType == DashboardParent.RecentChatListType.RECENT
-            && (listRecent.adapter is RecentChatSearchAdapter)) {
+            && (listRecent.adapter is RecentChatSearchAdapter)
+        ) {
             listRecent.adapter = mAdapter
             if (viewModel.recentChatAdapter.isNotEmpty()) {
                 if (viewModel.recentChatAdapter.size == 2 &&
-                    viewModel.recentChatAdapter[0].jid == null && viewModel.recentChatAdapter[1].jid == null) {
+                    viewModel.recentChatAdapter[0].jid == null && viewModel.recentChatAdapter[1].jid == null
+                ) {
                     recentChatBinding.noMessageView.root.visibility = View.VISIBLE
                 } else {
                     recentChatBinding.noMessageView.root.visibility = View.GONE
@@ -559,7 +762,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
             } else if (viewModel.recentChatAdapter.isNullOrEmpty())
                 recentChatBinding.noMessageView.root.visibility = View.VISIBLE
         } else if (this::listRecent.isInitialized && mRecentChatListType == DashboardParent.RecentChatListType.SEARCH
-            && (listRecent.adapter is RecentChatListAdapter)) {
+            && (listRecent.adapter is RecentChatListAdapter)
+        ) {
             listRecent.adapter = mSearchAdapter
         }
     }
@@ -569,50 +773,86 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         removeSearchListItemOfType(Constants.TYPE_SEARCH_RECENT)
         mSearchAdapter.setRecentChatCount(list.size)
         for (recent in list) {
-            val recentSearchItem = RecentSearch(recent.jid, recent.lastMessageId,
-                Constants.TYPE_SEARCH_RECENT, recent.getChatTypeEnum().toString(), true)
+            val recentSearchItem = com.contusfly.models.RecentSearch(
+                recent.jid,
+                recent.lastMessageId,
+                Constants.TYPE_SEARCH_RECENT,
+                recent.getChatTypeEnum().toString(),
+                true,
+                ProfileDetails()
+            )
             mRecentSearchList.add(recentSearchItem)
             jidList.add(recent.jid)
         }
-        viewModel.filterContactsList(searchKey, jidList)
+        setJidList(jidList)
+        viewModel.filterMessageList(searchKey)
         mSearchAdapter.setRecentSearch(mRecentSearchList, searchKey)
         setAdapterBasedOnSearchType()
         setEmptyView(mRecentSearchList)
     }
 
-    private fun setEmptyView(mRecentSearchList: java.util.ArrayList<RecentSearch>) {
-        if (mRecentSearchList.isNullOrEmpty())
+    private fun setEmptyView(mRecentSearchList: java.util.ArrayList<com.contusfly.models.RecentSearch>) {
+        if (mRecentSearchList.isEmpty())
             recentChatBinding.noMessageView.root.visibility = View.GONE
     }
 
-    private fun observeFilteredContactsList(list: List<ProfileDetails>) {
-        removeSearchListItemOfType(Constants.TYPE_SEARCH_CONTACT)
-        mSearchAdapter.setRecentContactCount(list.size)
+    private fun observeFilteredContactsList(list: List<ProfileDetailsShareModel>) {
+        setPaginatedData(list.size)
         for (profile in list) {
-            if (!profile.isAdminBlocked) {
-                val searchContactItem = RecentSearch(profile.jid, null,
-                    Constants.TYPE_SEARCH_CONTACT, profile.getChatTypeEnum().toString(), true)
+            if (!profile.profileDetails.isAdminBlocked) {
+                val searchContactItem = com.contusfly.models.RecentSearch(
+                    profile.profileDetails.jid,
+                    "",
+                    Constants.TYPE_SEARCH_CONTACT,
+                    profile.profileDetails.getChatTypeEnum().toString(),
+                    true,
+                    profile.profileDetails
+                )
                 mRecentSearchList.add(searchContactItem)
             }
         }
-        viewModel.filterMessageList(searchKey)
+        listRecent.setEmptyView(emptyView)
         mSearchAdapter.setRecentSearch(mRecentSearchList, searchKey)
         setAdapterBasedOnSearchType()
-        mSearchAdapter.notifyItemRangeInserted(mRecentSearchList.size - list.size, mRecentSearchList.size)
+        mSearchAdapter.notifyItemRangeInserted(mRecentSearchList.size - list.size, list.size)
     }
 
-    private fun observeFilteredMessageList(messageCount: Int, messageList: List<RecentSearch>) {
+    private fun observeFilteredMessageList(
+        messageCount: Int,
+        messageList: List<com.contusfly.models.RecentSearch>
+    ) {
         LogMessage.i(TAG, "observeFilteredMessageList")
         //There can be delay by the time messageList is fetched and user starts new search and in the end both
         //search results may get added to list. So remove all of TYPE and added afresh in list.
         removeSearchListItemOfType(Constants.TYPE_SEARCH_MESSAGE)
 
         mRecentSearchList.addAll(messageList)
+        mHandler.removeCallbacks(filterContactRunnable)
+        mHandler.postDelayed(filterContactRunnable, 500)
         mSearchAdapter.setRecentMessageCount(messageCount)
         // update search adapter
         mSearchAdapter.setRecentSearch(mRecentSearchList, searchKey)
         setAdapterBasedOnSearchType()
         mSearchAdapter.notifyDataSetChanged()
+    }
+
+    private val filterContactRunnable = Runnable {
+        viewModel.resetSearch()
+        viewModel.filterContactsList(searchKey, chatJidList)
+    }
+
+    private fun setJidList(mJid: ArrayList<String>) {
+        this.chatJidList = mJid
+    }
+
+    private fun setPaginatedData(listSize: Int) {
+        contactCount += listSize
+        if (viewModel.getPaginateBoolean()) {
+            mSearchAdapter.setRecentContactCount(contactCount, true)
+        } else {
+            removeSearchListItemOfType(Constants.TYPE_SEARCH_CONTACT)
+            mSearchAdapter.setRecentContactCount(listSize, false)
+        }
     }
 
     /**
@@ -643,12 +883,14 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
                 } else {
                     viewModel.clearUnreadCount(item, itemPos)
                     val intent = Intent(context, ChatActivity::class.java)
-                    startActivity(intent.putExtra(LibConstants.JID, jid)
-                        .putExtra(Constants.CHAT_TYPE, item.getChatType())
-                        .putExtra(Constants.POSITION, itemPos.toString()))
+                    startActivity(
+                        intent.putExtra(LibConstants.JID, jid)
+                            .putExtra(Constants.CHAT_TYPE, item.getChatType())
+                            .putExtra(Constants.POSITION, itemPos.toString())
+                    )
                 }
             } else {
-                GroupManager.createOfflineGroupInOnline(jid, FlyCallback { isSuccess, throwable, data ->
+                GroupManager.createOfflineGroupInOnline(jid, FlyCallback { isSuccess, _, data ->
                     if (!isSuccess)
                         showMessage(data.getMessage())
                 })
@@ -660,7 +902,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
 
     fun updateAdapter() {
         for (item in viewModel.selectedRecentChats) {
-            val index = viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == item.jid }
+            val index =
+                viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == item.jid }
             if (index.isValidIndex()) {
                 viewModel.recentChatList.value!!.removeAt(index)
                 viewModel.recentChatAdapter.removeAt(index)
@@ -675,7 +918,8 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
         if (activity == null)
             return
         for (jid in selectedJids) {
-            val index = viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
+            val index =
+                viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == jid }
             if (index.isValidIndex()) {
                 viewModel.recentChatList.value!!.removeAt(index)
                 viewModel.recentChatAdapter.removeAt(index)
@@ -693,15 +937,22 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener{
                 val bundle = Bundle()
                 bundle.putInt(Constants.NOTIFY_SELECTION, 4)
                 for (item in viewModel.selectedRecentChats) {
-                    val index = viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == item.jid }
-                    if (index.isValidIndex())
-                        mAdapter.notifyItemChanged(index, bundle)
+                    updateListAdapter(bundle, item)
                 }
                 viewModel.selectedRecentChats.clear()
                 viewModel.pinnedListPosition.clear()
             }
         } else {
             LogMessage.e(TAG, "Recent fragment not added yet")
+        }
+    }
+
+    private fun updateListAdapter(bundle: Bundle, item: RecentChat) {
+        if (viewModel.recentChatList.value != null) {
+            val index =
+                viewModel.recentChatList.value!!.indexOfFirst { it.jid ?: Constants.EMPTY_STRING == item.jid }
+            if (index.isValidIndex())
+                mAdapter.notifyItemChanged(index, bundle)
         }
     }
 

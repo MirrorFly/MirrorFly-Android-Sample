@@ -9,7 +9,7 @@
     android:background="@drawable/shape_chat_reply_receiver_header_bg"
     android:minWidth="@dimen/margin_200"
     android:minHeight="@dimen/margin_50"
-    android:visibility="visible">
+    android:visibility="gone">
 
     <RelativeLayout
         android:layout_width="0dp"

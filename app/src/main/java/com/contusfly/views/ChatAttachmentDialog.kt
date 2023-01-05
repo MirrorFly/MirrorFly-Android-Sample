@@ -12,11 +12,12 @@ import android.view.*
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import com.contusfly.R
+import com.contusfly.*
 import com.contusfly.chat.AndroidUtils
-import com.contusfly.gone
 import com.contusfly.interfaces.ChatAttachmentLister
 import com.contusfly.show
+import com.contusfly.showToast
+import com.contusflysdk.api.ChatManager
 
 open class ChatAttachmentDialog(
     context: Context,
@@ -24,7 +25,7 @@ open class ChatAttachmentDialog(
     private val footerDivider: View,
     private val footerBottom: View,
     private val transparentView: View,
-    val chatAttachmentLister: ChatAttachmentLister?
+    private val chatAttachmentLister: ChatAttachmentLister?
 ) : Dialog(context, android.R.style.Theme_NoTitleBar) {
 
     private lateinit var dialogView: View
@@ -32,12 +33,14 @@ open class ChatAttachmentDialog(
     private var isKeyboardOpened = false
     private var screenHeight = 0
 
-    lateinit var documentAttachment: TextView
-    lateinit var cameraAttachment: TextView
-    lateinit var galleryAttachment: TextView
-    lateinit var audioAttachment: TextView
-    lateinit var contactAttachment: TextView
-    lateinit var locationAttachment: TextView
+    private lateinit var firstAttachment: TextView
+    private lateinit var secondAttachment: TextView
+    private lateinit var thirdAttachment: TextView
+    private lateinit var fourthAttachment: TextView
+    private lateinit var fifthAttachment: TextView
+    private lateinit var sixthAttachment: TextView
+
+    private var availableAttachments = ArrayList<AttachmentTypes>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,37 +83,116 @@ open class ChatAttachmentDialog(
             }
         }
 
-        documentAttachment = dialogView.findViewById(R.id.document_attachment)
-        cameraAttachment = dialogView.findViewById(R.id.camera_attachment)
-        galleryAttachment = dialogView.findViewById(R.id.gallery_attachment)
-        audioAttachment = dialogView.findViewById(R.id.audio_attachment)
-        contactAttachment = dialogView.findViewById(R.id.contact_attachment)
-        locationAttachment = dialogView.findViewById(R.id.location_attachment)
+        initializeAttachments()
+    }
 
-        documentAttachment.setOnClickListener {
-            chatAttachmentLister?.onAttachDocument()
-            circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
+    private fun initializeAttachments() {
+        if (::dialogView.isInitialized) {
+            firstAttachment = dialogView.findViewById(R.id.first_attachment)
+            secondAttachment = dialogView.findViewById(R.id.second_attchment)
+            thirdAttachment = dialogView.findViewById(R.id.third_attachment)
+            fourthAttachment = dialogView.findViewById(R.id.fourth_attachment)
+            fifthAttachment = dialogView.findViewById(R.id.fifth_attachment)
+            sixthAttachment = dialogView.findViewById(R.id.sixth_attachment)
+
+            setUpAvailableAttachments()
+            setUpAttachmentListeners()
         }
-        cameraAttachment.setOnClickListener {
-            chatAttachmentLister?.onAttachCamera()
-            circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
+    }
+
+    private fun setUpAvailableAttachments() {
+        availableAttachments = arrayListOf()
+
+        makeViewsGone(firstAttachment, secondAttachment, thirdAttachment, fourthAttachment, fifthAttachment, sixthAttachment)
+        val features = ChatManager.getAvailableFeatures()
+        if (features.isDocumentAttachmentEnabled) {
+            val textView = getAttachmentView()
+            textView.show()
+            textView.text = context.getText(R.string.label_document)
+            textView.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_chat_documents, 0, 0)
+            availableAttachments.add(AttachmentTypes.DOCUMENT)
         }
-        galleryAttachment.setOnClickListener {
-            chatAttachmentLister?.onAttachGallery()
-            circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
+
+        if (features.isImageAttachmentEnabled || features.isVideoAttachmentEnabled) {
+            val textView = getAttachmentView()
+            textView.show()
+            textView.text = context.getText(R.string.label_camera)
+            textView.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_chat_camera, 0, 0)
+            availableAttachments.add(AttachmentTypes.CAMERA)
+            val galleryTextView = getAttachmentView()
+            galleryTextView.show()
+            galleryTextView.text = context.getText(R.string.label_gallery)
+            galleryTextView.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_chat_gallery, 0, 0)
+            availableAttachments.add(AttachmentTypes.GALLERY)
         }
-        audioAttachment.setOnClickListener {
-            chatAttachmentLister?.onAttachAudio()
-            circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
+
+        if (features.isAudioAttachmentEnabled) {
+            val textView = getAttachmentView()
+            textView.show()
+            textView.text = context.getText(R.string.label_audio)
+            textView.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_chat_audio, 0, 0)
+            availableAttachments.add(AttachmentTypes.AUDIO)
         }
-        contactAttachment.setOnClickListener {
-            chatAttachmentLister?.onAttachContact()
-            circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
+
+        if (features.isContactAttachmentEnabled) {
+            val textView = getAttachmentView()
+            textView.show()
+            textView.text = context.getText(R.string.label_contact)
+            textView.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_chat_contacts, 0, 0)
+            availableAttachments.add(AttachmentTypes.CONTACT)
         }
-        locationAttachment.setOnClickListener {
-            chatAttachmentLister?.onAttachLocation()
-            circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
+
+        if (features.isLocationAttachmentEnabled) {
+            val textView = getAttachmentView()
+            textView.show()
+            textView.text = context.getText(R.string.label_location)
+            textView.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_chat_location, 0, 0)
+            availableAttachments.add(AttachmentTypes.LOCATION)
         }
+    }
+
+    private fun getAttachmentView(): TextView {
+        return when (availableAttachments.size) {
+            0 -> firstAttachment
+            1 -> secondAttachment
+            2 -> thirdAttachment
+            3 -> fourthAttachment
+            4 -> fifthAttachment
+            5 -> sixthAttachment
+            else -> firstAttachment
+        }
+    }
+
+    private fun setUpAttachmentListeners() {
+        firstAttachment.setOnClickListener {
+            performClickAction(availableAttachments[0])
+        }
+        secondAttachment.setOnClickListener {
+            performClickAction(availableAttachments[1])
+        }
+        thirdAttachment.setOnClickListener {
+            performClickAction(availableAttachments[2])
+        }
+        fourthAttachment.setOnClickListener {
+            performClickAction(availableAttachments[3])
+        }
+        fifthAttachment.setOnClickListener {
+            performClickAction(availableAttachments[4])
+        }
+        sixthAttachment.setOnClickListener {
+            performClickAction(availableAttachments[5])
+        }
+    }
+    private fun performClickAction(attachmentTypes: AttachmentTypes) {
+        when(attachmentTypes)  {
+            AttachmentTypes.DOCUMENT -> chatAttachmentLister?.onAttachDocument()
+            AttachmentTypes.CAMERA -> chatAttachmentLister?.onAttachCamera()
+            AttachmentTypes.GALLERY -> chatAttachmentLister?.onAttachGallery()
+            AttachmentTypes.AUDIO -> chatAttachmentLister?.onAttachAudio()
+            AttachmentTypes.CONTACT -> chatAttachmentLister?.onAttachContact()
+            AttachmentTypes.LOCATION -> chatAttachmentLister?.onAttachLocation()
+        }
+        circularRevealDialog(false, dialogView, this@ChatAttachmentDialog)
     }
 
     private fun setDialogBackground() {
@@ -157,10 +239,10 @@ open class ChatAttachmentDialog(
             if (isExpand) finalRadius.toFloat() else 0f
         )
         anim.addListener(object : Animator.AnimatorListener {
-            override fun onAnimationStart(animation: Animator?) { /*No Implementation Needed*/
+            override fun onAnimationStart(animation: Animator) { /*No Implementation Needed*/
             }
 
-            override fun onAnimationEnd(animation: Animator?) {
+            override fun onAnimationEnd(animation: Animator) {
                 if (!isExpand) {
                     dialog.dismiss()
                     view.visibility = View.INVISIBLE
@@ -168,10 +250,10 @@ open class ChatAttachmentDialog(
                 }
             }
 
-            override fun onAnimationCancel(animation: Animator?) { /*No Implementation Needed*/
+            override fun onAnimationCancel(animation: Animator) { /*No Implementation Needed*/
             }
 
-            override fun onAnimationRepeat(animation: Animator?) { /*No Implementation Needed*/
+            override fun onAnimationRepeat(animation: Animator) { /*No Implementation Needed*/
             }
 
         })
@@ -186,6 +268,7 @@ open class ChatAttachmentDialog(
         this.screenHeight = screenHeight
         updateWindowView()
         show()
+        initializeAttachments()
     }
 
     private fun updateWindowView() {
@@ -211,4 +294,8 @@ open class ChatAttachmentDialog(
         }
         setDialogBackground()
     }
+}
+
+enum class AttachmentTypes {
+    DOCUMENT, CAMERA, GALLERY, AUDIO, CONTACT, LOCATION
 }

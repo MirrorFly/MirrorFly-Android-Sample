@@ -16,7 +16,7 @@
             android:layout_height="match_parent"
             android:background="@color/caller_tile_background">
 
-            <org.webrtc.SurfaceViewRenderer
+            <com.contus.webrtc.TextureViewRenderer
                 android:id="@+id/view_video_surface"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

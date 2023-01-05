@@ -1,9 +1,6 @@
 package com.contusfly.adapters.viewhelpers
 
 import android.content.Context
-import android.os.Build
-import android.text.Html
-import android.text.SpannableStringBuilder
 import android.text.Spanned
 import com.contus.flycommons.MediaDownloadStatus
 import com.contus.flycommons.MediaUploadStatus
@@ -16,14 +13,6 @@ import com.contusfly.interfaces.MessageItemListener
 import com.contusfly.utils.*
 import com.contusflysdk.api.models.ChatMessage
 import kotlin.math.ceil
-import android.media.ThumbnailUtils
-import android.provider.MediaStore
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.media.MediaMetadataRetriever
-import android.util.Base64
 import com.contusfly.models.MediaStatus
 
 
@@ -73,21 +62,18 @@ class VideoItemViewHelper(private val context: Context, private val messageItemL
     fun handleVideoLoading(messageItem: ChatMessage, videoSenderViewHolder: VideoSentViewHolder,
                            fileUploadStatus: String, filePath: String?, base64Img: String?) {
         with(videoSenderViewHolder) {
-            val array = Base64.decode(base64Img ?: "", Base64.DEFAULT)
-            val bitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
-            val thumbnail: Drawable =  BitmapDrawable(context.resources, bitmap)
             if (messageItem.isVideoMessage() && (fileUploadStatus.toInt() == MediaUploadStatus.MEDIA_UPLOADING
                         || fileUploadStatus.toInt() == MediaUploadStatus.MEDIA_NOT_UPLOADED)) {
                 if (imageSenderImg.drawable != null) {
                     ImageUtils.loadImageInView(
                         context, filePath ?: "", imageSenderImg,
-                        base64Img ?: "", thumbnail
+                        base64Img ?: ""
                     )
                 }
                 else ImageUtils.loadImageInView(context, filePath ?: "", imageSenderImg,
-                    base64Img ?: "", thumbnail)
+                    base64Img ?: "")
             } else ImageUtils.loadImageInView(context, filePath ?: "", imageSenderImg,
-                base64Img ?: "", thumbnail)
+                base64Img ?: "")
         }
     }
 
@@ -246,11 +232,8 @@ class VideoItemViewHelper(private val context: Context, private val messageItemL
 
     fun handleReceiverVideoLoading(videoReceiverViewHolder: VideoReceivedViewHolder, filePath: String?, base64Img: String?){
         with(videoReceiverViewHolder) {
-            val decodedString: ByteArray = android.util.Base64.decode(base64Img, android.util.Base64.DEFAULT)
-            val thumb: Bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
-            val thumbnail: Drawable = BitmapDrawable(context.resources, thumb)
             ImageUtils.loadReceiverVideoImageInView(context, imgRevImage,
-                base64Img ?: "", thumbnail)
+                base64Img ?: "")
         }
     }
 
@@ -322,7 +305,7 @@ class VideoItemViewHelper(private val context: Context, private val messageItemL
      */
     private fun getHtmlChatMessageText(message: String): String {
         val text = context.getString(R.string.chat_text)
-        return message + text
+        return message + text + text
     }
 
     /**
@@ -330,15 +313,8 @@ class VideoItemViewHelper(private val context: Context, private val messageItemL
      *
      * @param message message date which is sent/received
      */
-    private fun getSpannedText(message: String?): Spanned {
-        val chatMessage = getHtmlChatMessageText(message!!).replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
-        val htmlText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-            Html.fromHtml(getHtmlChatMessageText(chatMessage), Html.FROM_HTML_MODE_LEGACY)
-        else
-            Html.fromHtml(getHtmlChatMessageText(chatMessage))
-
-        return if (htmlText.isEmpty() && chatMessage != "")
-            SpannableStringBuilder(getHtmlChatMessageText(chatMessage)) else htmlText
+    private fun getSpannedText(message: String?): String {
+        return getHtmlChatMessageText(message!!)
     }
 
 }

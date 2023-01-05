@@ -5,6 +5,8 @@ import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 
 object CallConfiguration {
+
+    const val IS_GROUP_CALL_ENABLED ="is_group_call_enabled"
     /**
      * flag indicates whether group call feature is enabled or not
      *

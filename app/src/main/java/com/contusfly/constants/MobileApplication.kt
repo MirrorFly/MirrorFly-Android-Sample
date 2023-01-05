@@ -10,41 +10,39 @@ import androidx.core.provider.FontRequest
 import androidx.emoji.text.EmojiCompat
 import androidx.emoji.text.FontRequestEmojiCompatConfig
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.contus.call.utils.CallNotificationHelper
-import com.contus.flycommons.SharedPreferenceManager
+import com.contus.flycommons.PendingIntentHelper
 import com.contus.webrtc.api.CallHelper
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.MissedCallListener
-import com.contus.call.utils.GroupCallUtils
 import com.contus.webrtc.*
+import com.contus.webrtc.api.CallNameHelper
 import com.contusfly.*
 import com.contusfly.R
 import com.contusfly.BuildConfig
+import com.contusfly.activities.AdminBlockedActivity
 import com.contusfly.activities.BiometricActivity
 import com.contusfly.activities.PinActivity
 import com.contusfly.activities.StartActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallNotificationUtils
-import com.contusfly.call.WebRtcUtils
 import com.contusfly.call.groupcall.GroupCallActivity
+import com.contusfly.call.groupcall.utils.CallUtils
+import com.contusfly.database.UIKitDatabase
 import com.contusfly.di.components.DaggerAppComponent
+import com.contusfly.notification.AppNotificationManager
 import com.contusfly.utils.*
 import com.contusflysdk.ChatSDK
 import com.contusflysdk.GroupConfig
-import com.contusflysdk.api.CallMessenger
-import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.GroupManager
-import com.contusflysdk.api.MediaNotificationHelper
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusflysdk.api.*
 import com.contusflysdk.api.utils.NameHelper
 import com.facebook.stetho.Stetho
 import com.google.firebase.FirebaseApp
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.remoteconfig.ktx.remoteConfig
-import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import dagger.android.AndroidInjector
 import dagger.android.DispatchingAndroidInjector
 import dagger.android.HasAndroidInjector
+import java.util.HashMap
 import javax.inject.Inject
 
 /**
@@ -104,7 +102,6 @@ class MobileApplication : Application(), HasAndroidInjector {
             .setLicenseKey(BuildConfig.LICENSE)
             .build()
 
-        ChatManager.useProfileName(true)
         ChatManager.enableMobileNumberLogin(true)
         ChatManager.setMediaFolderName(Constants.LOCAL_PATH)
 
@@ -125,15 +122,18 @@ class MobileApplication : Application(), HasAndroidInjector {
             }
         })
 
+        setAdminBlockListener()
+
         //register observer
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleListener())
 
         initEmojiCompat()
+        UIKitDatabase.initDatabase(this)
 
         //Set Name based on the Profile data
         GroupManager.setNameHelper(object  : NameHelper {
             override fun getDisplayName(jid: String): String {
-                return if (ContactManager.getProfileDetails(jid) != null) ContactManager.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
+                return if (ProfileDetailsUtils.getProfileDetails(jid) != null) ProfileDetailsUtils.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
             }
         })
 
@@ -143,31 +143,59 @@ class MobileApplication : Application(), HasAndroidInjector {
         setupFirebaseRemoteConfig()
     }
 
-    private fun setupFirebaseRemoteConfig() {
-        val remoteConfig = Firebase.remoteConfig
-        val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = 14400
-        }
-        remoteConfig.setConfigSettingsAsync(configSettings)
-        remoteConfig.setDefaultsAsync(R.xml.remote_config_defaults)
-
-        remoteConfig.fetchAndActivate()
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val updated = task.result
-                    LogMessage.d(TAG, "Config params updated: $updated")
-                } else {
-                    LogMessage.d(TAG, "Config params Fetch failed")
-                }
-                CallConfiguration.setIsGroupCallEnabled(remoteConfig.getBoolean("is_group_call_enabled"))
+    private fun setAdminBlockListener() {
+        ChatManager.setAdminBlockHelper(object : AdminBlockHelper {
+            override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
+                AppLifecycleListener._adminBlockedOtherUser.postValue(Triple(jid, type, status))
             }
+
+            override fun onAdminBlockedUser(jid: String, status: Boolean) {
+                if (status) {
+                    SharedPreferenceManager.setBoolean(Constants.SHOW_PIN, false)
+                    SharedPreferenceManager.setBoolean(Constants.BIOMETRIC, false)
+                    SharedPreferenceManager.setString(Constants.CHANGE_PIN_NEXT, "")
+                    SharedPreferenceManager.setString(Constants.MY_PIN, "")
+                    SafeChatUtils.silentDisableSafeChat(applicationContext)
+                    AppNotificationManager.cancelNotifications(applicationContext)
+                    SharedPreferenceManager.clearAllPreference(true)
+                    if (AppLifecycleListener.isForeground) {
+                        val intent = Intent(ChatManager.applicationContext, AdminBlockedActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        ChatManager.applicationContext.startActivity(intent)
+                    }
+                }
+                SharedPreferenceManager.setBoolean(Constants.ADMIN_BLOCKED, status)
+            }
+        })
+    }
+
+    private fun setupFirebaseRemoteConfig() {
+        CallConfiguration.setIsGroupCallEnabled(true) // set default value as true
+        val remoteConfig: FirebaseRemoteConfig = FirebaseRemoteConfig.getInstance()
+        val configSettings = FirebaseRemoteConfigSettings.Builder()
+            .setMinimumFetchIntervalInSeconds(14400)
+            .build()
+        remoteConfig.setConfigSettingsAsync(configSettings)
+
+        val remoteConfigDefaults: MutableMap<String, Any> = HashMap()
+        remoteConfigDefaults[CallConfiguration.IS_GROUP_CALL_ENABLED] = true
+
+        remoteConfig.setDefaultsAsync(remoteConfigDefaults)
+
+        remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val updated = task.result
+                LogMessage.d(TAG, "Config params updated: $updated")
+            } else {
+                LogMessage.d(TAG, "Config params Fetch failed")
+            }
+            CallConfiguration.setIsGroupCallEnabled(remoteConfig.getBoolean(CallConfiguration.IS_GROUP_CALL_ENABLED))
+        }
     }
 
     private fun initializeCallSdk(){
         CallManager.init(this)
-        CallManager.setCurrentUserId(SharedPreferenceManager.instance.currentUserJid)
         CallManager.setCallActivityClass(GroupCallActivity::class.java)
-        CallManager.setIceServers(WebRtcUtils.getTempIceServers())
         CallManager.setMissedCallListener(object : MissedCallListener {
             override fun onMissedCall(
                 isOneToOneCall: Boolean, userJid: String, groupId: String?, callType: String,
@@ -185,10 +213,6 @@ class MobileApplication : Application(), HasAndroidInjector {
         })
 
         CallManager.setCallHelper(object : CallHelper {
-            override fun getDisplayName(jid: String): String {
-                return if (ContactManager.getProfileDetails(jid) != null) ContactManager.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
-            }
-
             override fun getNotificationContent(callDirection: String): String {
                 return if (BuildConfig.HIPAA_COMPLIANCE_ENABLED) {
                     when (callDirection) {
@@ -197,18 +221,21 @@ class MobileApplication : Application(), HasAndroidInjector {
                         else -> resources.getString(R.string.new_ongoing_call)
                     }
                 } else
-                    CallNotificationHelper.getNotificationMessage()
-            }
-
-            override fun isDeletedUser(jid: String): Boolean {
-                return ContactManager.getProfileDetails(jid)?.isDeletedContact() ?: false
+                    getNotificationMessage()
             }
 
             override fun sendCallMessage(details: GroupCallDetails, users: List<String>, invitedUsers: List<String>) {
                 CallMessenger.sendCallMessage(details, users, invitedUsers)
             }
         })
-        ChatManager.callService = WebRtcCallService::class.java
+
+        CallManager.setCallNameHelper(object : CallNameHelper {
+            override fun getDisplayName(jid: String): String {
+                return if (ProfileDetailsUtils.getProfileDetails(jid) != null) ProfileDetailsUtils.getProfileDetails(jid)!!.name else Constants.EMPTY_STRING
+            }
+        })
+
+
     }
 
     private fun getMissedCallNotificationContent( isOneToOneCall: Boolean, userJid: String, groupId: String?, callType: String,
@@ -223,13 +250,13 @@ class MobileApplication : Application(), HasAndroidInjector {
                 missedCallMessage.append("a ")
             }
             missedCallMessage.append(callType).append(" call")
-            messageContent = ContactManager.getProfileDetails(userJid)?.name!!
+            messageContent = ProfileDetailsUtils.getProfileDetails(userJid)?.name!!
         } else {
             missedCallMessage.append("a group ").append(callType).append(" call")
             messageContent = if (!groupId.isNullOrBlank()) {
-                ContactManager.getProfileDetails(groupId)?.name!!
+                ProfileDetailsUtils.getProfileDetails(groupId)?.name!!
             } else {
-                GroupCallUtils.getCallUsersName(userList).toString()
+                CallUtils.getCallUsersName(userList).toString()
             }
         }
         if (BuildConfig.HIPAA_COMPLIANCE_ENABLED)
@@ -244,7 +271,19 @@ class MobileApplication : Application(), HasAndroidInjector {
         notificationIntent.putExtra(Constants.IS_FROM_NOTIFICATION, true)
         notificationIntent.putExtra(Constants.JID, if (toUsers.count() == 1) toUsers.elementAt(0) else Constants.EMPTY_STRING)
         val requestID = System.currentTimeMillis().toInt()
-        return PendingIntent.getActivity(this, requestID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        return PendingIntentHelper.getActivity(this, requestID, notificationIntent)
+    }
+
+    fun getNotificationMessage() : String {
+        return if (CallManager.isOneToOneCall() && CallManager.getGroupID().isEmpty()) {
+            ProfileDetailsUtils.getDisplayName(CallManager.getCallUsersList().first())
+        } else {
+            if (CallManager.getGroupID().isNotBlank()) {
+                ProfileDetailsUtils.getDisplayName(CallManager.getGroupID())
+            } else {
+                CallUtils.getCallUsersName(CallManager.getCallUsersList()).toString()
+            }
+        }
     }
 
     override fun androidInjector(): AndroidInjector<Any> {

@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Application
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -13,37 +12,39 @@ import android.content.pm.PackageManager
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.*
-import android.service.notification.StatusBarNotification
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.view.menu.MenuBuilder
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.contus.flycommons.ChatType
-import com.contus.flycommons.LogMessage
-import com.contus.flycommons.TAG
 import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.CallManager.isOnTelephonyCall
 import com.contus.call.utils.CallConstants
-import com.contus.call.utils.GroupCallUtils
 import com.contus.flycommons.getMessage
+import com.contus.flycommons.models.MessageType
+import com.contus.flycommons.*
+import com.contus.flycommons.LogMessage
+import com.contus.flycommons.TAG
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
+import com.contusfly.R
+import com.contusfly.BuildConfig
 import com.contusfly.activities.parent.ChatParent
 import com.contusfly.adapters.ChatAdapter
 import com.contusfly.adapters.ReplySuggestionsAdapter
 import com.contusfly.call.CallPermissionUtils
 import com.contusfly.call.groupcall.UsersSelectionActivity
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.chat.RealPathUtil
 import com.contusfly.chat.ReplyHashMap
 import com.contusfly.chat.reply.MessageSwipeController
+import com.contusfly.checkInternetAndExecute
 import com.contusfly.constants.MobileApplication
 import com.contusfly.databinding.ActivityChatBinding
 import com.contusfly.interfaces.OnChatItemClickListener
@@ -51,12 +52,15 @@ import com.contusfly.interfaces.PermissionDialogListener
 import com.contusfly.models.Chat
 import com.contusfly.models.MediaPreviewModel
 import com.contusfly.models.MessageObject
+import com.contusfly.notification.AppNotificationManager
+import com.contusfly.returnEmptyIfNull
 import com.contusfly.utils.*
+import com.contusfly.utils.Constants
+import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.*
 import com.contusflysdk.api.*
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.utils.ConstantActions
-import com.contusflysdk.utils.ItemClickSupport
 import com.contusflysdk.utils.MediaShareUtils
 import com.contusflysdk.views.CustomToast
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -171,14 +175,13 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             if (chat.toUser == message.chatUserJid && (!message.isMessageSentByMe() || message.isItCarbonMessage())
                 && (localInstanceOfMessage != null && !localInstanceOfMessage.isMessageDeleted)) {
                 removeUnReadMsgSeparatorOnMessageReceiver()
-                addMessageAndScroll(message)
-            }
-            if (chatMessageEditText.text.toString().trim().isEmpty() && !isReplyTagged && !attachmentDialog.isShowing)
-                addMessagesforSmartReply()
-            if(FlyCore.isBusyStatusEnabled() && chat.isSingleChat()) {
+                parentViewModel.loadNextData()
+                canShowReceivedMessage = isViewingRecentMessage
                 Handler(Looper.getMainLooper()).postDelayed({
-                    updateChatAdapterWithLatestData(true)
-                }, 500)
+                    showBottomMessage()
+                    if (chatMessageEditText.text.toString().trim().isEmpty() && !isReplyTagged && !attachmentDialog.isShowing)
+                        addMessagesforSmartReply() }, 100)
+
             }
         }
     }
@@ -214,7 +217,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         if (chat.toUser == jid) {
             viewModel.getProfileDetails()
             updateDeletedUserMessages()
-        } else if (GroupManager.isMemberOfGroup(chat.toUser, jid) || leftUserJid == jid) {
+        } else if (ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(chat.toUser, jid) || leftUserJid == jid) {
             updateDeletedUserMessages()
         }
     }
@@ -305,9 +308,10 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         //Chat Parent
         setUserJid()
         initChatAdapter()
-        if (isFromStarredMessages) viewModel.loadInitialData()
+        parentViewModel.loadInitialData(messageId)
         setMessageCallBack()
         handleListItemClick()
+        handleAttachmentRestriction()
         initClickListeners()
         initObservers()
         handleOnNewIntent(intent)
@@ -316,23 +320,18 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun setRecyclerViewScrollListener() {
         val recyclerScrollDisposable = listChats.scrollEvents().subscribe {
-            firstCompletelyVisibleItemPosition = mManager.findFirstVisibleItemPosition()
-            lastCompletelyVisibleItemPosition = mManager.findLastVisibleItemPosition()
+            Handler(Looper.getMainLooper()).postDelayed(java.lang.Runnable {
+                firstCompletelyVisibleItemPosition = mManager.findFirstVisibleItemPosition()
+                lastCompletelyVisibleItemPosition = mManager.findLastVisibleItemPosition()
+                LogMessage.d("SCROLLKSV",lastCompletelyVisibleItemPosition.toString()+"--"+mainList.size.toString())
+                if (!canShowReceivedMessage && lastCompletelyVisibleItemPosition < (mainList.size - 1))
+                    showHideRedirectToLatest.onNext(true)
+                else
+                    showHideRedirectToLatest.onNext(false)
+            },300)
 
-            if (lastCompletelyVisibleItemPosition < (mainList.size - 1))
-                showHideRedirectToLatest.onNext(true)
-            else
-                showHideRedirectToLatest.onNext(false)
-
-            if (!allMessageLoaded && firstCompletelyVisibleItemPosition < 50 && !isLoadingMessageFromDB)
-                loadOldMessages()
         }
         compositeDisposable.add(recyclerScrollDisposable)
-    }
-
-    private fun loadOldMessages() {
-        isLoadingMessageFromDB = true
-        Log.d("loadOldMessages", "Entered ")
     }
 
     private fun initClickListeners() {
@@ -371,7 +370,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun initChatAdapter() {
-        chatAdapter = ChatAdapter(mainList, clickedMessages, chat.chatType, this)
+        chatAdapter = ChatAdapter(mainList, clickedMessages, chat.chatType, this, userJid)
         chatAdapter.hasStableIds()
         listChats.adapter = chatAdapter
         chatAdapter.setOnDownloadClickListener(this)
@@ -396,13 +395,38 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private fun startObservingViewModel() {
         startObserving()
         //Message Observer
-        viewModel.initialMessageList.observe(this, { messagesList ->
+        parentViewModel.initialMessageList.observe(this) { messagesList ->
+            com.contusfly.utils.LogMessage.d(TAG, "loadMessages updated to UI")
             mainList.clear() //since these are intial messages, the list must be cleared
             mainList.addAll(messagesList)
             chatAdapter.notifyDataSetChanged()
-            if (mainList.isNotEmpty() && messageId.isNotEmpty())
+            if (mainList.isNotEmpty() && messageId.isNotEmpty() && messageId != unreadMessageTypeMessageId)
                 highlightGivenMessageId(messageId)
-        })
+            initSuggestion(mainList)
+        }
+
+        parentViewModel.removeTempDateHeader.observe(this) { removeDate ->
+            if (removeDate) {
+                mainList.removeAt(0)
+                chatAdapter.notifyItemRemoved(0)
+            }
+        }
+
+        parentViewModel.previousMessageList.observe(this) { messagesList ->
+            mainList.addAll(0, messagesList)
+            chatAdapter.notifyItemRangeInserted(0, messagesList.size)
+        }
+
+        parentViewModel.nextMessageList.observe(this) { messageList ->
+            val index = mainList.size
+            mainList.addAll(messageList)
+            chatAdapter.notifyItemRangeInserted(index, messageList.size)
+        }
+
+        parentViewModel.loadSuggestion.observe(this) { canLoadSuggestion ->
+            if (canLoadSuggestion)
+                addMessagesforSmartReply()
+        }
 
         //Roster Observer
         viewModel.userRoster.observe(this, { userRoster ->
@@ -421,7 +445,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             setUserProfileAndStatus()
             setUserProfileImage()
             invalidateOptionsMenu()
+            setUpBlockedUserView()
             updateChatEditText()
+            checkIsGroupAdminBlocked()
         }, { LogMessage.e(TAG, it) })
 
         val dialogObservable = dialog.debounce(PROFILE_UPDATE_TIME_OUT, TimeUnit.MILLISECONDS).observeOn(AndroidSchedulers.mainThread()).subscribe({
@@ -439,15 +465,19 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
      * Handle the list item click and long click from the recycler view of the chat view.
      */
     private fun handleListItemClick() {
-        ItemClickSupport.addTo(listChats).setOnItemLongClickListener { _: RecyclerView, position: Int, _: View ->
-            onItemLongClick(position)
-            Log.d(TAG, "setOnItemLongClickListener  $position")
-            true
-        }
-        ItemClickSupport.addTo(listChats).setOnItemClickListener { _: RecyclerView, position: Int, _: View? ->
-            Log.d(TAG, "setOnItemClickListener  $position")
-            if (clickedMessages.isNotEmpty() && !dontAllowClick) onItemClick(position)
-        }
+        ItemClickSupport(listChats).addTo().setOnItemLongClickListener(object : ItemClickSupport.OnItemLongClickListener{
+            override fun onItemLongClicked(recyclerView: RecyclerView?, position: Int, v: View?): Boolean {
+                onItemLongClick(position)
+                Log.d(TAG, "setOnItemLongClickListener  $position")
+                return true
+            }
+        })
+        ItemClickSupport(listChats).addTo().setOnItemClickListener(object : ItemClickSupport.OnItemClickListener{
+            override fun onItemClicked(recyclerView: RecyclerView?, position: Int, v: View?) {
+                Log.d(TAG, "setOnItemClickListener  $position")
+                if (clickedMessages.isNotEmpty() && !dontAllowClick) onItemClick(position)
+            }
+        })
     }
 
     /**
@@ -524,20 +554,21 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         startActivity(dashboardIntent)
     }
 
-
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         optionMenu = menu
         if (searchEnabled) {
             menuInflater.inflate(R.menu.menu_search_toolbar, menu)
+            menu.get(R.id.prev_loader).isVisible=false
+            menu.get(R.id.next_loader).isVisible=false
             actionPrev = menu.get(R.id.action_prev)
         } else {
             menuInflater.inflate(R.menu.menu_chat_items, menu)
-
             if (chat.isSingleChat()) {
                 menu.get(R.id.action_block).isVisible = !profileDetails.isBlocked
                 menu.get(R.id.action_unblock).isVisible = profileDetails.isBlocked
             }
             menu.get(R.id.action_email).isVisible = !BuildConfig.HIPAA_COMPLIANCE_ENABLED
+            menu.get(R.id.action_chat_search).isVisible = true
             updateMenuItemsClicks(menu)
             setCallButtonVisibility()
         }
@@ -616,7 +647,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                     }
                     else -> {
                         hideKeyboard()
-                        GroupCallUtils.setIsCallStarted(callType)
+                        CallUtils.setIsCallStarted(callType)
                         startActivityForResult(Intent(this, UsersSelectionActivity::class.java)
                             .putExtra(com.contus.flycommons.Constants.GROUP_ID, it.jid)
                             .putExtra(com.contus.flycommons.Constants.CHAT_TYPE, it.getChatType())
@@ -628,9 +659,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun makeAudioVideoCalls(callType: String) {
-        GroupCallUtils.setIsCallStarted(callType)
+        CallUtils.setIsCallStarted(callType)
         if (callType == CallType.AUDIO_CALL) {
-            if (CallManager.isAudioCallPermissionsGranted()) {
+            if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) {
                 CallPermissionUtils(
                     this,
                     profileDetails.isBlocked,
@@ -648,7 +679,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 )
             }
         } else {
-            if (CallManager.isVideoCallPermissionsGranted()) {
+            if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) {
                 CallPermissionUtils(
                     this,
                     profileDetails.isBlocked,
@@ -684,11 +715,11 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private fun handleMainIntent() {
         val mainIntent = intent
         toUser = mainIntent.getStringExtra(LibConstants.JID) ?: Constants.EMPTY_STRING
-        messageId = mainIntent.getStringExtra(LibConstants.MESSAGE_ID) ?: Constants.EMPTY_STRING
         chatType = mainIntent.getStringExtra(Constants.CHAT_TYPE) ?: Constants.EMPTY_STRING
+        chat = Chat(chatType, toUser)
+        messageId = mainIntent.getStringExtra(LibConstants.MESSAGE_ID) ?: unreadMessageTypeMessageId
         isFromStarredMessages = mainIntent.getBooleanExtra(Constants.IS_STARRED_MESSAGE, false)
         isFromQuickShare = mainIntent.getBooleanExtra(Constants.FROM_QUICK_SHARE, false)
-        chat = Chat(chatType, toUser)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -776,11 +807,19 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun sendImageMessage(imagePath: String) {
+        if (!ChatManager.getAvailableFeatures().isImageAttachmentEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(this)
+            return
+        }
         val imageMessage = messagingClient.composeImageMessage(chat.toUser, imagePath, Constants.EMPTY_STRING, selectedMessageIdForReply)
         validateAndSendMessage(imageMessage)
     }
 
     private fun sendAudioMessage(audioPath: String) {
+        if (!ChatManager.getAvailableFeatures().isAudioAttachmentEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(this)
+            return
+        }
         val audioMessage = messagingClient.composeAudioMessage(chat.toUser,false, audioPath, selectedMessageIdForReply)
         if (!audioMessage.first)
             showAudioFileValidation()
@@ -792,28 +831,45 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun sendDocumentsMessage(filePathUri: Uri?) {
         filePathUri.let {
-            val fileRealPath = RealPathUtil.getRealPath(this, filePathUri)
-            if (fileRealPath == null)
-                showDriveFileValidation()
-            else if (fileRealPath.isNotEmpty()) {
-                val fileMessage = messagingClient.composeDocumentsMessage(chat.toUser, fileRealPath, selectedMessageIdForReply)
-                if (!fileMessage.first)
+            try{
+                val fileRealPath = RealPathUtil.getRealPath(this, filePathUri)
+                if (fileRealPath == null)
+                    showDriveFileValidation()
+                else if (fileRealPath.isNotEmpty()) {
+                    if (!ChatManager.getAvailableFeatures().isDocumentAttachmentEnabled) {
+                        CustomAlertDialog().showFeatureRestrictionAlert(this)
+                        return
+                    }
+                    val fileMessage = messagingClient.composeDocumentsMessage(chat.toUser, fileRealPath, selectedMessageIdForReply)
+                    if (!fileMessage.first)
+                        showFileValidation()
+                    else if (!fileMessage.second)
+                        showUploadAlert(Constants.MAX_DOCUMENT_UPLOAD_SIZE)
+                    else
+                        validateAndSendMessage(fileMessage.third!!)
+                } else
                     showFileValidation()
-                else if (!fileMessage.second)
-                    showUploadAlert(Constants.MAX_DOCUMENT_UPLOAD_SIZE)
-                else
-                    validateAndSendMessage(fileMessage.third!!)
-            } else
-                showFileValidation()
+            } catch (e: Exception) {
+                LogMessage.e(e)
+            }
+
         }
     }
 
     private fun sendContactMessage(data: Intent) {
+        if (!ChatManager.getAvailableFeatures().isContactAttachmentEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(this)
+            return
+        }
         val contactMessage = messagingClient.composeContactMessage(chat.toUser, data, selectedMessageIdForReply)
         validateAndSendMessage(contactMessage)
     }
 
     private fun sendLocationMessage(data: Intent) {
+        if (!ChatManager.getAvailableFeatures().isLocationAttachmentEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(this)
+            return
+        }
         val locationMessage = messagingClient.composeLocationMessage(chat.toUser, data, selectedMessageIdForReply)
         if (locationMessage.first)
             validateAndSendMessage(locationMessage.second!!)
@@ -824,13 +880,17 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun sendVoiceMessage() {
         handleVoiceRecording { mediaPath ->
-            val audioMessage = messagingClient.composeAudioMessage(chat.toUser, true,mediaPath, selectedMessageIdForReply)
-            if (!audioMessage.first)
-                showAudioFileValidation()
-            else if (!audioMessage.second) {
-                showUploadAlert(Constants.MAX_AUDIO_SIZE_LIMIT)
-            } else
-                validateAndSendMessage(audioMessage.third!!)
+            if (!ChatManager.getAvailableFeatures().isAudioAttachmentEnabled) {
+                CustomAlertDialog().showFeatureRestrictionAlert(this)
+            } else {
+                val audioMessage = messagingClient.composeAudioMessage(chat.toUser, true, mediaPath, selectedMessageIdForReply)
+                if (!audioMessage.first)
+                    showAudioFileValidation()
+                else if (!audioMessage.second) {
+                    showUploadAlert(Constants.MAX_AUDIO_SIZE_LIMIT)
+                } else
+                    validateAndSendMessage(audioMessage.third!!)
+            }
         }
     }
 
@@ -885,11 +945,6 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         }
     }
 
-    override fun onUpdateUnStarAllMessages() {
-        super.onUpdateUnStarAllMessages()
-        updateAdapterUnStarAllMessages()
-    }
-
     override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
         actionModeMenu = configureMenuActionMode(mode, menu)
         return true
@@ -928,13 +983,11 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             }
             R.id.action_favourite -> {
                 starOrUnStarMessageActionMenuClicked(true)
-                updateAdapter()
                 actionMode?.finish()
                 clickDone = true
             }
             R.id.action_unfavourite -> {
                 starOrUnStarMessageActionMenuClicked(false)
-                updateAdapter()
                 actionMode?.finish()
                 clickDone = true
             }
@@ -971,7 +1024,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         commonAlertDialog.dialogAction = CommonAlertDialog.DialogAction.REPORT_MESSAGES
         val reportLabel = getString(R.string.label_report)
         val userName = "$reportLabel ${getReporterName()}?"
-        val reportMessage = if (!clickedMessages.isNullOrEmpty()) getString(R.string.label_report_message)
+        val reportMessage = if (!clickedMessages.isEmpty()) getString(R.string.label_report_message)
         else if (chat.getChatType().name == ChatType.TYPE_GROUP_CHAT) getString(R.string.label_group_report_5_message)
         else getString(R.string.label_user_report_5_message)
 
@@ -999,7 +1052,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         viewModel.getProfileDetails()
         addMessagesforSmartReply()
         handleOnResume()
-        updateChatAdapterWithLatestData()
+        removeUnReadMsgSeparator()
+        if (mainList.isNotEmpty())
+            parentViewModel.loadNextData()
         if (SharedPreferenceManager.getBoolean(Constants.SHOW_LABEL))
             netConditionalCall(
                 { chatXmppConnectionStatusLayout.gone() },
@@ -1007,49 +1062,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         getRecalledMessagesForThisUser()
         handleCursorAndKeyboardVisibility()
         clearNotification()
-        checkIsGroupAdminBlocked()
     }
 
     private fun checkIsGroupAdminBlocked() {
-        if (ChatType.TYPE_GROUP_CHAT == chat.chatType && parentViewModel.getProfileDetails(chat.toUser)!!.isAdminBlocked) {
+        if (ChatType.TYPE_GROUP_CHAT == chat.chatType && profileDetails.isAdminBlocked) {
             showGroupBlockedByAdminNotification()
         }
-    }
-
-    @SuppressLint("CheckResult")
-    protected fun updateChatAdapterWithLatestData(fromForward: Boolean = false) {
-        if (isFromStarredMessages) {
-            unreadMessageCount = 0
-            return
-        }
-
-        val lastMessage = mainList.lastOrNull()
-        val newMessages = ArrayList<ChatMessage>()
-        if (lastMessage != null) {
-            val messages = parentViewModel.getMessagesAfterThisMessage(
-                lastMessage.chatUserJid,
-                lastMessage.messageSentTime,
-                mainList
-            )
-            newMessages.addAll(messages)
-        } else
-            newMessages.addAll(viewModel.getAllMessages(chat.toUser))
-
-        if (newMessages.isNotEmpty()) {
-            mainList.addAll(newMessages)
-            initSuggestion(mainList)
-            removeUnReadMsgSeparator()
-            chatAdapter.notifyItemRangeInserted(mainList.size, newMessages.size)
-            if (!isFromForward)
-                isFromForward = fromForward
-            if (isFromForward)
-                listChats.scrollToPosition(mainList.size - 1)
-            else
-                showHideRedirectToLatest.onNext(true)
-        }
-        isFromForward = false
-        val (isUnreadSeparatorIsAvailable, separatorPosition) = findIndexOfUnreadMessageType()
-        unreadMessageCount += if (isUnreadSeparatorIsAvailable) mainList.size - separatorPosition - 1 else newMessages.size
     }
 
     private fun removeUnReadMsgSeparator() {
@@ -1068,16 +1086,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun clearNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val notificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val barNotifications: Array<StatusBarNotification> =
-                notificationManager.activeNotifications
-            for (notification in barNotifications) {
-                NotificationManagerCompat.from(applicationContext).cancel(notification.id)
-            }
-        } else
-            NotificationManagerCompat.from(applicationContext).cancel(Constants.NOTIFICATION_ID)
+        AppNotificationManager.cancelNotifications(applicationContext)
     }
 
     private fun handleCursorAndKeyboardVisibility() {
@@ -1265,7 +1274,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             doProgressDialog!!.showProgress()
             hideKeyboard()
             if (selectedMessageIdForReply != Constants.EMPTY_STRING) makeViewsGone(replyMessageSentView, closeReplyMessage)
-            FlyCore.blockUser(chat.toUser) { isSuccess, _, _ ->
+            FlyCore.blockUser(chat.toUser) { isSuccess, _, data ->
+                val jid = data["data"] as String
+                UIKitContactUtils.checkContactForBlockAndUnblockUser(jid, true)
                 runOnUiThread {
                     onBlockUserResponse(!isSuccess, true)
                 }
@@ -1285,7 +1296,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 showViews(replyMessageSentView, closeReplyMessage)
                 replyViewHandler.showReplyMessageToSend(selectedMessageIdForReply, parentViewModel, suggestionLayout, chat.toUser)
             }
-            FlyCore.unblockUser(chat.toUser) { isSuccess, _, _ ->
+            FlyCore.unblockUser(chat.toUser) { isSuccess, _, data ->
+                val jid = data["data"] as String
+                UIKitContactUtils.checkContactForBlockAndUnblockUser(jid, false)
                 runOnUiThread {
                     onBlockUserResponse(!isSuccess, false)
                 }
@@ -1325,16 +1338,22 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         refreshDeleteOrRecalledMessagesInAdapter(isRecalled)
     }
 
-    override fun onReplyMessageClick(messageId: String) {
+    override fun onReplyMessageClick(itemMessageId: String) {
         if (clickedMessages.isNotEmpty()) {
-            val position = getMessagePosition(messageId)
+            val position = getMessagePosition(itemMessageId)
             onItemClick(position)
         } else {
-            val mainMessage = getMessagebyID(messageId)
+            val mainMessage = getMessagebyID(itemMessageId)
             mainMessage?.replyParentChatMessage?.messageId?.let {
                 val replyMessage = parentViewModel.getMessageForReply(mainMessage.replyParentChatMessage.messageId)
                 replyMessage?.let {
-                    highlightGivenMessageId(mainMessage.replyParentChatMessage.messageId)
+                    val position = getMessagePosition(mainMessage.replyParentChatMessage.messageId)
+                    if (position.isValidIndex()){
+                        highlightGivenMessageId(mainMessage.replyParentChatMessage.messageId)
+                    } else {
+                        messageId = mainMessage.replyParentChatMessage.messageId
+                        parentViewModel.loadInitialData(mainMessage.replyParentChatMessage.messageId)
+                    }
                 }
             }
         }
@@ -1414,12 +1433,31 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             if (SystemClock.elapsedRealtime() - lastClickTime > 1000) {
                 val clickedPos = chatAdapter.validateAndRefreshMessagePosition(position, messageId, true)
                 if (clickedPos != -1) {
-                    val clickedMessage = mainList[clickedPos]
-                    chatClickUtils.handleOnListClick(clickedMessage, activity)
+                    checkStoragePermissionAndAllow(clickedPos)
                 }
             }
             lastClickTime = SystemClock.elapsedRealtime()
         }
+    }
+
+    private fun checkStoragePermissionAndAllow(clickedPos: Int) {
+        try {
+            val clickedMessage = mainList[clickedPos]
+            if (clickedMessage.getMessageType() == MessageType.IMAGE || clickedMessage.getMessageType() == MessageType.LOCATION) {
+                chatClickUtils.handleOnListClick(clickedMessage, activity)
+            } else {
+                if (ChatUtils.checkWritePermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    chatClickUtils.handleOnListClick(clickedMessage, activity)
+                } else
+                    MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
+            }
+        } catch (e: Exception) {
+            LogMessage.e(Constants.TAG, e)
+        }
+    }
+
+    override fun mediaPermissionCheck() {
+        MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
     }
 
     override fun onDownloadClicked(messageItem: ChatMessage) {
@@ -1604,9 +1642,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         toUser = intent.getStringExtra(LibConstants.JID) ?: Constants.EMPTY_STRING
         chatType = intent.getStringExtra(Constants.CHAT_TYPE) ?: Constants.EMPTY_STRING
 
-        messageId = intent.getStringExtra(LibConstants.MESSAGE_ID) ?: Constants.EMPTY_STRING
-
         chat = Chat(chatType, toUser)
+
+        messageId = intent.getStringExtra(LibConstants.MESSAGE_ID) ?: unreadMessageTypeMessageId
         viewModel.setUserJid(chat.toUser)
 
         val externalCall = intent.getBooleanExtra("externalCall", false)
@@ -1629,11 +1667,10 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun reloadUserChat() {
         initChatAdapter()
-        startObservingViewModel()
         mainList.clear()
-        viewModel.clearChat()
+        parentViewModel.clearChat()
         setUserJid()
-        viewModel.loadInitialData()
+        parentViewModel.loadInitialData(messageId)
         viewModel.deleteUnreadMessageSeparator(chat.toUser)
     }
 
@@ -1668,7 +1705,6 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 actionMode?.finish()
                 reloadUserChat()
                 isFromForward = true
-                handleForwardMessages(intent)
             }
             intent.hasExtra(Constants.SELECTED_VIDEO) -> sendVideoFromGallery(intent.getStringExtra(Constants.SELECTED_VIDEO)!!,
                 intent.getStringExtra(Constants.SELECTED_VIDEO_CAPTION)!!)
@@ -1676,6 +1712,11 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun sendVideoFromGallery(videoFilePath: String, videoCaption: String) {
+
+        if (!ChatManager.getAvailableFeatures().isVideoAttachmentEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(this)
+            return
+        }
 
         val videoDuration = Constants.VIDEO_DURATION_LIMIT//sharedPreferenceManager.getString(Constants.VIDEO_LIMIT).toLong()
 
@@ -1694,6 +1735,10 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             if (item.isImage) {
                 val extension = item.path.substringAfterLast(".")
                 if (supportedFormats.contains(extension)) {
+                    if (!ChatManager.getAvailableFeatures().isImageAttachmentEnabled) {
+                        CustomAlertDialog().showFeatureRestrictionAlert(this)
+                        return
+                    }
                     val imageMessage = messagingClient.composeImageMessage(chat.toUser, item.path, item.caption, replyMessageId)
                     validateAndSendMessage(imageMessage)
                 } else {
@@ -1722,30 +1767,15 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         }
     }
 
-
-    private fun handleForwardMessages(intent: Intent) {
-        val messageIds: List<String> = intent.getStringArrayListExtra(Constants.CHAT_MESSAGE)!!
-        ChatManager.forwardMessages(messageIds, chat.toUser, chat.getChatType(), object : ChatActionListener {
-            override fun onResponse(isSuccess: Boolean, message: String) {
-                if (isSuccess) {
-                    updateChatAdapterWithLatestData(true)
-                }
-            }
-
-        })
-        chatAdapter.notifyDataSetChanged()
-    }
-
     /**
-     * adding the message
+     * Scroll to bottom
      *
-     * @param tempMessage ChatMessage item
      */
-    private fun addMessageAndScroll(tempMessage: ChatMessage) {
-        if(tempMessage.isNotificationMessage() && tempMessage.messageTextContent.contains(resources.getString(R.string.msg_you_changed_icon)))
+    private fun showBottomMessage() {
+        val tempMessage = mainList.lastOrNull()
+        if(tempMessage == null || tempMessage.isNotificationMessage() && tempMessage.messageTextContent.contains(resources.getString(R.string.msg_you_changed_icon)))
             return
-        mainList.add(tempMessage)
-        chatAdapter.notifyItemInserted(mainList.size - 1)
+        canShowReceivedMessage = false
         if (!isViewingRecentMessage) {
             if (!tempMessage.isMessageSentByMe())
                 unreadMessageCount++
@@ -1854,7 +1884,8 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     /**
      * Called when the logged in successfully completed for the user.
      */
-    override fun handleLoggedIn() {
+    override fun onConnected() {
+        super.onConnected()
         viewModel.getProfileDetails()
     }
 
@@ -1949,7 +1980,16 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
      * Called when rosters collected successfully for the user.
      */
     override fun onMessagesClearedOrDeleted(messageIds: ArrayList<String>, jid: String) {
-        updateAdapter()
+        if (messageIds.isEmpty()) {
+            LogMessage.d(TAG, "onMessagesClearedOrDeleted message cleared")
+            messageId = Constants.EMPTY_STRING
+            parentViewModel.loadInitialData(messageId)
+        } else {
+            LogMessage.d(TAG, "onMessagesClearedOrDeleted message deleted")
+            messageIds.forEach {
+                refreshMessageAndUpdateAdapter(it, Constants.EMPTY_STRING)
+            }
+        }
     }
 
     override fun onPause() {
@@ -1996,7 +2036,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             }
         }
         LocalBroadcastManager.getInstance(this).registerReceiver(telephoneCallReceiver!!,
-            IntentFilter(GroupCallUtils.ACTION_PHONE_CALL_STATE_CHANGED))
+            IntentFilter(CallUtils.ACTION_PHONE_CALL_STATE_CHANGED))
     }
 
     /**
@@ -2058,14 +2098,14 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun smartReplySuggestionCallback() {
-        parentViewModel.getSuggestions().observe(this, {
+        parentViewModel.getSuggestions().observe(this) {
             suggestionCount = it.size
             if (isProfileObjectInitialized() && !profileDetails.isAdminBlocked && !profileDetails.isDeletedContact() && it.isNotEmpty()) {
                 suggestionLayout.show()
                 replySuggestionAdapter.setSmartReplySuggestions(it)
             } else
                 suggestionLayout.gone()
-        })
+        }
     }
 
     override fun onSuggestionClick(text: String) {
@@ -2075,7 +2115,6 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             else
                 smartReply = text
             sendSmartReplyMessage()
-            updateAdapter()
         }
     }
 
@@ -2104,13 +2143,14 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private val dateChangedBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             unregisterReceiver(this)
-            mainList.clear()
-            mainList.addAll(viewModel.getAllMessages(chat.toUser))
+            if (mainList.isNotEmpty()) {
+                parentViewModel.loadInitialData(mainList[firstCompletelyVisibleItemPosition].messageId)
+            }
         }
     }
 
     override fun restoreCompleted() {
-        viewModel.loadInitialData()
+        parentViewModel.loadInitialData(messageId)
     }
 
     private fun getKeyboardListener() = object : KeyboardHeightProvider.KeyboardListener {
@@ -2158,6 +2198,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 if (adminBlockStatus && userType == ChatType.TYPE_GROUP_CHAT) {
                     showGroupBlockedByAdminNotification()
                 } else {
+                    selectedMessageIdForReply = Constants.EMPTY_STRING
                     isAdminBlocked = adminBlockStatus
                     viewModel.getProfileDetails()
                     hideKeyboard()
@@ -2179,6 +2220,15 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private fun hideEmojiKeyboard() {
         if (emojiHandler.isEmojiShowing && (isAdminBlocked || isBlocked)) {
             emojiHandler.hideEmoji()
+        }
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        super.updateFeatureActions(features)
+        handleAttachmentRestriction()
+        setCallButtonVisibility()
+        if (ChatType.TYPE_GROUP_CHAT == chat.chatType) {
+            setUpGroupChatEditText()
         }
     }
 }

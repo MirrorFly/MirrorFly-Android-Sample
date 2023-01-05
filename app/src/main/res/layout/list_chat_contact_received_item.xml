@@ -120,7 +120,7 @@
                     android:layout_marginEnd="@dimen/margin_5"
                     android:layout_marginBottom="@dimen/margin_1"
                     android:contentDescription="@null"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toBottomOf="@+id/text_audio_time"
                     app:layout_constraintEnd_toStartOf="@+id/text_audio_time"
                     app:layout_constraintRight_toLeftOf="@+id/text_audio_time"

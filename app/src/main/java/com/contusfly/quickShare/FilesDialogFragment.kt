@@ -67,7 +67,7 @@ class FilesDialogFragment : DialogFragment() {
     private fun enableSwipeToDelete() {
         val swipeToDeleteCallback: SwipeToDeleteCallback = object : SwipeToDeleteCallback(requireContext()) {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, i: Int) {
-                val position = viewHolder.adapterPosition
+                val position = viewHolder.layoutPosition
                 mCallback!!.removeFile(mainList!![position])
                 fileListAdapter!!.removeItem(position)
                 if (mainList!!.isEmpty()) {

@@ -13,13 +13,12 @@ import com.contus.flycommons.MediaUploadStatus
 import com.contus.flycommons.models.MessageType
 import com.contusfly.adapters.ChatAdapter
 import com.contusfly.adapters.holders.DateViewHolder
+import com.contusfly.chat.MessageUtils
 import com.contusfly.gone
 import com.contusfly.show
-import com.contusfly.utils.ChatTimeOperations
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.media.MediaUploadDownloadManager
-import java.util.*
 
 /**
  * Helper class for Chat view Adapter
@@ -38,15 +37,14 @@ abstract class BaseChatAdapterHelper {
     }
 
     /**
-     * Returns message dates are equal or not
+     * Returns message dates are equal or not by validating previous message is date message
      *
      * @param position Position of the item
      * @return boolean True if dates are equal, false if not
      */
     protected fun isMessageDateEqual(messageList: List<ChatMessage>, position: Int): Boolean {
-        val message = messageList[position]
         val previousMessage = getPreviousMessage(messageList, position)
-        return previousMessage != null && isMessageDateEqual(message, previousMessage)
+        return previousMessage != null && MessageUtils.checkIsNotNotification(previousMessage)
     }
 
     /**
@@ -59,24 +57,6 @@ abstract class BaseChatAdapterHelper {
         return if (position > 0) {
             messageList[position - 1]
         } else null
-    }
-
-    /**
-     * Returns message dates are equal or not
-     *
-     * @param message1 Instance of the Message
-     * @param message2 Instance of the Message 2
-     * @return boolean True if dates are equal, false if not
-     */
-    private fun isMessageDateEqual(message1: ChatMessage, message2: ChatMessage): Boolean {
-        val chatTimeOperations = ChatTimeOperations()
-        val message1Date = chatTimeOperations.getDateInMilli(message1.getMessageSentTime())
-        val message2Date = chatTimeOperations.getDateInMilli(message2.getMessageSentTime())
-        val message1Calendar = Calendar.getInstance()
-        val message2Calendar = Calendar.getInstance()
-        message1Calendar.timeInMillis = message1Date
-        message2Calendar.timeInMillis = message2Date
-        return message1Calendar.compareTo(message2Calendar) == 0
     }
 
     /**

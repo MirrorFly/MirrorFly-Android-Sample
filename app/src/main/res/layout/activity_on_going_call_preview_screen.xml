@@ -130,7 +130,7 @@
 
             </LinearLayout>
 
-            <org.webrtc.SurfaceViewRenderer
+            <com.contus.webrtc.TextureViewRenderer
                 android:id="@+id/view_video_local"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

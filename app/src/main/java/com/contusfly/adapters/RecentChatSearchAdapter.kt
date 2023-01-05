@@ -17,25 +17,26 @@ import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.models.MessageType
 import com.contusfly.*
+import com.contusfly.databinding.RowProgressBarBinding
 import com.contusfly.databinding.RowSearchContactMessageBinding
 import com.contusfly.utils.*
 import com.contusfly.views.CustomTextView
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.models.RecentSearch
 import com.contusflysdk.utils.Utils
 import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  *
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class RecentChatSearchAdapter(val context: Context, private var recentSearchList: ArrayList<RecentSearch>)
+class RecentChatSearchAdapter(val context: Context, private var recentSearchList: ArrayList<com.contusfly.models.RecentSearch>)
     : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     /**
@@ -58,10 +59,15 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
      */
     private var recentChatCount: Int = 0
 
+    private var isLoadingAdded = false
+
     /**
      * Is called from recent chat or not
      */
     private var isRecentChat: Boolean = true
+
+    private var isPaginate:Boolean=false
+
 
     private lateinit var onSearchItemClicked: (Int) -> Unit
 
@@ -69,13 +75,17 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
         onSearchItemClicked = fn
     }
 
+    companion object {
+        private const val LOADING = 0
+        private const val ITEM = 1
+    }
     /**
      * Sets the recent search item and search key in the chat list view.
      *
      * @param recentChats Recent chat data
      * @param searchKey   Key to search
      */
-    fun setRecentSearch(recentChats: ArrayList<RecentSearch>, searchKey: String) {
+    fun setRecentSearch(recentChats: ArrayList<com.contusfly.models.RecentSearch>, searchKey: String) {
         this.recentSearchList = recentChats
         this.searchKey = searchKey
     }
@@ -84,8 +94,9 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
         this.recentChatCount = recentChatCount
     }
 
-    fun setRecentContactCount(recentContactCount: Int) {
+    fun setRecentContactCount(recentContactCount: Int,isPaginate:Boolean) {
         this.recentContactCount = recentContactCount
+        this.isPaginate=isPaginate
     }
 
     fun setRecentMessageCount(recentMessageCount: Int) {
@@ -97,38 +108,65 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
     }
 
     class RecentChatSearchViewHolder(var viewBinding: RowSearchContactMessageBinding) : RecyclerView.ViewHolder(viewBinding.root)
+    class ProgressViewHolder(var progressViewBinding: RowProgressBarBinding) : RecyclerView.ViewHolder(progressViewBinding.root)
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        val binding = RowSearchContactMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return RecentChatSearchViewHolder(binding)
+        return if (viewType == ITEM) {
+            val binding = RowSearchContactMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            RecentChatSearchViewHolder(binding)
+        }else{
+            val progressViewHolder = RowProgressBarBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            ProgressViewHolder(progressViewHolder)
+        }
+
     }
 
     override fun getItemCount(): Int {
         return this.recentSearchList.size
     }
 
+    override fun getItemViewType(position: Int): Int {
+        return if (recentSearchList[position].jid.isBlank())LOADING else ITEM
+    }
+
     @Suppress("NAME_SHADOWING")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val binding = holder as RecentChatSearchViewHolder
-        val item = ContactManager.getProfileDetails(this.recentSearchList[position].jid)
-        enableHeader(binding.viewBinding, position)
-        binding.viewBinding.searchRecentItem.setBackgroundResource(R.drawable.recycleritem_ripple)
-        val recent = this.recentSearchList[position]
-        when (recent.searchType) {
-            Constants.TYPE_SEARCH_RECENT -> item?.let { viewRecentChatItem(binding.viewBinding, position, it) }
-            Constants.TYPE_SEARCH_CONTACT -> item?.let { viewContactItem(binding.viewBinding, position, it) }
-            Constants.TYPE_SEARCH_MESSAGE -> item?.let { viewMessageItem(binding.viewBinding, position, it) }
-            else -> LogMessage.d(TAG, "Default block")
+        when(holder){
+            is RecentChatSearchViewHolder->{
+                val item = ProfileDetailsUtils.getProfileDetails(this.recentSearchList[position].jid)
+                enableHeader(holder.viewBinding, position)
+                holder.viewBinding.searchRecentItem.setBackgroundResource(R.drawable.recycleritem_ripple)
+                val recent = this.recentSearchList[position]
+                val item3: ProfileDetails?=this.recentSearchList[position].profileDetails
+                when (recent.searchType) {
+                    Constants.TYPE_SEARCH_RECENT -> item?.let { viewRecentChatItem(holder.viewBinding, position, it) }
+                    Constants.TYPE_SEARCH_CONTACT -> item3?.let { viewContactItem(holder.viewBinding, position, it) }
+                    Constants.TYPE_SEARCH_MESSAGE -> item?.let { viewMessageItem(holder.viewBinding, position, it) }
+                    else -> LogMessage.d(TAG, "Default block")
+                }
+                holder.viewBinding.searchRecentItem.setOnClickListener {
+                    if (position < recentSearchList.size) {
+                       recentSearchItemOnclick(position)
+                    }
+                }
+            }
+            is ProgressViewHolder -> {
+                holder.progressViewBinding.loadMoreProgress.show()
+            }
         }
 
-        binding.viewBinding.searchRecentItem.setOnClickListener {
-            if (position >= 0 && (recentSearchList[position].searchType != Constants.TYPE_SEARCH_RECENT))
+    }
+
+    private fun recentSearchItemOnclick(position: Int){
+        if (recentSearchList[position].searchType == Constants.TYPE_SEARCH_CONTACT)
+            ProfileDetailsUtils.addContact(recentSearchList[position].profileDetails)
+        if (position >= 0 && (recentSearchList[position].searchType != Constants.TYPE_SEARCH_RECENT))
+            onSearchItemClicked(position)
+        else {
+            val recent = FlyCore.getRecentChatOf(recentSearchList[position].jid)
+            if (!recent!!.isGroupInOfflineMode)
                 onSearchItemClicked(position)
-            else {
-                val recent = FlyCore.getRecentChatOf(recentSearchList[position].jid)
-                if (!recent!!.isGroupInOfflineMode)
-                    onSearchItemClicked(position)
-            }
         }
     }
 
@@ -180,8 +218,9 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
      * @param message Instance of the Message
      */
     private fun setMessageData(viewBinding: RowSearchContactMessageBinding, message: ChatMessage) {
-        val chatTimeOperations = ChatTimeOperations()
+        val chatTimeOperations = ChatTimeOperations(Calendar.getInstance())
         val time = chatTimeOperations.getRecentChatTime(context, message.getMessageSentTime())
+        viewBinding.searchTextRecentchatTime.show()
         viewBinding.searchTextRecentchatTime.text = time
         val msgType = message.getMessageType()
         try {
@@ -284,6 +323,27 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
         }, { viewBinding.searchImageContact.setImageResource(R.drawable.profile_img) })
     }
 
+    fun addLoadingFooter() {
+        if (!isLoadingAdded) {
+            isLoadingAdded = true
+            Log.d("XYZ","Loader added")
+            recentSearchList.add(com.contusfly.models.RecentSearch("","","","",false,ProfileDetails()))
+            notifyItemInserted(recentSearchList.size - 1)
+        }
+    }
+
+    fun removeLoadingFooter() {
+        if (isLoadingAdded) {
+            Log.d("XYZ","Loader removed")
+            isLoadingAdded = false
+            val loaderPosition = recentSearchList.indexOfFirst { it.jid.isNullOrBlank()  }
+            if (loaderPosition.isValidIndex()) {
+                recentSearchList.removeAt(loaderPosition)
+                notifyItemRemoved(loaderPosition)
+            }
+        }
+    }
+
     /**
      * Display the searched contact item
      *
@@ -295,6 +355,7 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
         try {
             with(viewBinding) {
                 searchRecentItem.alpha = 1.0f
+                viewBinding.searchTextRecentchatTime.gone()
                 if (emptyList<RecentSearch>() != this@RecentChatSearchAdapter.recentSearchList
                         && this@RecentChatSearchAdapter.recentSearchList[position].search!!) {
                     val startIndex = profileDetail.name.toLowerCase(Locale.getDefault()).indexOf(searchKey.toLowerCase(Locale.getDefault()))
@@ -402,7 +463,10 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
             viewBinding.viewSearchHeader.isClickable = false
             viewBinding.viewSearchHeader.isEnabled = false
             setSearchHeader(viewBinding.headerSearchRecent, position)
-        } else viewBinding.viewSearchHeader.gone()
+        } else if(isPaginate){
+            viewBinding.viewSearchHeader.gone()
+            setSearchHeader(viewBinding.headerSearchRecent, position)
+        }else viewBinding.viewSearchHeader.gone()
     }
 
     /**

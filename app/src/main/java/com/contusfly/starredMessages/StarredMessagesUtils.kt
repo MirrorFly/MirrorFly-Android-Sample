@@ -47,19 +47,19 @@ object StarredMessagesUtils {
         menu.findItem(R.id.action_share).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         menu.findItem(R.id.action_unfavourite).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         menu.findItem(R.id.action_copy).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        menu.findItem(R.id.action_delete).icon.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
+        menu.findItem(R.id.action_delete).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
-        menu.findItem(R.id.action_info).icon.setColorFilter(ContextCompat.getColor(context, R.color.color_text),
+        menu.findItem(R.id.action_info).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
-        menu.findItem(R.id.action_share).icon.setColorFilter(ContextCompat.getColor(context, R.color.color_text),
+        menu.findItem(R.id.action_share).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
-        menu.findItem(R.id.action_unfavourite).icon.setColorFilter(ContextCompat.getColor(context, R.color.color_text),
+        menu.findItem(R.id.action_unfavourite).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
-        menu.findItem(R.id.action_forward).icon.setColorFilter(ContextCompat.getColor(context, R.color.color_text),
+        menu.findItem(R.id.action_forward).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
-        menu.findItem(R.id.action_copy).icon.setColorFilter(ContextCompat.getColor(context, R.color.color_text),
+        menu.findItem(R.id.action_copy).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
-        menu.findItem(R.id.action_delete).icon.setColorFilter(ContextCompat.getColor(context, R.color.color_text),
+        menu.findItem(R.id.action_delete).icon?.setColorFilter(ContextCompat.getColor(context!!, R.color.color_text),
                 PorterDuff.Mode.MULTIPLY)
         return menu
     }

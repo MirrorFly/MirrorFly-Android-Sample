@@ -6,10 +6,6 @@
 package com.contusfly.adapters.viewhelpers
 
 import android.content.Context
-import android.os.Build
-import android.text.Html
-import android.text.SpannableStringBuilder
-import android.text.Spanned
 import com.contus.flycommons.MediaDownloadStatus
 import com.contus.flycommons.MediaUploadStatus
 import com.contusfly.*
@@ -21,12 +17,6 @@ import com.contusfly.interfaces.MessageItemListener
 import com.contusfly.utils.*
 import com.contusflysdk.api.models.ChatMessage
 import kotlin.math.ceil
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.media.ThumbnailUtils
-import android.provider.MediaStore
 import com.contusfly.models.MediaStatus
 
 
@@ -62,9 +52,7 @@ class ImageItemViewHelper(private val context: Context, private val messageItemL
     fun senderImageItemView(messageItem: ChatMessage, imgViewHolder: ImageSentViewHolder, filePath: String?, time: String?,
                             base64Img: String?, searchEnabled: Boolean = false, searchKey: String = emptyString()) {
         with(imgViewHolder) {
-            val fileUploadStatus = Utils.returnEmptyStringIfNull(messageItem.getMediaChatMessage().getMediaUploadStatus().toString())
-
-            handleImageLoading(messageItem, imgViewHolder, fileUploadStatus, filePath, base64Img)
+            handleImageLoading(imgViewHolder, filePath, base64Img)
 
             /*
               Check if the image item contain caption to show
@@ -94,23 +82,9 @@ class ImageItemViewHelper(private val context: Context, private val messageItemL
         }
     }
 
-    fun handleImageLoading(messageDetail: ChatMessage, imgViewHolder: ImageSentViewHolder,
-                           fileUploadStatus: String, filePath: String?, base64Img: String?) {
+    fun handleImageLoading(imgViewHolder: ImageSentViewHolder, filePath: String?, base64Img: String?) {
         with(imgViewHolder) {
-            val bmOptions = BitmapFactory.Options()
-            var bitmap = BitmapFactory.decodeFile(filePath, bmOptions)
-            bitmap = Bitmap.createScaledBitmap(
-                bitmap!!,
-                bitmap.getWidth(),
-                bitmap.getHeight(),
-                true)
-            val thumbnail: Drawable = BitmapDrawable(context.resources, bitmap)
-            if (messageDetail.isImageMessage() && (fileUploadStatus.toInt() == MediaUploadStatus.MEDIA_UPLOADING
-                        || fileUploadStatus.toInt() == MediaUploadStatus.MEDIA_NOT_UPLOADED)) {
-                ImageUtils.loadImageInView(context, filePath ?: "", imageSenderImg,
-                    base64Img ?: "", thumbnail)
-            } else ImageUtils.loadImageInView(context, filePath ?: "", imageSenderImg,
-                base64Img ?: "", thumbnail)
+            ImageUtils.loadImageInView(context, filePath ?: "", imageSenderImg, base64Img ?: "")
         }
     }
 
@@ -278,11 +252,7 @@ class ImageItemViewHelper(private val context: Context, private val messageItemL
 
     fun handleReceiverImageLoading(imgViewHolder: ImageReceivedViewHolder, filePath: String?, base64Img: String?){
         with(imgViewHolder) {
-            val decodedString: ByteArray = android.util.Base64.decode(base64Img, android.util.Base64.DEFAULT)
-            val thumb: Bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
-            val thumbnail: Drawable = BitmapDrawable(context.resources, thumb)
-            ImageUtils.loadImageInView(context, filePath ?: "", imgRevImage, base64Img
-                ?: "", thumbnail)
+            ImageUtils.loadImageInView(context, filePath ?: "", imgRevImage, base64Img ?: "")
         }
     }
 
@@ -357,7 +327,7 @@ class ImageItemViewHelper(private val context: Context, private val messageItemL
      */
     private fun getHtmlChatMessageText(message: String): String {
         val text = context.getString(R.string.chat_text)
-        return message + text
+        return message + text + text
     }
 
     /**
@@ -365,18 +335,8 @@ class ImageItemViewHelper(private val context: Context, private val messageItemL
      *
      * @param message message date which is sent/received
      */
-    private fun getSpannedText(message: String?): Spanned {
-        val chatMessage = getHtmlChatMessageText(message!!).replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
-        val htmlText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-            Html.fromHtml(getHtmlChatMessageText(chatMessage), Html.FROM_HTML_MODE_LEGACY)
-        else
-            Html.fromHtml(getHtmlChatMessageText(chatMessage))
-
-        return if (htmlText.isEmpty() && chatMessage != "")
-            SpannableStringBuilder(getHtmlChatMessageText(chatMessage))
-        else if (htmlText.isEmpty())
-            SpannableStringBuilder(message)
-        else htmlText
+    private fun getSpannedText(message: String?): String {
+        return getHtmlChatMessageText(message!!)
     }
 
 }

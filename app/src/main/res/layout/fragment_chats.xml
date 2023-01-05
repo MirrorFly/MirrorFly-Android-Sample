@@ -454,15 +454,44 @@
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="0.2dp"
+            android:layout_height="1dp"
             android:layout_marginStart="@dimen/margin_18"
             android:layout_marginEnd="@dimen/margin_18"
             android:background="@color/color_list_divider_color" />
 
+        <RelativeLayout
+            android:id="@+id/layout_chat_backup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingStart="@dimen/padding_18"
+            android:paddingTop="24dp"
+            android:paddingEnd="@dimen/padding_18"
+            android:paddingBottom="24dp"
+            android:visibility="gone">
+
+            <com.contusfly.views.CustomTextView
+                android:id="@+id/text_chat_backup"
+                style="@style/TextMediumNotificationStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_toStartOf="@+id/chat_backup_image"
+                android:text="@string/chat_backup" />
+
+            <ImageView
+                android:id="@+id/chat_backup_image"
+                android:layout_width="18dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="@dimen/margin_10dp"
+                android:contentDescription="@null"
+                app:srcCompat="@drawable/ic_right_icon" />
+        </RelativeLayout>
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="0.2dp"
+            android:layout_height="1dp"
             android:layout_marginStart="@dimen/margin_18"
             android:layout_marginEnd="@dimen/margin_18"
             android:visibility="gone"

@@ -27,7 +27,7 @@
                 android:layout_width="@dimen/margin_50"
                 android:layout_height="@dimen/margin_50"
                 android:contentDescription="@string/title_app_name"
-                android:src="@drawable/ic_profile"
+                android:src="@drawable/ic_sng_bg"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintStart_toStartOf="parent"

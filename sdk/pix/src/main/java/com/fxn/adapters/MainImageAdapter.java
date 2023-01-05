@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.request.RequestOptions;
@@ -49,7 +50,7 @@ public class MainImageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         int size = (Utility.WIDTH / SPAN_COUNT) - (MARGIN / 2);
         layoutParams = new FrameLayout.LayoutParams(size, size);
         layoutParams.setMargins(MARGIN, MARGIN - (MARGIN / 2), MARGIN, MARGIN - (MARGIN / 2));
-        options = new RequestOptions().override(300).transform(new CenterCrop()).transform(new FitCenter());
+        options = new RequestOptions().override(300).transform(new CenterCrop()).transform(new FitCenter()).diskCacheStrategy(DiskCacheStrategy.ALL);
         glide = Glide.with(context);
     }
 

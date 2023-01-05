@@ -37,7 +37,7 @@
 
 
         <TextView
-            android:id="@+id/document_attachment"
+            android:id="@+id/first_attachment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -53,7 +53,7 @@
 
 
         <TextView
-            android:id="@+id/camera_attachment"
+            android:id="@+id/second_attchment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -70,7 +70,7 @@
 
 
         <TextView
-            android:id="@+id/gallery_attachment"
+            android:id="@+id/third_attachment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -87,7 +87,7 @@
 
 
         <TextView
-            android:id="@+id/audio_attachment"
+            android:id="@+id/fourth_attachment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -104,7 +104,7 @@
 
 
         <TextView
-            android:id="@+id/contact_attachment"
+            android:id="@+id/fifth_attachment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -120,7 +120,7 @@
             app:layout_constraintTop_toTopOf="@id/guideline3" />
 
         <TextView
-            android:id="@+id/location_attachment"
+            android:id="@+id/sixth_attachment"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"

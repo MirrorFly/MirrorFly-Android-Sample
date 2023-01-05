@@ -14,7 +14,6 @@ import com.contus.flycommons.ChatTypeEnum
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import java.util.*
 
@@ -79,7 +78,7 @@ object NotifyRefererUtils {
                                  delimiter: String): String {
         var appendedContent = messageContent
         if (ChatTypeEnum.groupchat == message.getMessageChatType()) {
-            val groupUser = getProfileDetails(message.getChatUserJid())
+            val groupUser = ProfileDetailsUtils.getProfileDetails(message.getChatUserJid())
             appendedContent = groupUser!!.name + delimiter + messageContent
         }
         return appendedContent
@@ -111,7 +110,7 @@ object NotifyRefererUtils {
      * @return
      */
     @TargetApi(Build.VERSION_CODES.O)
-    fun buildNotificationChannel(packageContext: Context, notificationManager: NotificationManager?): String {
+    fun buildNotificationChannel(packageContext: Context, notificationManager: NotificationManager?, chatChannelId: String? = null): String {
         if (SharedPreferenceManager.getBoolean(Constants.KEY_CHANGE_FLAG)) {
             SharedPreferenceManager.setBoolean(Constants.KEY_CHANGE_FLAG, false)
             deleteNotificationChannels(notificationManager)
@@ -123,11 +122,10 @@ object NotifyRefererUtils {
         val randomNumberGenerator = Random(System.currentTimeMillis())
         val channelName: CharSequence = packageContext.resources
                 .getString(R.string.channel_name)
-        val channelId = Integer.toString(randomNumberGenerator.nextInt())
+        val channelId = chatChannelId ?: randomNumberGenerator.nextInt().toString()
         val cImportance = if (isVibrate) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         val channelDescription = packageContext.resources.getString(R.string.channel_description)
         val channelImportance = if (isRing && !isLastMessageRecalled) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
-        deleteNotificationChannels(notificationManager)
         if (isRing) {
             val highPriorityChannel = NotificationChannel(channelId, channelName, channelImportance)
             highPriorityChannel.setShowBadge(true)
@@ -160,14 +158,13 @@ object NotifyRefererUtils {
             priorityChannel.setSound(null, null)
             createdChannel = priorityChannel
         } else {
-            val lowPrioritychannel = NotificationChannel(channelId, channelName, channelImportance)
-            lowPrioritychannel.description = channelDescription
-            lowPrioritychannel.enableLights(true)
-            lowPrioritychannel.lightColor = Color.GREEN
-            createdChannel = lowPrioritychannel
+            val lowPriorityChannel = NotificationChannel(channelId, channelName, channelImportance)
+            lowPriorityChannel.description = channelDescription
+            lowPriorityChannel.enableLights(true)
+            lowPriorityChannel.lightColor = Color.GREEN
+            createdChannel = lowPriorityChannel
         }
-        if (notificationManager != null)
-            notificationManager?.createNotificationChannel(createdChannel)
+        notificationManager?.createNotificationChannel(createdChannel)
         SharedPreferenceManager.setString(Constants.KEY_CHANNEL_SINGLE_ID, createdChannel.id)
         return createdChannel.id
     }
@@ -185,7 +182,7 @@ object NotifyRefererUtils {
             if (mNotificationManager != null) {
                 notificationChannelList = mNotificationManager.notificationChannels
                 for (notificationChannel in notificationChannelList)
-                    if(!notificationChannel.name.equals("com.contusflysdk.MediaDownload_NotificationChannel")
+                    if(!notificationChannel.name.equals("Download media")
                         && !notificationChannel.name.equals("Email Contacts operations")
                         && !notificationChannel.name.equals("Contact operations")
                         && !notificationChannel.id.equals("calling")

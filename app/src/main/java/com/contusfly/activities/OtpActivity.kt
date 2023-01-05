@@ -1,5 +1,6 @@
 package com.contusfly.activities
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ProgressDialog
@@ -16,7 +17,9 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.AppCompatEditText
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProviders
 import com.contus.flycommons.*
 import com.contus.flycommons.TAG
@@ -24,7 +27,6 @@ import com.contus.flynetwork.ApiCalls
 import com.contus.webrtc.api.CallManager
 import com.contusfly.R
 import com.contusfly.*
-import com.contusfly.BuildConfig
 import com.contusfly.databinding.ActivityOtpBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.helpers.OtpInteractor
@@ -36,17 +38,20 @@ import com.contusfly.utils.*
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager
+import com.contusfly.utils.Utils.clearOldData
 import com.contusfly.viewmodels.RegisterViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.*
 import com.contusflysdk.api.notification.PushNotificationManager
 import com.contusflysdk.utils.ChatUtilsOperations
-import com.contusflysdk.utils.UserUtils
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
 import dagger.android.AndroidInjection
+import io.michaelrocks.libphonenumber.android.NumberParseException
 import io.michaelrocks.libphonenumber.android.PhoneNumberUtil
+import kotlinx.android.synthetic.main.chat_toolbar.*
+import io.michaelrocks.libphonenumber.android.Phonenumber
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.lang.Runnable
@@ -55,12 +60,14 @@ import java.util.*
 import javax.inject.Inject
 import javax.inject.Named
 import kotlin.coroutines.CoroutineContext
+
 /**
  *
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertDialog.CommonDialogClosedListener, CoroutineScope {
+class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
+    CommonAlertDialog.CommonDialogClosedListener, CoroutineScope {
 
     private lateinit var otpBinding: ActivityOtpBinding
 
@@ -144,6 +151,8 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
      */
     private var progressTimeoutRunnable: Runnable? = null
 
+    private lateinit var telephonyManager : TelephonyManager
+
     @Inject
     lateinit var registerViewModelFactory: AppViewModelFactory
     val registerViewModel by lazy {
@@ -156,12 +165,14 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
+        AutoStartHelper.instance.getAutoStartPermission(this@OtpActivity)
         super.onCreate(savedInstanceState)
         otpBinding = ActivityOtpBinding.inflate(layoutInflater)
         setContentView(otpBinding.root)
-
+        telephonyManager = activityContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         setupCountryCode()
-        val dialCode = "+" + PhoneNumberUtil.createInstance(applicationContext).getCountryCodeForRegion(countryCode)
+        val dialCode = "+" + PhoneNumberUtil.createInstance(applicationContext)
+            .getCountryCodeForRegion(countryCode)
         SharedPreferenceManager.setString(Constants.DIAL_CODE, dialCode)
         SharedPreferenceManager.setString(Constants.COUNTRY_CODE, countryCode)
         otpBinding.toolbar.root.visibility = View.GONE
@@ -178,7 +189,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
 
     override fun onResume() {
         super.onResume()
-        if(otpBinding.edtMobileNo.hasFocus()) {
+        if (otpBinding.edtMobileNo.hasFocus()) {
             otpBinding.edtMobileNo.requestFocus()
             otpBinding.edtMobileNo.showSoftKeyboard()
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
@@ -190,7 +201,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     private fun setupInitialData(dialCode: String) {
         otpBinding.txtCountry.text = country
         otpBinding.txtCode.text = dialCode
-        otpBinding.edtMobileNo.setText(Utils.returnEmptyStringIfNull(intent.getStringExtra(Constants.MOBILE_NO)))
+        setupDefaultMobileNo()
         otpViewPresenter = OtpPresenter(otpBinding)
         otpViewPresenter.attach(this)
         otpInteractor = OtpInteractor(this, otpBinding, apiCalls, exceptionHandler)
@@ -203,21 +214,65 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         clickListener()
         handler = Handler(Looper.getMainLooper())
 
-        otpBinding.txtTermsAndConditions.text = String.format(getString(R.string.terms_and_privacy_policy_label), getString(R.string.terms_and_condition_label), getString(R.string.privacy_policy_label))
+        otpBinding.txtTermsAndConditions.text = String.format(
+            getString(R.string.terms_and_privacy_policy_label),
+            getString(R.string.terms_and_condition_label),
+            getString(R.string.privacy_policy_label)
+        )
         otpBinding.txtTermsAndConditions.makeLinks(
             Pair(getString(R.string.terms_and_condition_label), View.OnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.terms_and_conditions_link))))
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(getString(R.string.terms_and_conditions_link))
+                    )
+                )
             }),
             Pair(getString(R.string.privacy_policy_label), View.OnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.privacy_policy_link))))
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse(getString(R.string.privacy_policy_link))
+                    )
+                )
             })
         )
+    }
+
+    private fun isReadDefaultPhoneNumberPermissionAllowed(context: Context?): Boolean {
+        val readDefaultPhoneNumber =
+            ContextCompat.checkSelfPermission(context!!, Manifest.permission.READ_PHONE_STATE)
+        val readDefaultPhoneNumberMaxApiLevel =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_NUMBERS)
+
+        return readDefaultPhoneNumber == PackageManager.PERMISSION_GRANTED && readDefaultPhoneNumberMaxApiLevel == PackageManager.PERMISSION_GRANTED
+    }
+
+
+    private fun setupDefaultMobileNo() {
+
+        val requestPhoneNumberRead = registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()) {permissions ->
+                if (!permissions.containsValue(false)) {
+                    otpBinding.edtMobileNo.setText(splitPhoneNumber())
+                }
+            }
+
+        if (!isReadDefaultPhoneNumberPermissionAllowed(context)) {
+            requestPhoneNumberRead.launch(arrayOf(
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.READ_PHONE_NUMBERS
+                ))
+        } else {
+            otpBinding.edtMobileNo.setText(splitPhoneNumber())
+        }
     }
 
     /*
     * Setup Country code */
     private fun setupCountryCode() {
-        val telephonyManager = activityContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        val telephonyManager =
+            activityContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         countryCode = telephonyManager.simCountryIso.toUpperCase()
         val countryName = CountriesListObject.getCountriesListByCountryCode(this, countryCode)
         if (countryName.isNotEmpty()) {
@@ -391,6 +446,14 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     }
 
     /**
+     * Make auto login after otp received
+     */
+
+    override fun otpAutoLogin() {
+        onClick(otpBinding.viewVerify)
+    }
+
+    /**
      * make the otp text box empty
      *
      * @param editTexts array of edit text
@@ -411,9 +474,12 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
      * @return return the entered otp
      */
     override fun getStringFromOtpTextView(editTexts: Array<AppCompatEditText>): String {
-        return (editTexts[0].text.toString().trim { it <= ' ' } + editTexts[1].text.toString().trim { it <= ' ' }
-                + editTexts[2].text.toString().trim { it <= ' ' } + editTexts[3].text.toString().trim { it <= ' ' }
-                + editTexts[4].text.toString().trim { it <= ' ' } + editTexts[5].text.toString().trim { it <= ' ' })
+        return (editTexts[0].text.toString().trim { it <= ' ' } + editTexts[1].text.toString()
+            .trim { it <= ' ' }
+                + editTexts[2].text.toString().trim { it <= ' ' } + editTexts[3].text.toString()
+            .trim { it <= ' ' }
+                + editTexts[4].text.toString().trim { it <= ' ' } + editTexts[5].text.toString()
+            .trim { it <= ' ' })
     }
 
     override fun getOtpProgress(): ProgressDialog? {
@@ -459,16 +525,22 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     override fun showUserAccountDeviceStatus() {
         manageAccount = ManageAccount.REGISTER
         FlyCore.logoutOfChatSDK(FlyCallback { _, _, _ -> })
-        mDialog!!.showAlertDialog(activityContext.getString(R.string.already_logged),
-            activityContext.getString(R.string.yes_label), activityContext.getString(R.string.no_label),
-            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false)
+        mDialog!!.showAlertDialog(
+            activityContext.getString(R.string.already_logged),
+            activityContext.getString(R.string.yes_label),
+            activityContext.getString(R.string.no_label),
+            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL,
+            false
+        )
     }
 
     override fun showUserBlockedDialog() {
         manageAccount = ManageAccount.BLOCK_ACCOUNT
-        mDialog!!.showAlertDialog(activityContext.getString(R.string.account_blocked_label),
+        mDialog!!.showAlertDialog(
+            activityContext.getString(R.string.account_blocked_label),
             activityContext.getString(R.string.ok_label), Constants.EMPTY_STRING,
-            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false)
+            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, false
+        )
 
     }
 
@@ -479,7 +551,8 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
                 progress.show()
                 setOtpTextViewEmpty(getOtpEditText())
                 otpViewPresenter.validateAndSendOtp()
-                val imm: InputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val imm: InputMethodManager =
+                    getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
             }
             otpBinding.txtResend -> {
@@ -494,13 +567,16 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
                 otpViewPresenter.disableOtpAndOperation()
                 otpBinding.edtMobileNo.setText("")
                 otpBinding.edtMobileNo.requestFocus()
-                val imm: InputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val imm: InputMethodManager =
+                    getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
             }
             otpBinding.txtCountry -> {
-                startActivityForResult(Intent(this, CountryListActivity::class.java)
-                    .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                    Constants.COUNTRY_REQUEST_CODE)
+                startActivityForResult(
+                    Intent(this, CountryListActivity::class.java)
+                        .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                    Constants.COUNTRY_REQUEST_CODE
+                )
             }
             otpBinding.viewVerify -> {
                 if (AppUtils.isNetConnected(this@OtpActivity)) {
@@ -510,12 +586,21 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
                         otpBinding.viewVerify.visibility = View.GONE
                     } else {
                         if (TextUtils.isEmpty(otp))
-                            CustomToast.show(activityContext, activityContext.getString(R.string.enter_otp_label))
+                            CustomToast.show(
+                                activityContext,
+                                activityContext.getString(R.string.enter_otp_label)
+                            )
                         else
-                            CustomToast.show(activityContext, activityContext.getString(R.string.enter_valid_otp_label))
+                            CustomToast.show(
+                                activityContext,
+                                activityContext.getString(R.string.enter_valid_otp_label)
+                            )
                     }
                 } else
-                    CustomToast.show(activityContext, activityContext.getString(R.string.error_check_internet))
+                    CustomToast.show(
+                        activityContext,
+                        activityContext.getString(R.string.error_check_internet)
+                    )
             }
         }
     }
@@ -526,7 +611,6 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
      * false- follow the normal flow along with db clearing process
      */
     private fun checkCurrentUser() {
-        UserUtils().clearUserDataWithoutpPreference()
         SharedPreferenceManager.setString(Constants.USER_MOBILE_NUMBER, mobile)
         handleProgress()
     }
@@ -538,7 +622,11 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         progressTimeoutRunnable = Runnable {
             if (::progress.isInitialized && progress.isShowing && this@OtpActivity.isDestroyed) {
                 progress.dismiss()
-                Toast.makeText(activityContext, getString(R.string.error_check_internet), Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    activityContext,
+                    getString(R.string.error_check_internet),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
         handler!!.postDelayed(progressTimeoutRunnable!!, LOGIN_TIME_OUT)
@@ -557,19 +645,48 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         ChatManager.isActivityStartedForResult = false
         if (resultCode == Activity.RESULT_OK && data != null) {
             otpBinding.txtCountry.text = data.getStringExtra(Constants.COUNTRY_NAME)
-            otpBinding.txtCode.text = Utils.returnEmptyStringIfNull(data.getStringExtra(Constants.DIAL_CODE))
+            otpBinding.txtCode.text =
+                Utils.returnEmptyStringIfNull(data.getStringExtra(Constants.DIAL_CODE))
             countryCode = Utils.returnEmptyStringIfNull(data.getStringExtra(Constants.COUNTRY_CODE))
-            SharedPreferenceManager.setString(Constants.DIAL_CODE,
-                data.getStringExtra(Constants.DIAL_CODE))
+            SharedPreferenceManager.setString(
+                Constants.DIAL_CODE,
+                data.getStringExtra(Constants.DIAL_CODE)
+            )
             SharedPreferenceManager.setString(Constants.COUNTRY_CODE, countryCode)
             ChatManager.setUserCountryISOCode(countryCode)
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == RequestAppPermissionUtils.PERMISSION_REQUEST_READ_CONTACTS && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_DENIED)
-            CustomToast.show(applicationContext, resources.getString(R.string.verification_code_label))
+            CustomToast.show(
+                applicationContext,
+                resources.getString(R.string.verification_code_label)
+            )
+    }
+
+    /**
+     * Split country code and phone number
+     */
+
+    private fun splitPhoneNumber():String{
+        var nationalNumber=""
+        try {
+            val phoneUtil: PhoneNumberUtil = PhoneNumberUtil.createInstance(activity)
+            val numberProto: Phonenumber.PhoneNumber = phoneUtil.parse(
+                telephonyManager.line1Number,
+                telephonyManager.simCountryIso.toUpperCase(Locale.getDefault())
+            )
+            nationalNumber = numberProto.nationalNumber.toString()
+        }catch (e: NumberParseException){
+            LogMessage.e(Constants.TAG,e)
+        }
+        return nationalNumber
     }
 
     /**
@@ -593,7 +710,10 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
             manageAccount = ManageAccount.ON_REGISTER
 
             FlyCore.registerUser(mobile!!, regId) { isSuccess, _, data ->
-                if (isSuccess){
+                if (isSuccess) {
+                    val isNewUser = data["is_new_user"] as Boolean
+                    if (isNewUser)
+                        clearOldData(this)
                     renderUserRegistrationResponseData(data.getData() as JSONObject)
                 } else {
                     showErrorResponse(data)
@@ -609,7 +729,12 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
     private fun showErrorResponse(data: HashMap<String, Any>) {
         dismissProgress()
         if (data.getHttpStatusCode() == 403) {
-            startActivity(Intent(this, AdminBlockedActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+            startActivity(
+                Intent(
+                    this,
+                    AdminBlockedActivity::class.java
+                ).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            )
             finish()
         } else {
             otpBinding.viewVerify.visibility = View.VISIBLE
@@ -633,12 +758,14 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
             SharedPreferenceManager.setString(Constants.SENDER_USER_JID, FlyUtils.getJid(username))
             SharedPreferenceManager.setString(Constants.USER_JID, FlyUtils.getJid(username))
 
-            PushNotificationManager.updateFcmToken(SharedPreferenceManager.getString(Constants.FIRE_BASE_TOKEN), object : ChatActionListener {
-                override fun onResponse(isSuccess: Boolean, message: String) {
-                    if (isSuccess)
-                        LogMessage.e(TAG, "Token updated successfully")
-                }
-            })
+            PushNotificationManager.updateFcmToken(
+                SharedPreferenceManager.getString(Constants.FIRE_BASE_TOKEN),
+                object : ChatActionListener {
+                    override fun onResponse(isSuccess: Boolean, message: String) {
+                        if (isSuccess)
+                            LogMessage.e(TAG, "Token updated successfully")
+                    }
+                })
             sendLoginRequest()
 
         } catch (e: Exception) {
@@ -666,23 +793,12 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
      */
     private fun deleteUserAccount() {
         progress.show()
-        UserUtils().clearUserData()
-        LogMessage.d("Userdata cleared", "")
         CommonUtils.navigateUserToLoggedOutUI(applicationContext)
     }
 
     private fun sendLoginRequest() {
         ChatManager.connect()
         isLoginRequestSent = true
-    }
-
-
-    private fun goToProfile() {
-        dismissProgress()
-        startActivity(Intent(this, ProfileStartActivity::class.java).putExtra(Constants.IS_FIRST_LOGIN, true).putExtra(Constants.FROM_SPLASH, true)
-            .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK))
-        GroupManager.getAllGroups(true) { _, _, _ -> }
-        finish()
     }
 
     override fun listOptionSelected(position: Int) {
@@ -693,9 +809,22 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener, CommonAlertD
         get() = Dispatchers.Default + Job()
 
     override fun onConnected() {
-        if (SharedPreferenceManager.getString(Constants.SENDER_USER_JID).isNotEmpty()){
+        if (SharedPreferenceManager.getString(Constants.SENDER_USER_JID).isNotEmpty()) {
             ChatManager.setUserCountryISOCode(countryCode)
             goToProfile()
         }
     }
+
+    private fun goToProfile() {
+        dismissProgress()
+        startActivity(
+            Intent(this, ProfileStartActivity::class.java).putExtra(Constants.IS_FIRST_LOGIN, true)
+                .putExtra(Constants.FROM_SPLASH, true)
+                .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        GroupManager.getAllGroups(true) { _, _, _ -> }
+        finish()
+    }
+
+
 }

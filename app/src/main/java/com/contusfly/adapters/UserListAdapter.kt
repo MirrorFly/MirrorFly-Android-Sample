@@ -1,9 +1,6 @@
 package com.contusfly.adapters
 
 import android.content.Context
-import android.graphics.Color
-import android.text.Spannable
-import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,13 +9,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallManager
 import com.contusfly.*
+import com.contusfly.adapters.holders.ProgressViewHolder
 import com.contusfly.databinding.RowContactItemBinding
 import com.contusfly.databinding.RowProgressBarBinding
 import com.contusfly.interfaces.ContactHelperListener
-import com.contusfly.utils.ChatMessageUtils
-import com.contusfly.utils.Constants
-import com.contusfly.utils.EmojiUtils
-import com.contusfly.utils.ProfileDetailsUtils
+import com.contusfly.utils.*
 import com.contusfly.views.CommonAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.FlyCore
@@ -34,7 +29,6 @@ class UserListAdapter(val context: Context, private val commonAlertDialog: Commo
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     class ContactsViewHolder(var contactViewBinding: RowContactItemBinding) : BaseViewHolder(contactViewBinding.root)
-    class ProgressViewHolder(var progressViewBinding: RowProgressBarBinding) : BaseViewHolder(progressViewBinding.root)
 
     private var profilesList: ArrayList<ProfileDetails> = arrayListOf()
 
@@ -45,7 +39,7 @@ class UserListAdapter(val context: Context, private val commonAlertDialog: Commo
     private var loaderPosition = -1
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return if (viewType == ITEM) {
+        return if (viewType == AppConstants.ITEM) {
             val contactsViewHolder = RowContactItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             ContactsViewHolder(contactsViewHolder)
         } else {
@@ -55,7 +49,7 @@ class UserListAdapter(val context: Context, private val commonAlertDialog: Commo
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if (profilesList[position].jid.isNullOrBlank()) LOADING else ITEM
+        return if (profilesList[position].jid.isNullOrBlank()) AppConstants.LOADING else AppConstants.ITEM
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -71,11 +65,6 @@ class UserListAdapter(val context: Context, private val commonAlertDialog: Commo
 
     override fun getItemCount(): Int {
         return profilesList.size
-    }
-
-    companion object {
-        private const val LOADING = 0
-        private const val ITEM = 1
     }
 
     private fun bindContactData(

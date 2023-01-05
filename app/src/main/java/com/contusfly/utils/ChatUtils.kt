@@ -5,10 +5,12 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.text.Html
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.contus.call.CallConstants
-import com.contus.call.utils.GroupCallUtils
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallManager
 import com.contusfly.BuildConfig
@@ -183,7 +185,7 @@ object ChatUtils {
     fun navigateToOnGoingCallPreviewScreen(context: Context, userJid: String, url: String): Boolean {
         val callLink = url.replace(BuildConfig.WEB_CHAT_LOGIN, "")
         if (AppUtils.isNetConnected(context)) {
-            return if (GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall()) {
+            return if (CallManager.isOnGoingCall()) {
                 val onGngCallLink = CallManager.getCallLink()
                 if (onGngCallLink == callLink) {
                     context.startActivity(Intent(context, GroupCallActivity::class.java))
@@ -213,5 +215,37 @@ object ChatUtils {
             context.getString(R.string.action_ok),
             context.getString(R.string.action_cancel),
             CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL)
+    }
+
+    /**
+     * Converts message to a valid spanned text
+     *
+     * @param message message date which is sent/received
+     */
+    fun getSpannedText(context: Context, message: String?): Spanned {
+        val htmlText: Spanned
+        val chatMessage = getHtmlChatMessageText(context, message!!).replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
+        htmlText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            Html.fromHtml(getHtmlChatMessageText(context, chatMessage), Html.FROM_HTML_MODE_LEGACY)
+        else
+            Html.fromHtml(getHtmlChatMessageText(context, chatMessage))
+
+        return if (htmlText.isEmpty() && chatMessage != "")
+            SpannableStringBuilder(getHtmlChatMessageText(context, chatMessage))
+        else
+            htmlText
+    }
+
+
+    /**
+     * Returns Spanned string by adding HTML empty text to avoid overlap with time view in
+     * FrameLayout
+     *
+     * @param message Message content
+     * @return Spanned Result spanned text with space
+     */
+    private fun getHtmlChatMessageText(context: Context, message: String): String {
+        val text = context.getString(R.string.chat_text)
+        return message + text
     }
 }

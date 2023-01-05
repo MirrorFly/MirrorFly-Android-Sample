@@ -14,13 +14,13 @@ import com.contus.call.CallGridSpacingItemDecoration
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.CallStatus
 import com.contus.webrtc.api.CallManager
-import com.contus.call.utils.GroupCallUtils
 import com.contusfly.*
 import com.contusfly.call.groupcall.listeners.ActivityOnClickListener
 import com.contusfly.databinding.LayoutCallConnectedBinding
 import com.contusfly.utils.Constants
 import com.contusfly.utils.MediaUtils
 import com.contusfly.utils.SharedPreferenceManager
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.utils.Utils
 import com.contusfly.call.groupcall.*
 import com.contusfly.call.groupcall.listeners.BaseViewOnClickListener
@@ -34,7 +34,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.call.SpeakingIndicatorListener
 import com.contusfly.call.SetDrawable
 import com.contusfly.call.groupcall.utils.UserMuteStatus
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusfly.utils.ProfileDetailsUtils
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -71,12 +71,12 @@ class CallConnectedViewHelper(
 
         //Fix for List view shown when call converted into one to one call
         binding.callUsersRecyclerview.setOnTouchListener { _, motionEvent ->
-            GroupCallUtils.isOneToOneCall() || motionEvent.pointerCount > 1
+            CallManager.isOneToOneCall() || motionEvent.pointerCount > 1
         }
 
         //Fix for Local view shown when call converted into one to many call
         binding.viewVideoLocal.setOnTouchListener { _, _ ->
-            !GroupCallUtils.isOneToOneCall()
+            !CallManager.isOneToOneCall()
         }
 
         initGridAdapter()
@@ -97,13 +97,13 @@ class CallConnectedViewHelper(
      */
     private fun initGridAdapter() {
         val userList = ArrayList<String>()
-        for (userJid in GroupCallUtils.getAvailableCallUsersList()) {
+        for (userJid in CallManager.getCallUsersList()) {
             if (!callUserGridAdapter.gridCallUserList.contains(userJid)) {
                 userList.add(userJid)
             }
         }
-        if (!callUserGridAdapter.gridCallUserList.contains(GroupCallUtils.getLocalUserJid())) {
-            userList.add(GroupCallUtils.getLocalUserJid())
+        if (!callUserGridAdapter.gridCallUserList.contains(CallManager.getCurrentUserId())) {
+            userList.add(CallManager.getCurrentUserId())
         }
         if (userList.isNotEmpty()) {
             callUserGridAdapter.addUsers(userList)
@@ -132,8 +132,8 @@ class CallConnectedViewHelper(
      */
     private fun initListAdapter() {
         val userList = ArrayList<String>()
-        for (userJid in GroupCallUtils.getAvailableCallUsersList()) {
-            if (CallUtils.getPinnedUserJid().isBlank() && userJid != GroupCallUtils.getLocalUserJid())
+        for (userJid in CallManager.getCallUsersList()) {
+            if (CallUtils.getPinnedUserJid().isBlank() && userJid != CallManager.getCurrentUserId())
                 CallUtils.setPinnedUserJid(userJid)
             if (!callUsersListAdapter.callUserList.contains(userJid)) {
                 userList.add(userJid)
@@ -155,7 +155,7 @@ class CallConnectedViewHelper(
 
     fun setUpCallUI() {
         initLocalVideoViews()
-        if (GroupCallUtils.isCallNotConnected())
+        if (CallManager.isCallNotConnected())
             setUpCallNotConnected()
         else
             setUpConnectedCallView()
@@ -171,7 +171,6 @@ class CallConnectedViewHelper(
             LogMessage.d(TAG, "$CALL_UI initVideoViews()")
             binding.viewVideoLocal.init(CallManager.getRootEglBase()?.eglBaseContext, null)
             binding.viewVideoLocal.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
-            binding.viewVideoLocal.setZOrderMediaOverlay(true)
             /* setting Target SurfaceViews to VideoSinks  */
             CallManager.getLocalProxyVideoSink()?.setTarget(binding.viewVideoLocal)
             binding.viewVideoLocal.setMirror(true)
@@ -182,11 +181,11 @@ class CallConnectedViewHelper(
     }
 
     fun checkAndShowLocalVideoView() {
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             // if local user available in list view then list view item will be refreshed
             // and local user view will not updated, so it is one to one call then remove local user from list view
-            callUsersListAdapter.removeUser(GroupCallUtils.getLocalUserJid())
-            if (GroupCallUtils.isVideoMuted() && (GroupCallUtils.isCallConnected() || GroupCallUtils.isAudioCall())) {
+            callUsersListAdapter.removeUser(CallManager.getCurrentUserId())
+            if (CallManager.isVideoMuted() && (CallManager.isCallConnected() || CallManager.isAudioCall())) {
                 binding.viewVideoLocal.gone()
             } else {
                 binding.viewVideoLocal.show()
@@ -195,14 +194,14 @@ class CallConnectedViewHelper(
         } else {
             // Since local user will be removed from list view for one to one call,
             // we must add local user to list view for group call
-            if (CallUtils.getPinnedUserJid() != GroupCallUtils.getLocalUserJid() && !callUsersListAdapter.callUserList.contains(GroupCallUtils.getLocalUserJid()))
-                callUsersListAdapter.addUser(GroupCallUtils.getLocalUserJid())
+            if (CallUtils.getPinnedUserJid() != CallManager.getCurrentUserId() && !callUsersListAdapter.callUserList.contains(CallManager.getCurrentUserId()))
+                callUsersListAdapter.addUser(CallManager.getCurrentUserId())
             binding.viewVideoLocal.gone()
         }
     }
 
     private fun setUpCallNotConnected() {
-        if (GroupCallUtils.isVideoCall()) {
+        if (CallManager.isVideoCall()) {
             binding.layoutCallDetails.show()
             makeViewsGone(binding.layoutTitle, binding.layoutProfile, binding.imageAudioMutedForVideoCall,
                 binding.textCallStatus,binding.textCallDuration, binding.backgroundView,
@@ -239,7 +238,7 @@ class CallConnectedViewHelper(
                 binding.textCallDuration, binding.backgroundView, binding.imageUnpin)
             makeViewsGone(binding.callGridUsersRecyclerview, binding.gridBackgroundView)
 
-            if (GroupCallUtils.isOneToOneCall()) {
+            if (CallManager.isOneToOneCall()) {
                 setUpOneToOneCallView()
             } else {
                 binding.layoutOneToOneAudioCall.gone()
@@ -253,7 +252,7 @@ class CallConnectedViewHelper(
         }
         updateRemoteAudioMuteStatus()
         checkAddParticipantsAvailable()
-        updateCallMemberDetails(GroupCallUtils.getAvailableCallUsersList())
+        updateCallMemberDetails(CallManager.getCallUsersList())
     }
 
     private fun checkAndHideListViewVideoSurfaceViews() {
@@ -269,11 +268,11 @@ class CallConnectedViewHelper(
     private fun setUpOneToOneCallView() {
         binding.layoutOneToOneAudioCall.show()
         makeViewsGone(binding.callUsersRecyclerview, binding.imageUnpin)
-        if (!CallManager.isRemoteVideoMuted(GroupCallUtils.getEndCallerJid())) {
+        if (!CallManager.isRemoteVideoMuted(CallManager.getEndCallerJid())) {
             binding.layoutProfile.hide()
             binding.textCallStatus.gone()
             binding.viewVideoPinned.show()
-            if (!GroupCallUtils.getUserAvailableForReconnection(GroupCallUtils.getEndCallerJid())) {
+            if (!CallManager.getUserAvailableForReconnection(CallManager.getEndCallerJid())) {
                 updateCallStatus()
             } else {
                 baseViewOnClickListener.enableCallOptionAnimation()
@@ -291,9 +290,9 @@ class CallConnectedViewHelper(
      */
     fun updateCallMemberDetails(callUsers: ArrayList<String>) {
         var name = ""
-        if (GroupCallUtils.isOneToOneCall()) {
-            val profileDetails = if (GroupCallUtils.getEndCallerJid().contains("@"))
-                ContactManager.getProfileDetails(GroupCallUtils.getEndCallerJid())
+        if (CallManager.isOneToOneCall()) {
+            val profileDetails = if (CallManager.getEndCallerJid().contains("@"))
+                ProfileDetailsUtils.getProfileDetails(CallManager.getEndCallerJid())
             else null
             profileDetails?.let {
                 binding.callerProfileImage.loadUserProfileImage(activity, profileDetails)
@@ -302,7 +301,7 @@ class CallConnectedViewHelper(
                 name = CallUtils.getGroupMembersName(jidList)
             }
 
-            if (!GroupCallUtils.isVideoCallUICanShow()) {
+            if (!CallManager.isVideoCallUICanShow()) {
                 val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
                 MediaUtils.loadImageWithGlideSecure(
                     activity,
@@ -330,9 +329,9 @@ class CallConnectedViewHelper(
         binding.callUsersRecyclerview.gone()
     }
 
-    private fun checkAddParticipantsAvailable() {
+    fun checkAddParticipantsAvailable() {
         LogMessage.d(TAG, "$CALL_UI checkAddParticipantsAvailable()")
-        if (GroupCallUtils.isCallConnected() && !activity.isInPIPMode()) binding.imageAddUsers.show()
+        if (ChatManager.getAvailableFeatures().isGroupCallEnabled && CallManager.isCallConnected() && !activity.isInPIPMode()) binding.imageAddUsers.show()
         else binding.imageAddUsers.gone()
     }
 
@@ -376,8 +375,8 @@ class CallConnectedViewHelper(
 
     fun updateCallStatus() {
         val pinnedUser = CallUtils.getPinnedUserJid()
-        val connectedStatus = if (GroupCallUtils.isOneToOneCall()) GroupCallUtils.getCallConnectedStatus(activity)
-        else GroupCallUtils.getCallStatus(pinnedUser)
+        val connectedStatus = if (CallManager.isOneToOneCall()) CallManager.getCallConnectedStatus(activity)
+        else CallManager.getCallStatus(pinnedUser)
         if (connectedStatus in arrayOf(CallStatus.ON_HOLD, CallStatus.RECONNECTING, activity.getString(R.string.reconnecting))) {
             LogMessage.e(TAG, "$CALL_UI Call Status $connectedStatus Jid == $pinnedUser")
             binding.layoutTitle.show()
@@ -396,7 +395,7 @@ class CallConnectedViewHelper(
         if (CallUtils.getIsGridViewEnabled())
             binding.imageAudioMutedForVideoCall.gone()
         else {
-            val userMuteStatus = UserMuteStatus(GroupCallUtils.isUserVideoMuted(CallUtils.getPinnedUserJid()),  GroupCallUtils.isUserAudioMuted(CallUtils.getPinnedUserJid()))
+            val userMuteStatus = UserMuteStatus(CallManager.isUserVideoMuted(CallUtils.getPinnedUserJid()),  CallManager.isUserAudioMuted(CallUtils.getPinnedUserJid()))
 
             if (userMuteStatus.isVideoMuted) {
                 binding.imageAudioMutedForVideoCall.gone()
@@ -413,7 +412,7 @@ class CallConnectedViewHelper(
      */
     private fun setSwappedFeeds(isSwappedFeeds: Boolean) {
         LogMessage.d(TAG, "$CALL_UI setSwappedFeeds() isSwappedFeeds -> $isSwappedFeeds")
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             this.isSwappedFeeds = isSwappedFeeds
             if (isSwappedFeeds) {
                 CallManager.getRemoteProxyVideoSink(CallUtils.getPinnedUserJid())?.setTarget(binding.viewVideoLocal)
@@ -440,17 +439,17 @@ class CallConnectedViewHelper(
 
         if (CallUtils.getIsGridViewEnabled()) {
             LogMessage.d(TAG, "$CALL_UI setMirrorLocalView: remote grid view")
-            val girdIndex = callUserGridAdapter.gridCallUserList.indexOf(GroupCallUtils.getLocalUserJid())
+            val girdIndex = callUserGridAdapter.gridCallUserList.indexOf(CallManager.getCurrentUserId())
             if (girdIndex.isValidIndex()) {
                 callUserGridAdapter.notifyItemChanged(girdIndex, bundle)
             }
         } else {
-            if (GroupCallUtils.isOneToOneCall()) {
-                LogMessage.d(TAG, "$CALL_UI setMirrorLocalView: isOneToOneCall: ${GroupCallUtils.isOneToOneCall()} isSwappedFeeds:${isSwappedFeeds}")
+            if (CallManager.isOneToOneCall()) {
+                LogMessage.d(TAG, "$CALL_UI setMirrorLocalView: isOneToOneCall: ${CallManager.isOneToOneCall()} isSwappedFeeds:${isSwappedFeeds}")
                 setSwappedFeeds(isSwappedFeeds)
             } else {
                 LogMessage.d(TAG, "$CALL_UI setMirrorLocalView: remote list view")
-                val index = callUsersListAdapter.callUserList.indexOf(GroupCallUtils.getLocalUserJid())
+                val index = callUsersListAdapter.callUserList.indexOf(CallManager.getCurrentUserId())
                 if (index.isValidIndex()) {
                     callUsersListAdapter.notifyItemChanged(index, bundle)
                 }
@@ -460,6 +459,17 @@ class CallConnectedViewHelper(
 
     fun onSwapVideo() {
         CallUtils.setIsBackCameraCapturing(!CallUtils.getIsBackCameraCapturing())
+    }
+
+    fun makeCallAgain() {
+        binding.viewVideoLocal.release()
+        binding.viewVideoPinned.release()
+        isVideoViewsInitialized.compareAndSet(true, false)
+    }
+
+    fun onLocalVideoTrackAdded() {
+        LogMessage.d(TAG, "$CALL_UI onLocalVideoTrackAdded()")
+        initLocalVideoViews()
     }
 
     fun onVideoTrackAdded(userJid: String) {
@@ -474,9 +484,10 @@ class CallConnectedViewHelper(
                 if (index.isValidIndex()) callUserGridAdapter.notifyItemChanged(index, bundle)
             }
         } else {
-            if (CallUtils.getPinnedUserJid() == userJid)
+            if (CallUtils.getPinnedUserJid() == userJid) {
                 setSwappedFeeds(isSwappedFeeds)
-            else
+                updatePinnedUserVideoMuteStatus()
+            } else
                 binding.callUsersRecyclerview.post {
                     val index = callUsersListAdapter.callUserList.indexOf(userJid)
                     if (index.isValidIndex()) callUsersListAdapter.notifyItemChanged(index, bundle)
@@ -495,7 +506,7 @@ class CallConnectedViewHelper(
         if (CallUtils.getIsGridViewEnabled()) {
             makeViewsGone(binding.layoutProfile, binding.textCallStatus)
         } else {
-            if (isSwappedFeeds && GroupCallUtils.isOneToOneCall()) // when remote user mute their video and we swapped local to full view then we have restore the swapped state
+            if (isSwappedFeeds && CallManager.isOneToOneCall()) // when remote user mute their video and we swapped local to full view then we have restore the swapped state
                 setSwappedFeeds(false)
             else {
                 isSwappedFeeds = false
@@ -508,9 +519,34 @@ class CallConnectedViewHelper(
                     makeViewsGone(binding.layoutProfile, binding.textCallStatus)
                     binding.viewVideoPinned.show()
                     videoSink?.setTarget(binding.viewVideoPinned)
-                    binding.viewVideoPinned.setMirror(CallUtils.getPinnedUserJid() == GroupCallUtils.getLocalUserJid() && !CallUtils.getIsBackCameraCapturing())
+                    binding.viewVideoPinned.setMirror(CallUtils.getPinnedUserJid() == CallManager.getCurrentUserId() && !CallUtils.getIsBackCameraCapturing())
                 }
             }
+            updateCallStatus()
+        }
+    }
+
+    private fun localPinnedUser(localUserPosition: Int, pinClickedUserPosition: Int){
+        val moveToEnd = callUserGridAdapter.gridCallUserList[localUserPosition]
+        val moveToFirst = callUserGridAdapter.gridCallUserList[pinClickedUserPosition]
+        callUserGridAdapter.gridCallUserList.removeAt(pinClickedUserPosition)
+        callUserGridAdapter.gridCallUserList.removeAt(localUserPosition)
+
+        callUserGridAdapter.gridCallUserList.add(0, moveToFirst)
+        callUserGridAdapter.gridCallUserList.add(callUserGridAdapter.gridCallUserList.size, moveToEnd)
+    }
+
+    private fun updatePinnedUserPosition(isUserSpeaking:Boolean, userJid: String){
+        if (!isUserSpeaking || CallUtils.isLocalUserPinned()) { // Grid Swap not needed for speaking user
+            val pinClickedUserPosition=callUserGridAdapter.gridCallUserList.indexOf(userJid)
+            val positionToSwap = 0
+            if (CallUtils.isLocalUserPinned()) {
+                localPinnedUser(positionToSwap, pinClickedUserPosition)
+            } else {
+                Collections.swap(callUserGridAdapter.gridCallUserList, pinClickedUserPosition, positionToSwap)
+            }
+            if (CallUtils.getIsGridViewEnabled())
+                callUserGridAdapter.notifyItemMoved(pinClickedUserPosition, positionToSwap)
         }
     }
 
@@ -518,22 +554,12 @@ class CallConnectedViewHelper(
         LogMessage.d(TAG, "$CALL_UI pinnedUserChanged userJid:${userJid}")
 
         try {
-            if (!isUserSpeaking || CallUtils.isLocalUserPinned()) { // Grid Swap not needed for speaking user
-                val firstPosition = if (CallUtils.isLocalUserPinned())
-                    callUserGridAdapter.gridCallUserList.size - 1
-                else
-                    callUserGridAdapter.gridCallUserList.indexOf(userJid)
-                val positionToSwap = 0
-                Collections.swap(callUserGridAdapter.gridCallUserList, firstPosition, positionToSwap)
-                if (CallUtils.getIsGridViewEnabled())
-                    callUserGridAdapter.notifyItemMoved(firstPosition, positionToSwap)
-            }
-
+            updatePinnedUserPosition(isUserSpeaking,userJid)
             if (CallUtils.getPinnedUserJid() != userJid) {
                 val addIndex = callUsersListAdapter.callUserList.indexOf(userJid)
                 CallUtils.getVideoSinkForUser(userJid)?.setTarget(null)
                 CallUtils.getVideoSinkForUser(CallUtils.getPinnedUserJid())?.setTarget(null)
-                callUsersListAdapter.swapPinnedUser(userJid, CallUtils.getPinnedUserJid(), if (addIndex.isValidIndex() && CallUtils.getPinnedUserJid() != GroupCallUtils.getLocalUserJid()) addIndex else callUsersListAdapter.callUserList.size - 1)
+                callUsersListAdapter.swapPinnedUser(userJid, CallUtils.getPinnedUserJid(), if (addIndex.isValidIndex() && CallUtils.getPinnedUserJid() != CallManager.getCurrentUserId()) addIndex else callUsersListAdapter.callUserList.size - 1)
                 CallUtils.setPinnedUserJid(userJid)
             }
 
@@ -554,8 +580,8 @@ class CallConnectedViewHelper(
             }
             updatePinnedUserVideoMuteStatus()
             updateRemoteAudioMuteStatus()
-            updateCallMemberDetails(GroupCallUtils.getAvailableCallUsersList())
-        } catch (e: ArrayIndexOutOfBoundsException) {
+            updateCallMemberDetails(CallManager.getCallUsersList())
+        } catch (e: Exception) {
             LogMessage.e(TAG, "$CALL_UI $e")
         }
     }
@@ -563,19 +589,23 @@ class CallConnectedViewHelper(
     fun pinnedUserLeft() {
         LogMessage.d(TAG, "$CALL_UI pinnedUserLeft")
 
-        val userJid = GroupCallUtils.getAvailableCallUsersList()[0]
-        callUsersListAdapter.removeUser(userJid)
-        CallUtils.setPinnedUserJid(userJid)
+        try {
+            val userJid = CallManager.getCallUsersList().first()
+            callUsersListAdapter.removeUser(userJid)
+            CallUtils.setPinnedUserJid(userJid)
 
-        updatePinnedUserVideoMuteStatus()
-        updateRemoteAudioMuteStatus()
-        updateCallMemberDetails(GroupCallUtils.getAvailableCallUsersList())
+            updatePinnedUserVideoMuteStatus()
+            updateRemoteAudioMuteStatus()
+            updateCallMemberDetails(CallManager.getCallUsersList())
+        } catch (e: Exception) {
+            LogMessage.e(TAG, "$CALL_UI $e")
+        }
     }
 
     private fun updatePinnedUserProfile() {
         LogMessage.d(TAG, "$CALL_UI updatePinnedUserProfile getPinnedUserJid: ${CallUtils.getPinnedUserJid()}")
         if (CallUtils.getPinnedUserJid() == SharedPreferenceManager.getCurrentUserJid()) {
-            val profileDetails = ContactManager.getProfileDetails(CallUtils.getPinnedUserJid())
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(CallUtils.getPinnedUserJid())
             val setDrawable = SetDrawable(activity, profileDetails)
             val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
             val icon = setDrawable.setDrawable(userName)
@@ -589,7 +619,7 @@ class CallConnectedViewHelper(
         } else {
             binding.callerProfileImage.setImageDrawable(null)
             if (CallUtils.getPinnedUserJid().isNotEmpty()) {
-                val profileDetails = ContactManager.getProfileDetails(CallUtils.getPinnedUserJid())
+                val profileDetails = ProfileDetailsUtils.getProfileDetails(CallUtils.getPinnedUserJid())
                 binding.callerProfileImage.loadUserProfileImage(activity, profileDetails!!)
             } else
                 binding.callerProfileImage.setImageDrawable(ContextCompat.getDrawable(activity, R.drawable.ic_profile))
@@ -597,19 +627,19 @@ class CallConnectedViewHelper(
     }
 
     fun ownAudioMuteStatusUpdated() {
-        onUserStoppedSpeaking(GroupCallUtils.getLocalUserJid())
+        onUserStoppedSpeaking(CallManager.getCurrentUserId())
         if (CallUtils.getIsGridViewEnabled()){
-            val index = callUserGridAdapter.gridCallUserList.indexOf(GroupCallUtils.getLocalUserJid())
+            val index = callUserGridAdapter.gridCallUserList.indexOf(CallManager.getCurrentUserId())
             if (index.isValidIndex()) {
                 val bundle = Bundle()
                 bundle.putInt(CallActions.NOTIFY_VIEW_MUTE_UPDATED, 1)
                 callUserGridAdapter.notifyItemChanged(index, bundle)
             }
         } else {
-            if (CallUtils.getPinnedUserJid() == GroupCallUtils.getLocalUserJid())
+            if (CallUtils.getPinnedUserJid() == CallManager.getCurrentUserId())
                 updateRemoteAudioMuteStatus()
             else {
-                val index = callUsersListAdapter.callUserList.indexOf(GroupCallUtils.getLocalUserJid())
+                val index = callUsersListAdapter.callUserList.indexOf(CallManager.getCurrentUserId())
                 if (index.isValidIndex()) {
                     val bundle = Bundle()
                     bundle.putInt(CallActions.NOTIFY_VIEW_MUTE_UPDATED, 1)
@@ -623,7 +653,7 @@ class CallConnectedViewHelper(
         if (CallUtils.getPinnedUserJid() == userJid) {
             binding.rippleBg.onUserStoppedSpeaking()
         } else {
-            if (GroupCallUtils.isOneToOneCall()) {
+            if (CallManager.isOneToOneCall()) {
                 binding.viewSpeakingIndicator.onUserStoppedSpeaking(object : SpeakingIndicatorListener {
                     override fun onSpeakingIndicatorHidden() {
                         CallUtils.clearPeakSpeakingUser(userJid)
@@ -651,7 +681,7 @@ class CallConnectedViewHelper(
         if (CallUtils.getPinnedUserJid() == userJid) {
             binding.rippleBg.onUserSpeaking()
         } else {
-            if (GroupCallUtils.isOneToOneCall()) {
+            if (CallManager.isOneToOneCall()) {
                 binding.viewSpeakingIndicator.onUserSpeaking(audioLevel)
             } else {
                 val index = callUsersListAdapter.callUserList.indexOf(userJid)

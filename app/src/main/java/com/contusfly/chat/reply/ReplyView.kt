@@ -1,6 +1,10 @@
 package com.contusfly.chat.reply
 
 import android.content.Context
+import android.os.Build
+import android.text.Html
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import androidx.core.content.ContextCompat
 import com.contus.flycommons.models.MessageType
 import com.contusfly.*
@@ -46,7 +50,7 @@ class ReplyView {
                 MessageType.TEXT -> {
                     with(replyMessageViewHolder) {
                         txtChatReply?.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
-                        EmojiUtils.setMessageTextWithEllipsis(txtChatReply!!, replyMessage.getMessageTextContent())
+                        EmojiUtils.setMessageTextWithEllipsis(txtChatReply!!, ChatUtils.getSpannedText(context,replyMessage.getMessageTextContent()).toString())
                         makeViewsGone(imgSenderImageVideoPreview!!, imgSenderMessageType!!)
                     }
                 }
@@ -145,7 +149,7 @@ class ReplyView {
                 MessageType.TEXT -> {
                     with(replyMessageViewHolder) {
                         txtChatReceivedReply?.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
-                        EmojiUtils.setMessageTextWithEllipsis(txtChatReceivedReply!!, replyMessage.getMessageTextContent())
+                        EmojiUtils.setMessageTextWithEllipsis(txtChatReceivedReply!!, ChatUtils.getSpannedText(context,replyMessage.getMessageTextContent()).toString())
                         makeViewsGone(imgReceivedReplyImageVideoPreview!!, imgReceivedReplyMessageType!!)
                     }
                 }

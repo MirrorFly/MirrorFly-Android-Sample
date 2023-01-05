@@ -21,7 +21,9 @@ import com.contusfly.AppLifecycleListener
 import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.activities.*
+import com.contusfly.chatTag.activities.ChatTagActivity
 import com.contusfly.databinding.FragmentSettingsBinding
+import com.contusfly.notification.AppNotificationManager
 import com.contusfly.utils.*
 import com.contusfly.views.CommonAlertDialog
 import com.contusflysdk.AppUtils
@@ -69,7 +71,6 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
         settingsActivity = activity as SettingsActivity?
         context = settingsActivity ?: requireActivity()
         settingsActivity!!.setActionBarTitle(resources.getString(R.string.settings_label))
-        settingsActivity!!.showSearchMenu(false)
         // Inflate the layout for this fragment
         settingsBinding = FragmentSettingsBinding.inflate(inflater, container, false)
         return settingsBinding.root
@@ -85,6 +86,7 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
     }
 
     private fun initViews() {
+        settingsActivity!!.showSearchMenu(false)
         mDialog = CommonAlertDialog(context)
         mDialog.setOnDialogCloseListener(this)
         progressDialog = ProgressDialog(context, R.style.AppCompatAlertDialogStyle)
@@ -130,6 +132,11 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
         }
 
         settingsBinding.btnSwitchConnection.setOnCheckedChangeListener(onCheckedChanged())
+
+        settingsBinding.layoutChatTagMessages.setOnClickListener {
+
+            startActivity(Intent(settingsActivity, ChatTagActivity::class.java))
+        }
 
     }
 
@@ -202,9 +209,10 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
             setCancelable(false)
         }
         if (AppUtils.isNetConnected(settingsActivity)) {
-            FlyCore.logoutOfChatSDK() { isSuccess, throwable, data ->
+            FlyCore.logoutOfChatSDK() { isSuccess, throwable, _ ->
                 if (isSuccess) {
-                    SharedPreferenceManager.clearAllPreference()
+                    SharedPreferenceManager.clearAllPreference(true)
+                    AppNotificationManager.cancelNotifications(context)
                     CommonUtils.navigateUserToLoggedOutUI(context)
                 } else {
                     settingsActivity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)

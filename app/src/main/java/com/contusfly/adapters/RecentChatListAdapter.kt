@@ -22,7 +22,6 @@ import com.contusfly.databinding.RowRecentChatItemBinding
 import com.contusfly.utils.*
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.utils.Utils
@@ -43,7 +42,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
 
     private var userBlockedMe = false
 
-    private val chatTimeOperations = ChatTimeOperations()
+    private val chatTimeOperations = ChatTimeOperations(Calendar.getInstance())
 
     private var messageContent: String? = null
 
@@ -56,10 +55,10 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
 
         init {
             val disposabe = viewBinding.imageChatPicture.clicks().throttleFirst(1000, TimeUnit.MILLISECONDS).subscribe {
-                if (adapterPosition >= 0 && (mainlist[adapterPosition].profileStatus == null
-                            || mainlist[adapterPosition].profileStatus
+                if (layoutPosition >= 0 && (mainlist[layoutPosition].profileStatus == null
+                            || mainlist[layoutPosition].profileStatus
                             != context.getString(R.string.offline_group_status)))
-                    onProfileIconClicked(adapterPosition)
+                    onProfileIconClicked(layoutPosition)
             }
             compositeDisposable.add(disposabe)
         }
@@ -272,7 +271,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
     private fun setMessageData(holder: RowRecentChatItemBinding, chatMessage: ChatMessage?, recent: RecentChat, position: Int) {
         val isFromSender = chatMessage!!.isMessageSentByMe
         val isRecall = chatMessage.isMessageRecalled
-        val time = chatTimeOperations.getRecentChatTime(context, chatMessage.messageSentTime)
+        val time = chatTimeOperations.getRecentChatTime(context, recent.lastMessageTime)
         holder.textChatTime.text = time
         setUnreadIcon(recent, holder)
         try {
@@ -384,7 +383,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
     private fun setUserTypingStatus(holder: RowRecentChatItemBinding, recent: RecentChat, indexOfTypingStatus: Int) {
         holder.textChatPerson.visibility = View.GONE
         if (recent.isGroup) {
-            val typingUser = ContactManager.getProfileDetails(typingAndGoneStatus[indexOfTypingStatus].second)
+            val typingUser = ProfileDetailsUtils.getProfileDetails(typingAndGoneStatus[indexOfTypingStatus].second)
             val userName = if((Utils.returnEmptyStringIfNull(typingUser?.name)).split(" ").size ==1)
                 Utils.returnEmptyStringIfNull(typingUser?.name) + ":"
             else{

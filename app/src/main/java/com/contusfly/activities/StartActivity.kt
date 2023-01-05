@@ -1,24 +1,17 @@
 package com.contusfly.activities
 
-import android.app.NotificationManager
-import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.widget.Toast
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
 import com.an.biometric.BiometricCallback
 import com.an.biometric.BiometricManager
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
-import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.utils.*
 import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.FlyCore
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import com.contus.call.CallConstants
@@ -27,7 +20,8 @@ import com.contus.webrtc.api.CallManager
 import com.contusfly.*
 import com.contusfly.call.groupcall.GroupCallActivity
 import com.contusfly.call.groupcall.OnGoingCallPreviewActivity
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusfly.call.groupcall.utils.CallUtils
+import com.contusfly.notification.AppNotificationManager
 
 
 class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
@@ -46,13 +40,12 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
     }
 
     private fun userView() {
-        clearNotification()
         SharedPreferenceManager.setBoolean(Constants.PIN_SCREEN,false)
         val callLink = if (!intent.dataString.isNullOrEmpty()) intent.dataString!!.replace(
             BuildConfig.WEB_CHAT_LOGIN, "") else ""
-        if (intent.hasExtra(GroupCallUtils.IS_CALL_NOTIFICATION)) {
-            val showCallsTab = intent.getBooleanExtra(GroupCallUtils.IS_CALL_NOTIFICATION, false)
-            GroupCallUtils.setCallsTabToBeShown(showCallsTab)
+        if (intent.hasExtra(CallUtils.IS_CALL_NOTIFICATION)) {
+            val showCallsTab = intent.getBooleanExtra(CallUtils.IS_CALL_NOTIFICATION, false)
+            CallUtils.setCallsTabToBeShown(showCallsTab)
         }
         if (SharedPreferenceManager.getBoolean(Constants.IS_LOGGED_IN)) {
             if (SharedPreferenceManager.getBoolean(Constants.IS_PROFILE_LOGGED)) {
@@ -103,7 +96,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
             clearNotification()
             val jid = intent.getStringExtra(LibConstants.JID)
             if (!jid.isNullOrBlank()) {
-                val profileDetail = FlyCore.getUserProfile(jid)
+                val profileDetail = ProfileDetailsUtils.getProfileDetails(jid)
                 if (profileDetail != null) {
                     val chatType = profileDetail.getChatType()
                     goToChatView(jid, chatType)
@@ -165,7 +158,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
 
     private fun checkAndNavigateToDashboard(jid: String, chatType: String) {
         if (intent.hasExtra(Constants.IS_FROM_CHAT_SHORTCUT)) {
-            val profileDetails = ContactManager.getProfileDetails(jid)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
             Log.d(TAG, getString(R.string.is_from_chat_shortcut))
             if (ChatType.TYPE_GROUP_CHAT == chatType && profileDetails != null && profileDetails.isAdminBlocked) {
                 startActivity(Intent(this, DashboardActivity::class.java)
@@ -228,14 +221,7 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
     }
 
     private fun clearNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val barNotifications: Array<StatusBarNotification> = notificationManager.activeNotifications
-            for (notification in barNotifications) {
-                NotificationManagerCompat.from(applicationContext).cancel(notification.id)
-            }
-        } else
-            NotificationManagerCompat.from(applicationContext).cancel(Constants.NOTIFICATION_ID)
+        AppNotificationManager.cancelNotifications(applicationContext)
     }
 
     override fun onSdkVersionNotSupported() {
@@ -284,5 +270,10 @@ class StartActivity : BaseActivity(), CoroutineScope, BiometricCallback {
     companion object {
         private val TAG = StartActivity::class.java.simpleName
         private const val GOTO = Constants.GO_TO
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        clearNotification()
     }
 }

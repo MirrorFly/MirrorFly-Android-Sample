@@ -9,11 +9,11 @@ import androidx.appcompat.app.AlertDialog
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallManager
-import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
 import com.contusfly.TAG
+import com.contusfly.call.groupcall.getEndCallerJid
 import com.contusfly.call.groupcall.listeners.ActivityOnClickListener
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusfly.utils.ProfileDetailsUtils
 
 /**
  * This call dialog view helper is handle the incoming and outgoing video call switch requests.
@@ -48,7 +48,7 @@ class DialogViewHelper(
             dismissVideoCallRequestingDialog()
             CallManager.muteVideo(true)
             activityOnClickListener.onRequestingVideoCallDialog()
-            Toast.makeText(context, "No response from " + ContactManager.getDisplayName(GroupCallUtils.getEndCallerJid()), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "No response from " + ProfileDetailsUtils.getDisplayName(CallManager.getEndCallerJid()), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -138,8 +138,8 @@ class DialogViewHelper(
      */
     private val callSwitchDialog: AlertDialog by lazy {
         val mBuilder = AlertDialog.Builder(context, R.style.AlertDialogStyle)
-        if (GroupCallUtils.getEndCallerJid().contains("@") && GroupCallUtils.getEndCallerJid().isNotEmpty()) {
-            mBuilder.setMessage(ContactManager.getDisplayName(GroupCallUtils.getEndCallerJid()) + " requesting to switch to video call")
+        if (CallManager.getEndCallerJid().contains("@") && CallManager.getEndCallerJid().isNotEmpty()) {
+            mBuilder.setMessage(ProfileDetailsUtils.getDisplayName(CallManager.getEndCallerJid()) + " requesting to switch to video call")
         } else {
             mBuilder.setMessage("requesting to switch to video call")
         }

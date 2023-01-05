@@ -13,7 +13,7 @@
         android:layout_height="0dp"
         android:layout_weight="0.5">
 
-        <org.webrtc.SurfaceViewRenderer
+        <com.contus.webrtc.TextureViewRenderer
             android:id="@+id/user_video_surface"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -49,6 +49,25 @@
             android:layout_margin="@dimen/margin_4"
             android:visibility="gone" />
 
+        <RelativeLayout
+            android:id="@+id/caller_status_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@drawable/ic_caller_status_bg"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/caller_status_text_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:fontFamily="@font/sf_ui_display_light"
+                android:textColor="@color/color_white"
+                android:textSize="@dimen/text_size_14" />
+
+        </RelativeLayout>
     </RelativeLayout>
 
     <RelativeLayout
@@ -56,7 +75,7 @@
         android:layout_height="0dp"
         android:layout_weight="0.5">
 
-        <org.webrtc.SurfaceViewRenderer
+        <com.contus.webrtc.TextureViewRenderer
             android:id="@+id/user_video_surface1"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -109,6 +128,25 @@
             app:layout_constraintCircleAngle="45"
             app:layout_constraintCircleRadius="@dimen/margin_24" />
 
+        <RelativeLayout
+            android:id="@+id/participant_status_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@drawable/ic_caller_status_bg"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/participant_status_text_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:fontFamily="@font/sf_ui_display_light"
+                android:textColor="@color/color_white"
+                android:textSize="@dimen/text_size_14" />
+
+        </RelativeLayout>
     </RelativeLayout>
 
 </LinearLayout>

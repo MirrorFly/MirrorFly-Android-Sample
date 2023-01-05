@@ -8,8 +8,11 @@ import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
 import com.contusfly.constants.MobileApplication
+import com.contusfly.notification.AppNotificationManager
+import com.contusfly.notification.NotificationBuilder
+import com.contusfly.notification.NotificationBuilderBelow24
 import com.contusflysdk.api.ChatActionListener
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.notification.NotificationEventListener
 import com.contusflysdk.api.notification.PushNotificationManager
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -59,37 +62,26 @@ class FirebaseUtils : CoroutineScope {
         notificationData?.let {
             if (it.containsKey("push_from") && it["push_from"].equals("MirrorFly")) {
                 PushNotificationManager.handleReceivedMessage(it, object : NotificationEventListener {
-                    override fun onMessageReceived() {
+                    override fun onMessageReceived(chatMessage : ChatMessage) {
                         val messageType = Utils.returnEmptyStringIfNull(it[com.contus.flycommons.Constants.TYPE])
-                        if ((it.containsKey("user_jid") && !ContactManager.getProfileDetails(it["user_jid"].toString())?.isMuted!!) ||
+                        if ((it.containsKey("user_jid") && !ProfileDetailsUtils.getProfileDetails(it["user_jid"].toString())?.isMuted!!) ||
                             (messageType == com.contus.flycommons.Constants.RECALL)) {
-                            NotificationUtils.createNotification(MobileApplication.getContext())
+                            AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)
                         }
                     }
 
-                    override fun onGroupNotification(groupJid: String, titleContent: String, messageContent: String) {
+                    override fun onGroupNotification(groupJid: String, titleContent: String, chatMessage : ChatMessage) {
                         /* Create the notification for group creation with parameter values */
-                        NotificationUtils.createNotification(MobileApplication.getContext())
+                        AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)
                     }
 
                     @RequiresApi(Build.VERSION_CODES.M)
                     override fun onCancelNotification() {
-                        cancelNotifications(context)
+                        AppNotificationManager.cancelNotifications(context)
                     }
                 })
             }
         }
-    }
-
-    private fun cancelNotifications(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val barNotifications: Array<StatusBarNotification> = notificationManager.activeNotifications
-            for (notification in barNotifications) {
-                NotificationManagerCompat.from(context).cancel(notification.id)
-            }
-        } else
-            NotificationManagerCompat.from(context).cancel(Constants.NOTIFICATION_ID)
     }
 
     companion object {

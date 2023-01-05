@@ -11,10 +11,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.ViewModelProviders
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import androidx.viewpager.widget.ViewPager
+import androidx.viewpager2.widget.ViewPager2
 import com.contus.flycommons.ChatType
 import com.contus.flycommons.FlyCallback
-import com.contus.xmpp.chat.models.Profile
 import com.contusfly.*
 import com.contusfly.activities.*
 import com.contusfly.adapters.ViewPagerAdapter
@@ -31,7 +30,7 @@ import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.*
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.models.RecentSearch
 import com.contusflysdk.utils.Utils
@@ -60,7 +59,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     open var actionMode: ActionMode? = null
     open lateinit var mSearchView: SearchView
     open lateinit var tabLayout: TabLayout
-    open lateinit var mViewPager: ViewPager
+    open lateinit var mViewPager: ViewPager2
     open lateinit var swipeRefreshLayout: SwipeRefreshLayout
     lateinit var mAdapter: ViewPagerAdapter
     open lateinit var actionModeMenu: Menu
@@ -96,7 +95,10 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
 
     fun openOption(menu: Menu): Boolean {
         with(menu) {
-            showMenu(get(R.id.action_settings), get(R.id.action_group_chat), get(R.id.action_web_settings))
+            showMenu(get(R.id.action_settings), get(R.id.action_web_settings))
+            if (ChatManager.getAvailableFeatures().isGroupChatEnabled)
+                showMenu(get(R.id.action_group_chat))
+            else hideMenu(get(R.id.action_group_chat))
         }
         super.onPrepareOptionsMenu(menu)
         return true
@@ -123,7 +125,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
             if (typingStatus.equals(Constants.COMPOSING, ignoreCase = true))
                 viewModel.setTypingStatus(Triple(singleOrGroupJid, userId, true))
             else viewModel.setTypingStatus(Triple(singleOrGroupJid, userId, false))
-            recentChatFragment.onTypingAndGoneStatusUpdate(singleOrGroupJid)
+            viewModel.onTypingStatusGoneUpdate.value=singleOrGroupJid
         }
     }
 
@@ -292,6 +294,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     override fun userBlockedMe(jid: String) {
         super.userBlockedMe(jid)
         viewModel.profileUpdatedLiveData.value = jid
+        viewModel.setBlockUnBlockJID(jid, true)
     }
 
     /**
@@ -300,6 +303,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     override fun userUnBlockedMe(jid: String) {
         super.userUnBlockedMe(jid)
         viewModel.profileUpdatedLiveData.value = jid
+        viewModel.setBlockUnBlockJID(jid, false)
     }
 
     /**
@@ -341,9 +345,9 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
         return jids
     }
 
-    override fun profileCallback(profile: Profile) {
-        super.profileCallback(profile)
-        viewModel.profileUpdatedLiveData.value = profile.jid
+    override fun userProfileFetched(jid: String, profileDetails: ProfileDetails) {
+        super.userProfileFetched(jid, profileDetails)
+        viewModel.profileUpdatedLiveData.value = jid
     }
 
     /**
@@ -424,7 +428,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
                 return true
             }
             R.id.action_mark_as_read -> {
-                netConditionalCall({ viewModel.markAsReadRecentChats() }, { showErrorMessage() })
+                netConditionalCall({ viewModel.markAsReadRecentChats(this) }, { showErrorMessage() })
                 actionMode?.finish()
                 return true
             }
@@ -453,7 +457,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
         if (mRecentChatListType == RecentChatListType.RECENT) {
             // Delete the one chat
             deleteAlertMessage = if (viewModel.selectedRecentChats.size == 1) {
-                val userNickName = ContactManager.getDisplayName(viewModel.selectedRecentChats[0].jid)
+                val userNickName = ProfileDetailsUtils.getDisplayName(viewModel.selectedRecentChats[0].jid)
                 String.format(getString(R.string.msg_delete_chat_single_conversation), userNickName)
             } else {
                 // Delete the multiple chats
@@ -492,11 +496,11 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     private fun startInfoActivity(jid: String, chatType: String) {
         if (ChatType.TYPE_CHAT == chatType) {
             launchActivity<UserInfoActivity> {
-                putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(jid))
+                putExtra(AppConstants.PROFILE_DATA, ProfileDetailsUtils.getProfileDetails(jid))
             }
         } else {
             launchActivity<GroupInfoActivity> {
-                putExtra(AppConstants.PROFILE_DATA, ContactManager.getProfileDetails(jid))
+                putExtra(AppConstants.PROFILE_DATA, ProfileDetailsUtils.getProfileDetails(jid))
             }
         }
     }

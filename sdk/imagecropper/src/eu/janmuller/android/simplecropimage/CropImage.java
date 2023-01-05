@@ -24,7 +24,6 @@ import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -185,6 +184,7 @@ public class CropImage extends MonitoredActivity {
                         try {
                             onSaveClicked();
                         } catch (Exception e) {
+                            Log.e(TAG,e.getMessage());
                             finish();
                         }
                     }

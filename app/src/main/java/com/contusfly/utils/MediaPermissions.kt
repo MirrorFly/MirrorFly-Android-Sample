@@ -9,9 +9,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.provider.Settings
+import android.view.View
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.contus.webrtc.api.CallManager
 import com.contusfly.R
 import com.contusfly.interfaces.PermissionDialogListener
 import com.contusfly.views.PermissionAlertDialog
@@ -74,7 +76,75 @@ object MediaPermissions {
         }
     }
 
+
+    /**
+     * Request the storage permission for accessing Gallery
+     *
+     * @param activity       Activity of the View
+     * @param permissionAlertDialog Alert dialog to show Permission instructions
+     * @param permissionsLauncher permission launcher to request Permission
+     */
+    fun requestContactStorageAccess(
+        activity: Activity,
+        permissionAlertDialog: PermissionAlertDialog,
+        permissionsLauncher: ActivityResultLauncher<Array<String>>
+    ) {
+
+        val hasReadPermission = isPermissionAllowed(activity, Manifest.permission.READ_EXTERNAL_STORAGE)
+        val hasWritePermission = isPermissionAllowed(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
+        val minSdk30 = SDK_INT > Build.VERSION_CODES.Q
+
+        val writePermissionGranted = hasWritePermission || minSdk30
+
+        val permissionsToRequest = mutableListOf<String>()
+        if (!writePermissionGranted) {
+            permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        if (!hasReadPermission) {
+            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        if (permissionsToRequest.isNotEmpty()) {
+            when {
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_EXTERNAL_STORAGE)
+                        || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) -> {
+                    showPermissionPopUpForContactMedia(permissionsLauncher, permissionsToRequest, permissionAlertDialog)
+                }
+                SharedPreferenceManager.getBoolean(Constants.STORAGE_PERMISSION_ASKED) -> {
+                    permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.CONTACT_AND_MEDIA_PERMISSION,
+                        object : PermissionDialogListener{
+                            override fun onPositiveButtonClicked() {
+                                openSettingsForPermissionWithoutSmackBar(activity)
+                            }
+
+                            override fun onNegativeButtonClicked() {
+                                //Not Needed
+                            }
+                        })
+                } else -> showPermissionPopUpForContactMedia(permissionsLauncher, permissionsToRequest, permissionAlertDialog)
+            }
+        }
+    }
+
     private fun showPermissionPopUpForStorage(
+        permissionsLauncher: ActivityResultLauncher<Array<String>>,
+        permissionsToRequest: MutableList<String>,
+        permissionAlertDialog: PermissionAlertDialog
+    ) {
+        permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.CONTACT_AND_MEDIA_PERMISSION,
+            object : PermissionDialogListener {
+                override fun onPositiveButtonClicked() {
+                    SharedPreferenceManager.setBoolean(Constants.STORAGE_PERMISSION_ASKED, true)
+                    permissionsLauncher.launch(permissionsToRequest.toTypedArray())
+                }
+
+                override fun onNegativeButtonClicked() {
+                    //Not Needed
+                }
+            })
+    }
+
+    private fun showPermissionPopUpForContactMedia(
         permissionsLauncher: ActivityResultLauncher<Array<String>>,
         permissionsToRequest: MutableList<String>,
         permissionAlertDialog: PermissionAlertDialog
@@ -108,6 +178,7 @@ object MediaPermissions {
         val hasCameraPermission = isPermissionAllowed(activity, Manifest.permission.CAMERA)
         val hasMicPermission = isPermissionAllowed(activity, Manifest.permission.RECORD_AUDIO)
         val hasPhoneStatePermission = isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE)
+        val hasBluetoothPermission = CallManager.isBluetoothPermissionsGranted()
 
         val permissionsToRequest = mutableListOf<String>()
         if (!hasCameraPermission) {
@@ -119,17 +190,22 @@ object MediaPermissions {
         if (!hasPhoneStatePermission) {
             permissionsToRequest.add(Manifest.permission.READ_PHONE_STATE)
         }
+        if (SDK_INT >= Build.VERSION_CODES.S && !hasBluetoothPermission) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
         if (permissionsToRequest.isNotEmpty()) {
             when {
                 ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
                         || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.RECORD_AUDIO)
                         || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_PHONE_STATE)
+                        || (SDK_INT >= Build.VERSION_CODES.S && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.BLUETOOTH_CONNECT))
                 -> {
                     askVideoCallPermissions(activityResultCaller, permissionsToRequest, permissionAlertDialog, permissionDialogListener)
                 }
                 SharedPreferenceManager.getBoolean(Constants.CAMERA_PERMISSION_ASKED)
                         || SharedPreferenceManager.getBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED)
                         || SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED)
+                        || SharedPreferenceManager.getBoolean(Constants.BLUETOOTH_PERMISSION_ASKED)
                 -> {
                     permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.VIDEO_CALL_PERMISSION_DENIED,
                         object : PermissionDialogListener {
@@ -162,6 +238,7 @@ object MediaPermissions {
                     SharedPreferenceManager.setBoolean(Constants.CAMERA_PERMISSION_ASKED, true)
                     SharedPreferenceManager.setBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED, true)
                     SharedPreferenceManager.setBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED, true)
+                    SharedPreferenceManager.setBoolean(Constants.BLUETOOTH_PERMISSION_ASKED, true)
                     permissionsLauncher.launch(permissionsToRequest.toTypedArray())
                 }
 
@@ -183,18 +260,14 @@ object MediaPermissions {
     ) {
         if (!isPermissionAllowed(activity, Manifest.permission.CAMERA) ||
             !isPermissionAllowed(activity, Manifest.permission.RECORD_AUDIO) ||
-            !isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE)
+            !isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE) ||
+            (SDK_INT >= Build.VERSION_CODES.S && !isPermissionAllowed(activity, Manifest.permission.BLUETOOTH_CONNECT))
         ) {
             when {
-                ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity, Manifest.permission.CAMERA
-                ) || ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity,
-                    Manifest.permission.RECORD_AUDIO
-                ) || ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity,
-                    Manifest.permission.READ_PHONE_STATE
-                )
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+                        || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.RECORD_AUDIO)
+                        || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_PHONE_STATE)
+                        || (SDK_INT >= Build.VERSION_CODES.S && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.BLUETOOTH_CONNECT))
                 -> {
                     /*
                   If the user has denied the permission previously your code will come to this block
@@ -213,7 +286,8 @@ object MediaPermissions {
                 }
                 SharedPreferenceManager.getBoolean(Constants.CAMERA_PERMISSION_ASKED) ||
                         SharedPreferenceManager.getBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED) ||
-                        SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED) -> {
+                        SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED) ||
+                        SharedPreferenceManager.getBoolean(Constants.BLUETOOTH_PERMISSION_ASKED) -> {
                     openSettingsForPermission(
                         activity,
                         activity.getString(R.string.video_record_permission_label)
@@ -228,15 +302,21 @@ object MediaPermissions {
     }
 
     private fun askVideoCallPermissions(activityResultCaller: ActivityResultLauncher<Array<String>>) {
-        activityResultCaller.launch(
+        val permissionsToRequest = if (SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
                 Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE,
-                Manifest.permission.CAMERA
+                Manifest.permission.CAMERA, Manifest.permission.BLUETOOTH_CONNECT
             )
+        } else  arrayOf(
+            Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.CAMERA
         )
+
+        activityResultCaller.launch(permissionsToRequest)
         SharedPreferenceManager.setBoolean(Constants.CAMERA_PERMISSION_ASKED, true)
         SharedPreferenceManager.setBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED, true)
         SharedPreferenceManager.setBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED, true)
+        SharedPreferenceManager.setBoolean(Constants.BLUETOOTH_PERMISSION_ASKED, true)
     }
 
     /**
@@ -254,6 +334,7 @@ object MediaPermissions {
     ) {
         val hasMicPermission = isPermissionAllowed(activity, Manifest.permission.RECORD_AUDIO)
         val hasPhoneStatePermission = isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE)
+        val hasBluetoothPermission = CallManager.isBluetoothPermissionsGranted()
 
         val permissionsToRequest = mutableListOf<String>()
         if (!hasMicPermission) {
@@ -262,15 +343,20 @@ object MediaPermissions {
         if (!hasPhoneStatePermission) {
             permissionsToRequest.add(Manifest.permission.READ_PHONE_STATE)
         }
+        if (SDK_INT >= Build.VERSION_CODES.S && !hasBluetoothPermission) {
+            permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
         if (permissionsToRequest.isNotEmpty()) {
             when {
                 ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.RECORD_AUDIO)
                         || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_PHONE_STATE)
+                        || (SDK_INT >= Build.VERSION_CODES.S && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.BLUETOOTH_CONNECT))
                 -> {
                     askAudioCallPermissions(activityResultCaller, permissionsToRequest, permissionAlertDialog, permissionDialogListener)
                 }
                 SharedPreferenceManager.getBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED)
                         || SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED)
+                        || SharedPreferenceManager.getBoolean(Constants.BLUETOOTH_PERMISSION_ASKED)
                 -> {
                     permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.AUDIO_CALL_PERMISSION_DENIED,
                         object : PermissionDialogListener {
@@ -309,6 +395,7 @@ object MediaPermissions {
                 override fun onPositiveButtonClicked() {
                     SharedPreferenceManager.setBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED, true)
                     SharedPreferenceManager.setBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED, true)
+                    SharedPreferenceManager.setBoolean(Constants.BLUETOOTH_PERMISSION_ASKED, true)
                     permissionsLauncher.launch(permissionsToRequest.toTypedArray())
                 }
 
@@ -328,16 +415,14 @@ object MediaPermissions {
         activity: Activity, activityResultCaller: ActivityResultLauncher<Array<String>>,
     ) {
         if (!isPermissionAllowed(activity, Manifest.permission.RECORD_AUDIO) ||
-            !isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE)
+            !isPermissionAllowed(activity, Manifest.permission.READ_PHONE_STATE) ||
+            (SDK_INT >= Build.VERSION_CODES.S && !isPermissionAllowed(activity, Manifest.permission.BLUETOOTH_CONNECT))
         ) {
             when {
-                ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity,
-                    Manifest.permission.RECORD_AUDIO
-                ) || ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity,
-                    Manifest.permission.READ_PHONE_STATE
-                ) -> {
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.RECORD_AUDIO)
+                        || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_PHONE_STATE)
+                        || (SDK_INT >= Build.VERSION_CODES.S && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.BLUETOOTH_CONNECT))
+                -> {
                     Snackbar.make(
                         activity.findViewById(android.R.id.content),
                         R.string.record_permission_label,
@@ -349,7 +434,8 @@ object MediaPermissions {
                 }
 
                 SharedPreferenceManager.getBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED) ||
-                        SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED) -> {
+                        SharedPreferenceManager.getBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED) ||
+                        SharedPreferenceManager.getBoolean(Constants.BLUETOOTH_PERMISSION_ASKED) -> {
                     openSettingsForPermission(
                         activity,
                         activity.getString(R.string.record_permission_label)
@@ -366,12 +452,20 @@ object MediaPermissions {
      * @param activityResultCaller  activityResultCaller
      */
     private fun doRequestAudioCallPermissions(activityResultCaller: ActivityResultLauncher<Array<String>>) {
-        activityResultCaller.launch(arrayOf(
+        val permissionsToRequest = if (SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.BLUETOOTH_CONNECT
+            )
+        } else arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.READ_PHONE_STATE
-        ))
+        )
+        activityResultCaller.launch(permissionsToRequest)
         SharedPreferenceManager.setBoolean(Constants.RECORD_AUDIO_PERMISSION_ASKED, true)
         SharedPreferenceManager.setBoolean(Constants.READ_PHONE_STATE_PERMISSION_ASKED, true)
+        SharedPreferenceManager.setBoolean(Constants.BLUETOOTH_PERMISSION_ASKED, true)
     }
 
     /**
@@ -850,6 +944,50 @@ object MediaPermissions {
                     showPermissionPopUpForCamera(permissionsLauncher, permissionsToRequest, permissionAlertDialog)
                 }
             }
+        }
+    }
+
+    /**
+     * Request the google account permissions
+     *
+     * @param activity       Activity of the View
+     * @param permissionCode Code for start activity
+     */
+    fun requestAccountPermissions(activity: Activity, permissionCode: Int) {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.GET_ACCOUNTS
+            )
+        ) {
+            /*
+              If the user has denied the permission previously your code will come to this block
+              Here you can explain why you need this permission Explain here why you need this
+              permission
+             */
+            Snackbar.make(
+                activity.findViewById(android.R.id.content),
+                "Reading google accounts are needed for this action",
+                Snackbar.LENGTH_INDEFINITE
+            )
+                .setAction(
+                    "OK"
+                ) { view: View? ->
+                    ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.GET_ACCOUNTS),
+                        permissionCode
+                    )
+                }
+                .show()
+        } else {
+            /*
+          And finally ask for the permission.
+         */
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.GET_ACCOUNTS),
+                permissionCode
+            )
         }
     }
 }

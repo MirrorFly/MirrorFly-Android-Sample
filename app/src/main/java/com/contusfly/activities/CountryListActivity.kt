@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.adapters.CountriesAdapter
-import com.contusfly.applySourceColorFilter
 import com.contusfly.applySrcInColorFilter
 import com.contusfly.databinding.ActivityCountryListBinding
 import com.contusfly.utils.Constants
@@ -116,16 +115,16 @@ class CountryListActivity : BaseActivity() {
      */
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_search, menu)
-        val searchItem: MenuItem = menu.findItem(R.id.action_search)
-        val searchView = MenuItemCompat.getActionView(searchItem) as SearchView
+        val countrySearchItem: MenuItem = menu.findItem(R.id.action_search)
+        val countrySearchView = MenuItemCompat.getActionView(countrySearchItem) as SearchView
 
-        searchView.setOnCloseListener { true }
-        val searchPlate = searchView.findViewById(androidx.appcompat.R.id.search_src_text) as EditText
-        searchPlate.hint = getString(R.string.toolbar_search_label)
-        val searchPlateView: View = searchView.findViewById(androidx.appcompat.R.id.search_plate)
-        searchPlateView.setBackgroundColor(ContextCompat.getColor(this, android.R.color.transparent))
+        countrySearchView.setOnCloseListener { true }
+        val countrySearchPlate = countrySearchView.findViewById(androidx.appcompat.R.id.search_src_text) as EditText
+        countrySearchPlate.hint = getString(R.string.toolbar_search_label)
+        val countrySearchPlateView: View = countrySearchView.findViewById(androidx.appcompat.R.id.search_plate)
+        countrySearchPlateView.setBackgroundColor(ContextCompat.getColor(this, android.R.color.transparent))
 
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+        countrySearchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
                 return false
             }

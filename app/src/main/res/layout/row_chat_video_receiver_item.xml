@@ -132,7 +132,7 @@
                         android:paddingBottom="@dimen/padding_5"
                         android:layout_toStartOf="@+id/text_receive_time"
                         android:contentDescription="@null"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         app:srcCompat="@drawable/ic_star_receiver" />
 
                     <androidx.appcompat.widget.AppCompatTextView

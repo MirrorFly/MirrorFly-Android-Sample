@@ -46,7 +46,7 @@ class MessageInfoActivity : BaseMessageInfoActivity() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         UserInterfaceUtils.setUpToolBar(this, toolbar, supportActionBar, getString(R.string.msg_info))
-        mChatMsgTime = ChatMsgTime()
+        mChatMsgTime = ChatMsgTime(Calendar.getInstance())
         setReceiptView(message!!)
     }
 

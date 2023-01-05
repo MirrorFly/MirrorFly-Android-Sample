@@ -34,7 +34,8 @@
     <string name="error_mobile_number_short">Your mobile number is too short</string>
     <string name="error_mobile_number_length">Your mobile number contains more than 16 digits</string>
     <string name="valid_mobile_number">Please enter a valid mobile number</string>
-    <string name="error_check_internet">Please check your internet connectivity</string>
+    <string name="error_check_internet">Please check your internet connection</string>
+    <string name="file_format_not_supported">The file format is not supported</string>
     <string name="error_invalid_otp">Invalid OTP</string>
     <string name="error_otp_many_attempts">Too many attempts, Please try again later</string>
     <string name="error_otp_authorization">Authorization failure! Please try again.</string>
@@ -140,6 +141,7 @@
     <string name="single_chat_receiver_recall">This message was deleted&#160;&#160;&#160;&#160;</string>
     <string name="msg_no_chats">No Chats Found</string>
     <string name="msg_no_results">No results found</string>
+    <string name="msg_no_contacts">No Contacts found</string>
     <string name="msg_timed_out_sms">Timed out waiting for SMS</string>
     <string name="msg_otp_validated">OTP validated successfully</string>
     <string name="max_profile_name_chars">Maximum of 30 Characters</string>
@@ -183,6 +185,7 @@
     <string name="action_location">Location</string>
     <string name="action_contact">Contact</string>
     <string name="title_video">Video</string>
+    <string name="content_not_found">Content not found</string>
 
     <string name="file_size_convention_b">bytes</string>
     <string name="file_size_convention_gb">GB</string>
@@ -448,7 +451,8 @@
     <string name="google_translation_label">Translate Message</string>
     <string name="google_translation_message">Enable Translate Message to choose Translation Language</string>
     <string name="google_translation_language_label">Choose Translation Language</string>
-    <string name="google_translation_language_double_tap">Double Tap the received messages to translate</string> <string name="save_media_to_gallery">Save Media To Gallery</string>
+    <string name="google_translation_language_double_tap">Double Tap the received messages to translate</string>
+    <string name="save_media_to_gallery">Save Media To Gallery</string>
     <string name="choose_language">Choose Language</string>
     <string name="set_up_media_to_gallery">SetUp if you want to save media files to gallery</string>
     <string name="media_auto_download">Media Auto download</string>
@@ -850,5 +854,101 @@
     <string name="delete_account_popup_title">Proceed to delete your account?</string>
     <string name="delete_account_popup_description">Deleting your account is permanent. Your data cannot be recovered if you reactivate your MirrorFly account in future.</string>
     <string name="delete_account_success">Your MirrorFly account has been deleted.</string>
+
+
+    <string name="chat_backup">Chat Backup</string>
+    <string name="last_backup">Last Backup</string>
+    <string name="backup_info_text">Back up your chat history and media to Google Drive so if you loose your device or switch to new one, your chat history is safe.You can restore your chat history when you reinstall Mirrorfly.</string>
+    <string name="auto_backup">Auto Backup</string>
+    <string name="select_gmail_account">Select your Google Drive account</string>
+    <string name="scheduled_your_backup">Scheduled your backup</string>
+    <string name="google_drive_settings">Google Drive Settings</string>
+    <string name="restore_backup">Restore Backup</string>
+    <string name="restore_info">Restore your messages and media from Google Drive. If you don’t restore now, you wont be able to restore later.</string>
+    <string name="select_google_account">Please select Google account</string>
+    <string name="in_progres">In Progress</string>
+    <string name="uploading_data">Uploading Data</string>
+    <string name="backingup_data">Backing up data</string>
+    <string name="downloading_data">Downloading backup data</string>
+    <string name="drive_access_revoked">Drive access is revoked. Please select Google account again.</string>
+    <string name="setup_auto_backup">Setup Auto Backup</string>
+    <string name="date_util_just_now">Just now</string>
+    <string name="date_util_unit_second">second</string>
+    <string name="date_util_unit_seconds">seconds</string>
+    <string name="date_util_unit_minute">minute</string>
+    <string name="date_util_unit_minutes">minutes</string>
+    <string name="date_util_unit_hour">hour</string>
+    <string name="date_util_unit_hours">hours</string>
+    <string name="date_util_unit_day">day</string>
+    <string name="date_util_unit_days">days</string>
+    <string name="date_util_unit_month">month</string>
+    <string name="date_util_unit_months">months</string>
+    <string name="date_util_unit_year">year</string>
+    <string name="date_util_unit_years">years</string>
+    <string name="date_util_suffix">ago</string>
+    <string name="no_msg_backup">No messages to backup</string>
+    <string name="google_logout_info">You are logged out of Google Drive please login again to take backup</string>
+    <string name="backup_success_msg">Backup taken Successfully</string>
+    <string name="drive_space_issue_msg">Google Drive storage does not have sufficient space</string>
+    <string name="connect_wifi_info">Connect your phone to Wi-fi to back up to Google Drive.</string>
+    <string name="connect_wifi_cell_info">Connect your phone to Wi-fi or Cellular to back up to Google Drive.</string>
+    <string name="roaming_info">You\'re currently roaming. Wait until you\'re no longer roaming or connect your phone to Wi-fi to backup to Google Drive.</string>
+    <string name="wifi_alert">Backing up over cellular may use a lot of data.To reduce data usage, connect your phone to Wi-Fi.</string>
+    <string name="over_cell_backup">Back up over cellular?</string>
+    <string name="back_up">Back up</string>
+    <string name="authenticating">Authenticating...</string>
+    <string name="authenticating_drive">Authenticating with Google Drive</string>
+    <string name="backing_up_msg">Backing up messages</string>
+    <string name="please_wait_msg">Please wait a moment</string>
+    <string name="wifi_only">Wifi Only</string>
+    <string name="wifi_cellular">Wifi or Cellular</string>
+    <string name="need_permission_backup">Need Storage permission to create backup file</string>
+    <string name="drive_backup_folder_name">Mirror Fly</string>
+    <string name="no_backup_msg_available">No backup file available</string>
+    <string name="backup_not_found">Backup Not Found</string>
+    <string name="backup_found">Backup Found</string>
+    <string name="__dash">--</string>
+    <string name="size_">Size: --</string>
+    <string name="no_backup_msg">No backup available</string>
+    <string name="downloading">Downloading...</string>
+    <string name="clean_up_data">Cleaning up data...</string>
+    <string name="restoring_msg">Restoring Messages</string>
+    <string name="google_not_initialized">Google Account Not initialized</string>
+    <string name="file_not_available">file not available</string>
+    <string name="permission_not_given">permission not given to delete</string>
+    <string name="download_backup_file">Download Backup File</string>
+    <string name="downloaded_backup_info">Backup File Downloaded Successfully</string>
+    <string name="restore_data">Restore Data</string>
+    <string name="text_backup_upload">Sorry. You can select only .txt file for restore Data</string>
+    <string name="restore_success_info">Data Restored Successfully</string>
+    <string name="restore_failed_info">Data Restore Failed. Please try later</string>
+    <string name="local_backup_amp_restore"><![CDATA[Local Backup & Restore]]></string>
+    <string name="download">Download</string>
+    <string name="restore">Restore</string>
+    <string name="download_info">Download the cloud file to save it to local storage, if you tap on restore button the restore process will start from the file saved in your local storage.</string>
+    <string name="add_account">Add account!</string>
+    <string name="new_user_info">As your a new user you will need to add account. Please add account to sync your data to cloud.</string>
+    <string name="add_google_account">Add Google Account</string>
+    <string name="skip">Skip</string>
+    <string name="looking_backup">Looking for Backup</string>
+    <string name="backup">Backup</string>
+
+    <!--Chat Tags Page-->
+    <string name="chat_tag_title">Chat Tags</string>
+    <string name="chat_tag_info">Create chat tags for different groups of chats and quickly switch between them.</string>
+    <string name="recommended_chat_tag">Recommended Chat Tags</string>
+    <string name="create_chat_tag">Create Chat Tag</string>
+    <string name="create_tag">Create Tag</string>
+    <string name="tag_name">Tag Name</string>
+    <string name="tag_name_hint">Type Chat Tag name here...</string>
+    <string name="tag_people_add_title">Include People or Group</string>
+    <string name="add_people_or_group">Add people or group</string>
+    <string name="choose_people_info">Choose People or Group that will appear in this tag.</string>
+    <string name="empty_list">Please select any one peoples</string>
+    <string name="remove_tag_title">Remove Group/People ?</string>
+    <string name="remove_tag_message">This will delete your group from the tag you have created.</string>
+    <string name="delete_lable">DELETE</string>
+    <string name="edit_tag_info">Tap \'Edit\' to change the order or delete tags.</string>
+    <string name="remove_chat_tag_title">This will remove chat tag, your chats will not be deleted.</string>
 
 </resources>

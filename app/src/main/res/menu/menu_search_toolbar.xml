@@ -24,9 +24,22 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/prev_loader"
+        android:title="loader"
+        app:showAsAction="always"
+        app:actionLayout="@layout/search_bar_loader_layout"/>
+
+    <item
         android:id="@+id/action_next"
         android:icon="@drawable/ic_search_next_arrow"
         android:orderInCategory="95"
         android:title="@string/description_next_item"
         app:showAsAction="always" />
+
+    <item
+        android:id="@+id/next_loader"
+        android:title="loader"
+        app:showAsAction="always"
+        android:orderInCategory="96"
+        app:actionLayout="@layout/search_bar_loader_layout"/>
 </menu>

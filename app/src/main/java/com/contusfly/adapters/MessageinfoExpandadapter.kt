@@ -202,7 +202,7 @@ class MessageinfoExpandadapter(private val context: Context, chattype: ChatTypeE
      * @param chattype ChatType of the Message to be clicked to get info
      */
     init {
-        mChatMsgTime = ChatMsgTime()
+        mChatMsgTime = ChatMsgTime(Calendar.getInstance())
         this.chattype = chattype
     }
 }

@@ -22,6 +22,7 @@ import com.contusfly.activities.StartActivity
 import com.contusfly.views.CustomDrawable
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contus.flycommons.ChatType
+import com.contus.flycommons.PendingIntentHelper
 import com.contusfly.*
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.media.MediaUploadHelper
@@ -31,7 +32,7 @@ object AppChatShortCuts {
     @TargetApi(25)
     fun dynamicAppShortcuts(context: Context, toUser: String, chatType: String) {
         try {
-            val profileDetails = FlyCore.getUserProfile(toUser)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser)
             var contactName: String
             profileDetails.let { userVcard -> contactName = userVcard!!.name }
 
@@ -95,10 +96,10 @@ object AppChatShortCuts {
     }
 
     private fun getPendingIntent(context: Context): PendingIntent {
-        return PendingIntent.getBroadcast(context, 100, getAppShortCutIntent(context), 0)
+        return PendingIntentHelper.getBroadcast(context, 100, getAppShortCutIntent(context))
     }
 
-    private fun getAppShortCutIntent(context: Context): Intent? {
+    private fun getAppShortCutIntent(context: Context): Intent {
         val chatShortCutSuccessIntent: Intent
         if (Build.VERSION.SDK_INT > 25) {
 

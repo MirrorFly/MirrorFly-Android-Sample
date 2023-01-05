@@ -12,6 +12,7 @@ import com.contusfly.gone
 import com.contusfly.models.FileObject
 import com.contusfly.models.MediaPreviewModel
 import com.contusfly.show
+import com.contusfly.utils.Constants
 import com.contusfly.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 
@@ -79,7 +80,7 @@ class MediaPreviewFragment : Fragment(), View.OnClickListener {
                 else -> setViewsForFileTypeMedia()
             }
         } else {
-            filePath = Utils.returnEmptyStringIfNull(messageData!!.path)
+            filePath = messageData?.path ?: Constants.EMPTY_STRING
             if (!messageData!!.isImage) {
                 mediaPreviewFragment.playVideo.show()
                 mediaPreviewFragment.video.show()

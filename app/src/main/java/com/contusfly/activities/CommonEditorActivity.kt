@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
+import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -149,6 +150,7 @@ class CommonEditorActivity : BaseActivity(), View.OnClickListener,
         commonEditorBinding.textCancel.setOnClickListener(this)
         commonEditorBinding.rootView.setOnClickListener(this)
         commonEditorBinding.imageSmiley.setOnClickListener(this)
+        commonEditorBinding.toolBar.toolbar.setOnClickListener(this)
     }
 
     /**
@@ -185,11 +187,27 @@ class CommonEditorActivity : BaseActivity(), View.OnClickListener,
             commonEditorBinding.imageSmiley -> {
                 emojiHandler.setKeypad(editorEditText)
             }
-            commonEditorBinding.rootView -> {
+            commonEditorBinding.rootView,commonEditorBinding.toolBar.toolbar -> {
                 if (emojiHandler.isEmojiShowing) emojiHandler.hideEmoji()
+                val view = currentFocus
+                Utils.hideSoftInput(this, view)
                 editorEditText.clearFocus()
             }
         }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            android.R.id.home -> {
+                if (emojiHandler.isEmojiShowing) {
+                    emojiHandler.hideEmoji()
+                    finish()
+                }
+                else super.onBackPressed()
+                return true
+            }
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     override fun onResume() {
@@ -296,8 +314,6 @@ class CommonEditorActivity : BaseActivity(), View.OnClickListener,
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
-        val view = currentFocus
-        Utils.hideSoftInput(this, view)
         return super.dispatchTouchEvent(ev)
     }
 

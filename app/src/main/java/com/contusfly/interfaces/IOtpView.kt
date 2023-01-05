@@ -67,6 +67,11 @@ interface IOtpView {
     fun setOtpTextViewDisable(editTexts: Array<AppCompatEditText>)
 
     /**
+     * Auto login after received otp
+     */
+    fun otpAutoLogin()
+
+    /**
      * Set the otp value enable
      *
      * @param editTexts Otp value

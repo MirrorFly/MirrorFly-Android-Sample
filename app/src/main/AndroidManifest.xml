@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
@@ -29,13 +30,24 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
 
     <uses-feature android:name="android.hardware.camera" />
 
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
+
             <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+
+            <data android:mimeType="audio/*" />
         </intent>
     </queries>
 
@@ -51,7 +63,28 @@
         android:theme="@style/MyTheme"
         tools:replace="android:label,android:allowBackup">
         <activity
+            android:name=".chatTag.activities.AddPeopleActivity"
+            android:exported="false" />
+        <activity
+            android:name=".chatTag.activities.EditTagActivity"
+            android:exported="false" />
+        <activity
+            android:name=".chatTag.activities.CreateTagActivity"
+            android:exported="false" />
+        <activity
+            android:name=".chatTag.activities.ChatTagActivity"
+            android:exported="false" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification_blue" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorAccent" />
+
+        <activity
             android:name=".quickShare.QuickShareActivity"
+            android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="portrait"
             android:theme="@style/SplashTheme">
@@ -72,7 +105,7 @@
             android:name=".activities.AdminBlockedActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/ChatTheme"/>
+            android:theme="@style/ChatTheme" />
         <activity
             android:name=".activities.QrResultActivity"
             android:screenOrientation="portrait" />
@@ -80,14 +113,16 @@
             android:name=".activities.QrCodeScannerActivity"
             android:screenOrientation="portrait" />
         <activity android:name=".activities.GroupMessageInfoActivity" />
-        <activity android:name=".activities.BiometricActivity"
-            android:screenOrientation="portrait"
-            android:launchMode="singleTop"/>
+        <activity
+            android:name=".activities.BiometricActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait" />
         <activity android:name=".activities.PinSetting" />
         <activity android:name=".activities.PinEntryChange" />
-        <activity android:name=".activities.PinActivity"
-            android:screenOrientation="portrait"
-            android:launchMode="singleTop"/>
+        <activity
+            android:name=".activities.PinActivity"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.GroupInfoActivity"
             android:screenOrientation="portrait" />
@@ -99,6 +134,7 @@
             android:screenOrientation="portrait" />
         <activity
             android:name=".activities.StartActivity"
+            android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/SplashTheme">
             <intent-filter>
@@ -108,11 +144,13 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <!-- Accepts URIs that begin with "BuildConfig.WEB_CHAT_LOGIN” -->
-                <data android:scheme="https"
-                    android:host="webreact-qa19.mirrorfly.com" />
+                <data
+                    android:host="webreact-qa19.mirrorfly.com"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
         <activity
@@ -164,8 +202,8 @@
             android:label="@string/title_activity_chat"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize"
-            android:theme="@style/ChatTheme"/>
+            android:theme="@style/ChatTheme"
+            android:windowSoftInputMode="adjustResize" />
 
         <service android:name=".services.NonStickyService" />
 
@@ -184,16 +222,16 @@
         <activity
             android:name=".call.groupcall.GroupCallActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
-            android:windowSoftInputMode="stateHidden"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
             android:resizeableActivity="false"
             android:screenOrientation="portrait"
             android:showOnLockScreen="true"
+            android:showWhenLocked="true"
             android:supportsPictureInPicture="true"
             android:taskAffinity="call.video"
             android:turnScreenOn="true"
-            android:showWhenLocked="true"
+            android:windowSoftInputMode="stateHidden"
             tools:targetApi="R" />
         <activity
             android:name=".call.calllog.CallHistoryDetailActivity"
@@ -202,7 +240,11 @@
         <!-- android:screenOrientation="portrait" /> -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
+            android:value="AIzaSyCe4m08a3eMvInU8LBxAjAyEIyG-Kj_Ayw" />
+
+        <meta-data
+            android:name="com.google.android.geo.API_THUMP_KEY"
+            android:value="AIzaSyBaKkrQnLT4nacpKblIE5d4QK6GpaX5luQ" />
 
         <activity android:name=".activities.SelectMapViewActivity" />
         <activity
@@ -220,10 +262,9 @@
         <activity
             android:name=".activities.MessageInfoActivity"
             android:screenOrientation="portrait" />
-
         <activity
             android:name=".activities.ViewAllMediaActivity"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.ContactSelectionActivity"
             android:screenOrientation="portrait" />
@@ -233,22 +274,42 @@
         <activity
             android:name=".call.groupcall.OnGoingCallPreviewActivity"
             android:exported="false"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.UserListActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.BackUpActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activities.RestoreActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
         <service
             android:name=".MyFirebaseMessagingService"
-            android:exported="false">
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            tools:targetApi="n">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-    </application>
 
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PICK" />
-            <data android:mimeType="audio/*" />
-        </intent>
-    </queries>
+        <receiver
+            android:name=".backup.broadcastreceivers.BootCompletedTimeChangedListener"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
+    </application>
 
 </manifest>

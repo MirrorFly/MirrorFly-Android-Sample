@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.api.CallManager
 import com.contusfly.TAG
 import com.contusfly.hasActiveInternet
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +32,7 @@ class GroupCallViewModel: ViewModel() {
      * @param userJid id of muted user
      */
     fun setAudioMuteStatus(userJid: String?) {
-        if (userJid == null || !GroupCallUtils.isCallConnected()) {
+        if (userJid == null || !CallManager.isCallConnected()) {
             LogMessage.i(TAG, "$CALL_UI Skipping mute UI update, since call is not connected")
             return
         }

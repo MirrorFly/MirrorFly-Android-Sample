@@ -2,7 +2,6 @@ package com.contusfly.call
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.app.Notification
@@ -16,15 +15,20 @@ import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.call.utils.CallConstants
 import com.contus.webrtc.api.CallLogManager
-import com.contus.call.utils.GroupCallUtils
+import com.contus.flycommons.PendingIntentHelper
 import com.contusfly.R
 import com.contusfly.activities.DashboardActivity
+import com.contusfly.call.groupcall.utils.CallUtils
+import com.contusfly.notification.NotificationBuilder
 import com.contusfly.utils.Constants
 import com.contusfly.utils.NotifyRefererUtils
 import com.contusfly.utils.SharedPreferenceManager
+import com.contusflysdk.api.FlyMessenger
 import me.leolin.shortcutbadger.ShortcutBadger
 
 object CallNotificationUtils {
+
+    var unReadCallCount = 0
     /**
      * Creates the missed call notification
      *
@@ -38,12 +42,17 @@ object CallNotificationUtils {
         val notificationManager = context
                 .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+        unReadCallCount += 1
+        unReadCallCount = if (NotificationBuilder.chatNotifications.size == 0) getTotalUnReadCount() else unReadCallCount
+
+        LogMessage.i(TAG,"unReadCallCount $unReadCallCount")
         val notBuilder = NotificationCompat.Builder(context, channelId)
         notBuilder.setSmallIcon(getNotificationIcon())
-        notBuilder.color = ContextCompat.getColor(context, R.color.colorPrimary)
+        notBuilder.color = ContextCompat.getColor(context, R.color.colorAccent)
         notBuilder.setContentTitle(message)
         notBuilder.setContentText(messageContent)
         notBuilder.setAutoCancel(true)
+        notBuilder.setNumber(unReadCallCount)
         val createdChannel: NotificationChannel
         val notificationSoundUri = Uri.parse(SharedPreferenceManager.getString(Constants.NOTIFICATION_URI))
         val isRing = SharedPreferenceManager.getBoolean(Constants.NOTIFICATION_SOUND)
@@ -96,14 +105,13 @@ object CallNotificationUtils {
 
         val notificationIntent = Intent(context, DashboardActivity::class.java)
         notificationIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        notificationIntent.putExtra(GroupCallUtils.IS_CALL_NOTIFICATION, true)
-        val pendingIntent = PendingIntent.getActivity(
+        notificationIntent.putExtra(CallUtils.IS_CALL_NOTIFICATION, true)
+        val pendingIntent = PendingIntentHelper.getActivity(
             context, CallConstants.CALL_NOTIFICATION_ID,
-            notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT
+            notificationIntent
         )
         notBuilder.setContentIntent(pendingIntent)
         val notification = notBuilder.build()
-        setUnreadBadgeCount(context, CallLogManager.getUnreadMissedCallCount(), notification)
         if (!SharedPreferenceManager.getBoolean(Constants.MUTE_NOTIFICATION))
             notificationManager.notify(CallConstants.CALL_NOTIFICATION_ID, notification)
     }
@@ -115,18 +123,18 @@ object CallNotificationUtils {
             NotificationManager.IMPORTANCE_LOW
     }
 
-    fun setUnreadBadgeCount(context: Context, unreadCount: Int, notification: Notification?) {
-        LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} Inside setUnreadBadgeCount ==> unreadCount = $unreadCount")
-        if (!Build.MANUFACTURER.equals("Xiaomi", ignoreCase = true)) {
-            ShortcutBadger.applyCount(context, unreadCount)
-        } else {
-            ShortcutBadger.applyNotification(context, notification, unreadCount)
-        }
-    }
-
     private fun getNotificationIcon(): Int {
         LogMessage.i(TAG, "${com.contus.call.CallConstants.CALL_UI} getNotificationIcon()")
-        return R.mipmap.ic_launcher
+        return R.drawable.ic_notification_blue
     }
+
+    private fun getTotalUnReadCount(): Int {
+        return if (NotificationBuilder.chatNotifications.size == 0) FlyMessenger.getUnreadMessageCountExceptMutedChat() + CallLogManager.getUnreadMissedCallCount() else 1
+    }
+
+    fun cancelNotifications() {
+        unReadCallCount = 0
+    }
+
 
 }

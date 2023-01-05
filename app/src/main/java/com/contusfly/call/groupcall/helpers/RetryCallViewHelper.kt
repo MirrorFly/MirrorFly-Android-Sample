@@ -2,7 +2,7 @@ package com.contusfly.call.groupcall.helpers
 
 import android.view.View
 import com.contus.webrtc.CallType
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.api.CallManager
 import com.contusfly.R
 import com.contusfly.call.groupcall.listeners.ActivityOnClickListener
 import com.contusfly.databinding.LayoutCallRetryBinding
@@ -32,7 +32,7 @@ class RetryCallViewHelper(
     fun showRetryLayout() {
         binding.layoutCallRetry.show()
 
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             binding.textCallRetry.gone()
         } else {
             binding.textCallRetry.show()
@@ -40,7 +40,7 @@ class RetryCallViewHelper(
 
         binding.textCallAgain.setCompoundDrawablesWithIntrinsicBounds(
             0,
-            if (GroupCallUtils.getCallType() == CallType.AUDIO_CALL) R.drawable.ic_group_call_again else R.drawable.ic_group_video_call_again,
+            if (CallManager.getCallType() == CallType.AUDIO_CALL) R.drawable.ic_group_call_again else R.drawable.ic_group_video_call_again,
             0,
             0
         )

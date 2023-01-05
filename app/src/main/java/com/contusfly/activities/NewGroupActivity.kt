@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -16,8 +17,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
-import com.contus.flycommons.*
+import androidx.emoji.widget.EmojiAppCompatEditText
+import com.contus.flycommons.FlyUtils
 import com.contus.flycommons.LogMessage
+import com.contus.flycommons.getData
+import com.contus.flycommons.getMessage
 import com.contus.xmpp.chat.models.CreateGroupModel
 import com.contusfly.R
 import com.contusfly.TAG
@@ -26,8 +30,8 @@ import com.contusfly.databinding.ActivityNewGroupBinding
 import com.contusfly.showToast
 import com.contusfly.utils.*
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ImageUtils.takePhotoFromCamera
 import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
-import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusfly.views.PermissionAlertDialog
@@ -35,7 +39,6 @@ import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ProfileDetails
-import com.contusflysdk.api.utils.ImageUtils.takePhotoFromCamera
 import com.contusflysdk.api.utils.PickFileUtils
 import com.contusflysdk.utils.FilePathUtils
 import com.contusflysdk.utils.ImagePopUpUtils
@@ -59,6 +62,8 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
     private var fileTemp: File? = null
 
     private var progressDialog: DoProgressDialog? = null
+
+    private var emojiAppEditText: EmojiAppCompatEditText? = null
 
     /**
      * Instance of the EmojiHandler to access the emoji and text keypad
@@ -117,17 +122,17 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
 
 
     private fun setListeners() {
-
+        emojiAppEditText = binding.editNewGroupName
         emojiHandler = EmojiHandler(this)
         emojiHandler.setIconImageView(binding.imgSmiley)
-        emojiHandler.attachKeyboardListeners(binding.editNewGroupName)
+        emojiHandler.attachKeyboardListeners(emojiAppEditText!!)
         emojiHandler.setHandledFrom(TAG)
 
         binding.toolbarInclude.toolbarAction.setOnClickListener {
 
-            if (binding.editNewGroupName.text.toString().trim().isNotEmpty()) {
+            if (emojiAppEditText!!.text.toString().trim().isNotEmpty()) {
                 if (emojiHandler.isEmojiShowing) emojiHandler.hideEmoji()
-                val intent = Intent(this, NewContactsActivity::class.java).apply {
+                val intent = Intent(this, UserListActivity::class.java).apply {
                     putExtra(Constants.ADD_PARTICIAPANTS, true)
                     putExtra(Constants.TITLE, getString(R.string.add_participants))
                 }
@@ -148,7 +153,7 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
                 showBottomMenu(it)
         }
 
-        binding.editNewGroupName.addTextChangedListener(object : TextWatcher {
+        emojiAppEditText!!.addTextChangedListener(object : TextWatcher {
             var beforeChanged: String? = null
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -160,18 +165,18 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
             }
 
             override fun afterTextChanged(s: Editable?) {
-                val length = 25 - EmojiUtils.getGraphemeLength(binding.editNewGroupName.text.toString())
+                val length = 25 - EmojiUtils.getGraphemeLength(emojiAppEditText!!.text.toString())
                 binding.txtSize.text = length.toString()
-                if (EmojiUtils.getGraphemeLength(binding.editNewGroupName.text.toString()) > 25) {
-                    binding.editNewGroupName.setText(beforeChanged)
-                    binding.editNewGroupName.setSelection(binding.editNewGroupName.text.toString().length)
+                if (EmojiUtils.getGraphemeLength(emojiAppEditText!!.text.toString()) > 25) {
+                    emojiAppEditText!!.setText(beforeChanged)
+                    emojiAppEditText!!.setSelection(emojiAppEditText!!.text.toString().length)
                 }
             }
 
         })
 
         binding.imgSmiley.setOnClickListener {
-            emojiHandler.setKeypad(binding.editNewGroupName)
+            emojiHandler.setKeypad(emojiAppEditText!!)
         }
     }
 
@@ -237,7 +242,9 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
     private fun handleAddParticipant(data: Intent?) {
         progressDialog = DoProgressDialog(this)
         progressDialog!!.showProgress()
-        GroupManager.createGroup(binding.editNewGroupName.text.toString(), data!!.getStringArrayListExtra(Constants.USERS_JID)!!,
+        var list=data!!.getStringArrayListExtra(Constants.USERS_JID)
+        com.contusfly.utils.LogMessage.d(TAG,list.toString())
+        GroupManager.createGroup(emojiAppEditText!!.text.toString(), data!!.getStringArrayListExtra(Constants.USERS_JID)!!,
             fileTemp, { isSuccess, throwable, hashmap ->
             progressDialog!!.dismiss()
             if (isSuccess) {
@@ -303,9 +310,14 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
 
         when (requestCode) {
             RequestCode.STORAGE_PERMISSION_CODE -> {
-                if (MediaPermissions.isReadFilePermissionAllowed(this) &&
-                        MediaPermissions.isWriteFilePermissionAllowed(this))
+                if(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    if (MediaPermissions.isReadFilePermissionAllowed(this) &&
+                        MediaPermissions.isWriteFilePermissionAllowed(this)
+                    )
+                        PickFileUtils.chooseImageFromGallery(this)
+                } else {
                     PickFileUtils.chooseImageFromGallery(this)
+                }
             }
         }
     }
@@ -326,15 +338,15 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (newConfig.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_YES) emojiHandler.setKeypad(binding.editNewGroupName)
+        if (newConfig.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_YES) emojiHandler.setKeypad(emojiAppEditText!!)
     }
 
     override fun onEmojiconBackspaceClicked(v: View?) {
-        EmojiconsFragment.backspace(binding.editNewGroupName)
+        EmojiconsFragment.backspace(emojiAppEditText!!)
     }
 
     override fun onEmojiconClicked(emojicon: Emojicon?) {
-        EmojiconsFragment.input(binding.editNewGroupName, emojicon)
+        EmojiconsFragment.input(emojiAppEditText!!, emojicon)
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
@@ -359,12 +371,19 @@ class NewGroupActivity : AppCompatActivity(), OnEmojiconBackspaceClickedListener
     }
 
     private fun openGallery() {
-
-        if (MediaPermissions.isReadFilePermissionAllowed(this) &&
-            MediaPermissions.isWriteFilePermissionAllowed(this))
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            if (MediaPermissions.isReadFilePermissionAllowed(this) &&
+                MediaPermissions.isWriteFilePermissionAllowed(this)
+            )
+                PickFileUtils.chooseImageFromGallery(this)
+            else MediaPermissions.requestStorageAccess(
+                this,
+                permissionAlertDialog,
+                galleryPermissionLauncher
+            )
+        } else {
             PickFileUtils.chooseImageFromGallery(this)
-        else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
-
+        }
     }
 
     /**

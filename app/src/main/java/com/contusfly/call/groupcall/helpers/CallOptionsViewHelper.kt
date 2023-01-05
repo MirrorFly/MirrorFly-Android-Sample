@@ -48,10 +48,14 @@ class CallOptionsViewHelper(
         when (v.id) {
             R.id.image_mute_audio -> toggleMic()
             R.id.image_switch_camera -> {
+                if (CallManager.isCallOnHold())
+                    return
                 v.startAnimation(AnimationUtils.loadAnimation(activity, R.anim.alpha))
                 swapCamera()
             }
             R.id.image_mute_video -> {
+                if (CallManager.isCallOnHold())
+                    return
                 if (MediaPermissions.isPermissionAllowed(activity, Manifest.permission.CAMERA)) {
                     toggleVideoMute()
                 } else {
@@ -69,10 +73,11 @@ class CallOptionsViewHelper(
 
     /**
      * This method is used to set the Audio mute icons and also send a mute message
-     * setMuteStatus(GroupCallUtils.getLocalUserJid())
      */
     private fun toggleMic() {
         LogMessage.d(TAG, "$CALL_UI toggleMic()")
+        if (CallManager.isCallOnHold())
+            return
         binding.imageMuteAudio.isActivated =
             !binding.imageMuteAudio.isActivated
         CallManager.muteAudio(binding.imageMuteAudio.isActivated)
@@ -95,7 +100,7 @@ class CallOptionsViewHelper(
      */
     fun toggleVideoMute() {
         LogMessage.d(TAG, "$CALL_UI toggleVideoMute()")
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             muteVideoForOneToOneCall()
         } else {
             muteVideoForGroupCall()
@@ -141,7 +146,7 @@ class CallOptionsViewHelper(
 
         checkAndUpdateCameraView()
 
-        if (GroupCallUtils.isOutgoingCall() || GroupCallUtils.isCallAttended()) {
+        if (CallManager.isOutgoingCall() || CallManager.isCallAnswered()) {
             showCallOptions()
             baseViewOnClickListener.animateListViewWithCallOptions()
         } else
@@ -150,7 +155,7 @@ class CallOptionsViewHelper(
 
     fun showCallOptions() {
         binding.layoutCallOptions.show()
-        binding.imageMuteAudio.isActivated = GroupCallUtils.isAudioMuted()
+        binding.imageMuteAudio.isActivated = CallManager.isAudioMuted()
     }
 
     fun hideCallOptions() {
@@ -178,12 +183,12 @@ class CallOptionsViewHelper(
     }
 
     fun checkAndUpdateCameraView() {
-        if (GroupCallUtils.isVideoMuted()) {
+        if (CallManager.isVideoMuted()) {
             binding.imageSwitchCamera.gone()
             binding.imageSwitchCamera.isActivated = false
             binding.imageSwitchCamera.isEnabled = false
             binding.imageMuteVideo.isActivated = false
-            binding.imageMuteVideo.isEnabled = GroupCallUtils.isCallConnected()
+            binding.imageMuteVideo.isEnabled = CallManager.isCallConnected()
         } else {
             binding.imageSwitchCamera.show()
             binding.imageSwitchCamera.isActivated = true
@@ -205,7 +210,7 @@ class CallOptionsViewHelper(
             TAG,
             "animateCallOptions callOptionsVisibility: $callOptionsVisibility"
         )
-        if (activity.isInPIPMode() || !GroupCallUtils.isCallConnected() || GroupCallUtils.isAddUsersToTheCall())
+        if (activity.isInPIPMode() || !CallManager.isCallConnected() || CallUtils.isAddUsersToTheCall())
             return
         val isCallOptionNotVisible = binding.layoutCallOptions.visibility != View.VISIBLE
         val slideDownAnimation = AnimationUtils.loadAnimation(activity, animation)
@@ -217,7 +222,7 @@ class CallOptionsViewHelper(
             }
 
             override fun onAnimationEnd(animation: Animation) {
-                if (CallUtils.getIsGridViewEnabled() || !GroupCallUtils.isOneToOneCall() || GroupCallUtils.isVideoCall()) {
+                if (CallUtils.getIsGridViewEnabled() || !CallManager.isOneToOneCall() || CallManager.isVideoCall()) {
                     binding.layoutCallOptions.visibility = callOptionsVisibility
                     baseViewOnClickListener.checkOptionArrowVisibility(arrowVisibility)
                 }
@@ -247,7 +252,7 @@ class CallOptionsViewHelper(
     }
 
     private fun muteVideoForOneToOneCall() {
-        if (GroupCallUtils.isCallConnected() && GroupCallUtils.getCallType() == CallType.AUDIO_CALL) {
+        if (CallManager.isCallConnected() && CallManager.getCallType() == CallType.AUDIO_CALL) {
             if (GroupCallUtils.isOnVideoCall()) {
                 binding.imageMuteVideo.isActivated =
                     !binding.imageMuteVideo.isActivated

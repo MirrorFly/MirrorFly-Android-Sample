@@ -2,12 +2,13 @@ package com.contusfly.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ContentResolver
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
-import com.contus.flycommons.Prefs
 import android.os.Bundle
 import android.os.SystemClock
 import android.text.Editable
@@ -18,12 +19,14 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.webkit.MimeTypeMap
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProviders
 import com.contus.flycommons.FlyCallback
+import com.contus.flycommons.Prefs
 import com.contus.xmpp.chat.models.Profile
 import com.contusfly.*
 import com.contusfly.databinding.ActivityProfileStartBinding
@@ -43,19 +46,19 @@ import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ContactManager.updateMyProfile
 import com.contusflysdk.api.contacts.ContactManager.updateMyProfileImage
 import com.contusflysdk.api.contacts.ProfileDetails
-import com.contusflysdk.api.utils.ImageUtils
-import com.contusflysdk.api.utils.PickFileUtils
 import com.contusflysdk.utils.FilePathUtils
 import com.contusflysdk.utils.ImagePopUpUtils
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.utils.VideoRecUtils
 import com.contusflysdk.views.CustomToast
 import dagger.android.AndroidInjection
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.util.*
 import java.util.regex.Pattern
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
@@ -81,6 +84,8 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
 
     private var profileName: String? = null
 
+    private var name:String?=null
+
     private var mStatus: String? = null
 
     private var mFileTemp: File? = null
@@ -92,6 +97,9 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
      */
     @JvmField
     protected var mobileEditText: CustomTextView? = null
+
+    @JvmField
+    protected var profilePicture: CircularImageView? = null
 
     /**
      * The progress dialog of the activity When run the background tasks
@@ -190,6 +198,8 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         viewInitialization()
         setUserProfileData()
         clickListeners()
+        name=profileName
+
     }
 
     private fun getIntentValues() {
@@ -201,6 +211,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun viewInitialization() {
         setDrawable = SetDrawable(this)
         progressDialog = DoProgressDialog(this)
+        profilePicture = profileStartBinding.imageProfilePicture
         mobileEditText = profileStartBinding.editMobileNumber
         profileStartBinding.editProfileName.isEnabled = true
         profileStartBinding.editProfileName.isCursorVisible = true
@@ -211,13 +222,14 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun clickListeners() {
         profileStartBinding.currentStatusView.setOnClickListener(this)
         profileStartBinding.changeProfileImage.setOnClickListener(this)
-        profileStartBinding.imageProfilePicture.setOnClickListener(this)
+        profilePicture!!.setOnClickListener(this)
         profileStartBinding.textSync.setOnClickListener(this)
         profileStartBinding.textEdit.setOnClickListener(this)
         profileStartBinding.editMobileNumber.keyListener = null
         checkNameContentTextWatcher(profileStartBinding.editProfileName)
         hideCursorsAndKeyboard(profileStartBinding.editProfileName)
         if (isFromSettingsProfile) {
+            profileStartBinding.textEmail.isEnabled=false
             checkEmailContentTextWatcher(profileStartBinding.textEmail)
             hideCursorsAndKeyboard(profileStartBinding.textEmail)
         }
@@ -269,18 +281,30 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun checkNameContentTextWatcher(editProfileName: AppCompatEditText) {
         editProfileName.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable) {
-                if (s.length >= 30) {
-                    CustomToast.showShortToast(this@ProfileStartActivity, getString(R.string.max_profile_name_chars))
+                name=profileStartBinding.editProfileName.text.toString()
+                try {
+                    if (isFromSettingsProfile) handleProfileChanges()
+                    else updateUserName()
+                } catch (e: Exception) {
+                    LogMessage.e(TAG, "Profile Name issue ==> ${e.message}")
                 }
-                if (isFromSettingsProfile) handleProfileChanges()
-                else updateUserName()
             }
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                 //Do Nothing
             }
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                //Do Nothing
+                try {
+                    val length = profileStartBinding.editProfileName.text.toString().length
+                    if (length > 30) {
+                        profileStartBinding.editProfileName.setText(name)
+                        profileStartBinding.editProfileName.setSelection(start)
+                        CustomToast.showShortToast(this@ProfileStartActivity, getString(R.string.max_profile_name_chars))
+                    }
+                }catch (e:Exception){
+                    LogMessage.e(TAG, "Profile Name issue ==> ${e.message}")
+                }
+
             }
         })
     }
@@ -387,7 +411,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             mobileEditText!!.text = Utils.getFormattedPhoneNumber(mobileNumber)
             userImgUrl = Utils.returnEmptyStringIfNull(profileDetails.image)
             if (userImgUrl.isNotEmpty()) {
-                MediaUtils.loadImageWithLoader(this, userImgUrl, profileStartBinding.imageProfilePicture, AppCompatResources.getDrawable(applicationContext, R.drawable.profile_img), progressDialog)
+                MediaUtils.loadImageWithLoader(this, userImgUrl, profilePicture!!, AppCompatResources.getDrawable(applicationContext, R.drawable.profile_img), progressDialog)
             } else if (profileStartBinding.editProfileName.text.toString().isNotEmpty()) showProfilePicInitials()
             mStatus = Utils.returnEmptyStringIfNull(profileDetails.status)
             if (mStatus.isNullOrEmpty()) {
@@ -421,7 +445,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         if(progressDialog != null && progressDialog?.isShowing == true){
             val imageURL = Prefs.getString(com.contus.flycommons.SharedPreferenceManager.USER_PROFILE_IMAGE)
             if(imageURL != null) {
-                MediaUtils.loadImageWithLoader(this, imageURL, profileStartBinding.imageProfilePicture, profileStartBinding.imageProfilePicture.drawable, progressDialog)
+                MediaUtils.loadImageWithLoader(this, imageURL, profilePicture!!, profilePicture!!.drawable, progressDialog)
             }
         }
         if (isSuccess && isFromSettingsProfile && !fromBackground) {
@@ -478,11 +502,20 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
 
     private fun openGalleryIntent() {
         if (AppUtils.isNetConnected(this)) {
-            if (MediaPermissions.isReadFilePermissionAllowed(this) &&
-                MediaPermissions.isWriteFilePermissionAllowed(this))
-                PickFileUtils.chooseImageFromGallery(this)
-            else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
-        } else CustomToast.show(this, getString(R.string.error_check_internet))
+            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                if (MediaPermissions.isReadFilePermissionAllowed(this) &&
+                    MediaPermissions.isWriteFilePermissionAllowed(this)
+                )
+                    PickFileUtils.chooseImageFromGallery(this)
+                else MediaPermissions.requestStorageAccess(
+                    this,
+                    permissionAlertDialog,
+                    galleryPermissionLauncher
+                )
+            } else {
+                 PickFileUtils.chooseImageFromGallery(this)
+               }
+            } else CustomToast.show(this, getString(R.string.error_check_internet))
     }
 
     /*
@@ -556,6 +589,18 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     }
 
     /**
+     * To get the format of picked image
+     * @param uri
+     */
+    open fun getFileExtension(uri: Uri?): String? {
+        val extension: String
+        val contentResolver: ContentResolver = contentResolver
+        val mimeTypeMap: MimeTypeMap = MimeTypeMap.getSingleton()
+        extension = mimeTypeMap.getExtensionFromMimeType(contentResolver.getType(uri!!)).toString()
+        return extension
+    }
+
+    /**
      * Handle the profile activity result
      *
      * @param requestCode Activity request code
@@ -564,6 +609,14 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun handleActivityResult(requestCode: Int, resultCode: Int, intentData: Intent?) {
         try {
             if (resultCode == RESULT_OK) {
+                val selectedImageUri: Uri? = intentData?.data
+                if (selectedImageUri != null) {
+                    val pictureExtension = getFileExtension(selectedImageUri)
+                    if (pictureExtension.equals("tiff")) {
+                        CustomToast.show(this, getString(R.string.file_format_not_supported))
+                        return
+                    }
+                }
                 when (requestCode) {
                     RequestCode.STATUS_UPDATE -> updateUserStatus()
                     RequestCode.NAME_UPDATE -> updateUserName()
@@ -578,6 +631,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                     }
                     RequestCode.CROP_IMAGE -> {
                         if (!isFromSettingsProfile) UserProfileUtils().changeUpdateStatus(intent, profileStartBinding.textSync, this)
+
                         uploadImage()
                     }
                     RequestCode.OTP_UPDATE -> {
@@ -595,17 +649,18 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun uploadImage() {
         try {
             if (mFileTemp != null) {
+
                 isImageSelected = true
                 if (isFromSettingsProfile) {
                     if (AppUtils.isNetConnected(this)) {
                         progressDialog = DoProgressDialog(this)
                         if (progressDialog != null) progressDialog!!.showProgress()
-                        updateProfilePic(mFileTemp!!)
+                        updateprofilecompress()
                     } else CustomToast.show(this, getString(R.string.msg_no_internet))
                 }else{
                     userImgUrl = mFileTemp!!.path
                     val photo = BitmapFactory.decodeFile(mFileTemp!!.path)
-                    profileStartBinding.imageProfilePicture.setImageBitmap(photo)
+                    profilePicture!!.setImageBitmap(photo)
                 }
             }
         } catch (e: java.lang.Exception) {
@@ -613,7 +668,31 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         }
     }
 
+    private fun updateprofilecompress(){
+
+        try{
+
+            var file=ImageCompressor.sampleAndResize(mFileTemp!!,this)
+            if(file!=null){
+                mFileTemp=file
+            }
+
+            updateProfilePic(mFileTemp!!)
+
+        }catch(e:NullPointerException){
+
+            LogMessage.e(TAG,e.toString())
+
+        }catch(e:Exception){
+
+            LogMessage.e(TAG,e.toString())
+        }
+
+
+    }
+
     private fun updateProfilePic(mFileTemp: File) {
+
         updateMyProfileImage(mFileTemp, FlyCallback { isSuccess: Boolean, _: Throwable?, data: HashMap<String?, Any?>? ->
             if (isSuccess) {
                 val profile = data?.get("data") as Profile
@@ -628,7 +707,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
     private fun profilePicUploadSuccess(image: String?) {
         SharedPreferenceManager.setString(Constants.USER_PROFILE_IMAGE, image)
         userImgUrl = image!!
-        if (userImgUrl.isNotEmpty()) MediaUtils.loadImageWithLoader(this, userImgUrl, profileStartBinding.imageProfilePicture, profileStartBinding.imageProfilePicture.drawable, progressDialog)
+        if (userImgUrl.isNotEmpty()) MediaUtils.loadImageWithLoader(this, userImgUrl, profilePicture!!, profilePicture!!.drawable, progressDialog)
         else progressDialog?.dismiss()
     }
 
@@ -637,7 +716,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         else {
             CustomToast.show(this, getString(R.string.msg_no_internet))
             if (userImgUrl.isNotEmpty()) {
-                MediaUtils.loadImageWithLoader(this, userImgUrl, profileStartBinding.imageProfilePicture,
+                MediaUtils.loadImageWithLoader(this, userImgUrl, profilePicture!!,
                     ContextCompat.getDrawable(this, R.drawable.profile_img), progressDialog)
             }
         }
@@ -699,7 +778,6 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                 if (isSuccess) {
                     ConfigurationUtils.insertDefaultStatus(this, mStatus)
                     ConfigurationUtils.insertDefaultBusyStatus(this)
-                    ConfigurationUtils.setDefaultValues(this)
                     navigateToDashboard()
                 } else {
                     progressDialog?.dismiss()
@@ -766,10 +844,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         showResponseToast(true)
         if (intent.getBooleanExtra(Constants.IS_FIRST_LOGIN, false) && isUpdateClickedOnStart) {
             updateArchiveChatsSettings()
-            FlyCore.syncContacts(true) { isSuccess, _, _ ->
-                LogMessage.e(TAG, "ContactSync Response: $isSuccess")
-                navigateToMainPage()
-            }
+            navigateToMainPage()
         } else if (isFromSettingsProfile) updateProfileImageIfUrlEmpty()
     }
 
@@ -790,16 +865,13 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
 
     private fun showProfilePicInitials() {
         if (userImgUrl.isEmpty()) {
-            profileStartBinding.imageProfilePicture.setImageDrawable(setDrawable!!.setDrawableForProfile(profileName))
+            profilePicture!!.setImageDrawable(setDrawable!!.setDrawableForProfile(profileName))
         }
     }
 
     private fun navigateToMainPage() {
         if (FlyCore.getIsProfileBlockedByAdmin()) return
-        FlyCore.getFriendsList(true) { isSuccess, _, _ ->
-            if (isSuccess)
-                FlyCore.getUsersIBlocked(true) { _, _, _ -> }
-        }
+        FlyCore.getUsersIBlocked(true) { _, _, _ -> }
         UserProfileUtils().closeProgress(progressDialog)
         startActivity(Intent(this, DashboardActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
         finish()
@@ -829,7 +901,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                         isUserProfileRemoved = true
                         userImgUrl = Constants.EMPTY_STRING
                         SharedPreferenceManager.setString(Constants.USER_PROFILE_IMAGE, userImgUrl)
-                        MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profileStartBinding.imageProfilePicture, setDrawable!!.setDrawableForProfile(profileName))
+                        MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profilePicture!!, setDrawable!!.setDrawableForProfile(profileName))
                         updateMyProfile()
                     } else {
                         showResponseToast(isSuccess)
@@ -845,7 +917,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
             isImageSelected = false
             userImgUrl = Constants.EMPTY_STRING
             SharedPreferenceManager.setString(Constants.USER_PROFILE_IMAGE, userImgUrl)
-            MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profileStartBinding.imageProfilePicture, setDrawable!!.setDrawableForProfile(profileName))
+            MediaUtils.loadImageWithGlideSecure(this, userImgUrl, profilePicture!!, setDrawable!!.setDrawableForProfile(profileName))
             progressDialog?.dismiss()
         }
     }
@@ -888,5 +960,19 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                 Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_STATUS))
         }
         setUserProfile()
+    }
+
+    override fun onConnected() {
+        super.onConnected()
+        if(!isFromSettingsProfile){
+            handleSaveButton(true)
+        }
+    }
+
+    override fun onDisconnected() {
+        super.onDisconnected()
+        if(!isFromSettingsProfile){
+            handleSaveButton(false)
+        }
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.contusfly.utils.Constants
 import com.contusfly.utils.ProfileDetailsUtils
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.contacts.ProfileDetails
@@ -62,7 +63,7 @@ class UserListViewModel @Inject constructor() : ViewModel() {
                     totalPage = data[Constants.TOTAL_PAGES] as Int
                     var userListResult = ProfileDetailsUtils.removeAdminBlockedProfiles(profileList, false)
                     if (fromGroupInfo && !groupId.isNullOrEmpty()) {
-                        userListResult = userListResult.filter { !GroupManager.isMemberOfGroup(groupId, it.jid) }
+                        userListResult = userListResult.filter { ChatManager.getAvailableFeatures().isGroupChatEnabled && !GroupManager.isMemberOfGroup(groupId, it.jid) }
                     }
                     viewModelScope.launch(Dispatchers.Main) {
                         removeLoader.postValue(true)
@@ -108,7 +109,7 @@ class UserListViewModel @Inject constructor() : ViewModel() {
                     totalSearchPage = data[Constants.TOTAL_PAGES] as Int
                     var userListResult = ProfileDetailsUtils.removeAdminBlockedProfiles(profileList, false)
                     if (fromGroupInfo && !groupId.isNullOrEmpty()) {
-                        userListResult = userListResult.filter { !GroupManager.isMemberOfGroup(groupId, it.jid) }
+                        userListResult = userListResult.filter { ChatManager.getAvailableFeatures().isGroupChatEnabled && !GroupManager.isMemberOfGroup(groupId, it.jid) }
                     }
                     viewModelScope.launch(Dispatchers.Main) {
                         removeSearchLoader.postValue(true)

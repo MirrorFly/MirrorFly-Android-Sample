@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
 import com.contusfly.R
@@ -96,7 +97,7 @@ class FileListAdapter(context: Context) : RecyclerView.Adapter<FileListAdapter.F
     private fun handleMimeType(fileObject: FileObject, holder: FileShareViewHolder) {
         when (fileObject.fileMimeType) {
             IMAGE -> Glide.with(context!!).load(fileObject.uri.toString())
-                .apply(RequestOptions.bitmapTransform(RoundedCorners(8)))
+                .apply(RequestOptions.bitmapTransform(RoundedCorners(8)).diskCacheStrategy(DiskCacheStrategy.ALL))
                 .into(holder.viewBinding.fileTypeImage)
             AUDIO -> {
                 holder.viewBinding.fileDuration.text = fileObject.readableDuration
@@ -105,7 +106,7 @@ class FileListAdapter(context: Context) : RecyclerView.Adapter<FileListAdapter.F
             VIDEO -> {
                 holder.viewBinding.fileDuration.text = fileObject.readableDuration
                 Glide.with(context!!).load(fileObject.uri.toString())
-                    .apply(RequestOptions.bitmapTransform(RoundedCorners(8)))
+                    .apply(RequestOptions.bitmapTransform(RoundedCorners(8)).diskCacheStrategy(DiskCacheStrategy.ALL))
                     .into(holder.viewBinding.fileTypeImage)
             }
             APPLICATION -> {

@@ -18,21 +18,19 @@ import com.contus.webrtc.CallType
 import com.contus.webrtc.api.CallActionListener
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.CallManager.isOnTelephonyCall
-import com.contus.webrtc.api.CallManager.makeGroupVideoCall
-import com.contus.webrtc.api.CallManager.makeGroupVoiceCall
 import com.contus.webrtc.api.CallManager.makeVideoCall
 import com.contus.webrtc.api.CallManager.makeVoiceCall
-import com.contus.call.utils.GroupCallUtils
-import com.contus.call.utils.GroupCallUtils.isOnGoingAudioCall
-import com.contus.call.utils.GroupCallUtils.isOnGoingVideoCall
 import com.contusfly.R
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.showToast
 import com.contusfly.utils.MediaPermissions
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CommonAlertDialog.CommonDialogClosedListener
 import com.contusfly.views.CommonAlertDialog.DIALOGTYPE
+import com.contusfly.views.CustomAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusflysdk.AppUtils
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore.unblockUser
 import com.contusflysdk.views.CustomToast
 import java.util.*
@@ -88,7 +86,7 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked
             showBlockedAlertAudioCall()
         } else if (isOnTelephonyCall(activity)) {
             showTelephonyCallAlert(activity)
-        } else if ( /*LiveStreamUtils.isOnGoingLiveStream() ||*/isOnGoingAudioCall() || isOnGoingVideoCall()) {
+        } else if (CallManager.isOnGoingCall()) {
             showOngoingCallAlert(activity)
         } else if (!isAdminBlocked) {
             makeVoiceCall()
@@ -121,7 +119,7 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked
             showBlockedAlertVideoCall()
         } else if (isOnTelephonyCall(activity)) {
             showTelephonyCallAlert(activity)
-        } else if ( /*LiveStreamUtils.isOnGoingLiveStream() ||*/isOnGoingAudioCall() || isOnGoingVideoCall()) {
+        } else if (CallManager.isOnGoingCall()) {
             showOngoingCallAlert(activity)
         } else if (!isAdminBlocked) {
             makeVideoCall()
@@ -157,12 +155,12 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked
                 FlyCallback { isSuccess: Boolean, _: Throwable?, _: HashMap<String?, Any?>? ->
                     if (isSuccess) {
                         isBlocked = false
-                        if (GroupCallUtils.getIsCallStarted().equals(CallType.AUDIO_CALL)) {
+                        if (CallUtils.getIsCallStarted().equals(CallType.AUDIO_CALL)) {
                             audioCall()
-                            GroupCallUtils.setIsCallStarted(null)
-                        } else if (GroupCallUtils.getIsCallStarted().equals(CallType.VIDEO_CALL)) {
+                            CallUtils.setIsCallStarted(null)
+                        } else if (CallUtils.getIsCallStarted().equals(CallType.VIDEO_CALL)) {
                             videoCall()
-                            GroupCallUtils.setIsCallStarted(null)
+                            CallUtils.setIsCallStarted(null)
                         }
                     }
                 })
@@ -175,28 +173,8 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked
     @SuppressLint("MissingPermission")
     private fun makeVoiceCall() {
         if (!jidList.contains(SharedPreferenceManager.instance.currentUserJid)) {
-            if (CallManager.isAudioCallPermissionsGranted()) {
-                if (groupId != null && groupId.isNotEmpty()) {
-                    makeGroupVoiceCall(jidList, groupId, object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "$CALL_UI makeVoiceCall: $message")
-                        }
-                    })
-                    closeScreen()
-                } else if (jidList.size > 1) {
-                    makeGroupVoiceCall(jidList, "", object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "$CALL_UI makeGroupVoiceCall: $message")
-                        }
-                    })
-                    closeScreen()
-                } else {
-                    makeVoiceCall(jidList[0], object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "$CALL_UI makeVoiceCall: $message")
-                        }
-                    })
-                }
+            if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) {
+                checkAndMakeVoiceCall()
             } else MediaPermissions.requestAudioCallPermissions(
                 (activity as Activity),
                 (activity as ComponentActivity).registerForActivityResult(
@@ -209,34 +187,45 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked
         }
     }
 
+    private fun checkAndMakeVoiceCall() {
+        if (groupId != null && groupId.isNotEmpty()) {
+            makeGroupVoiceCall(groupId)
+        } else if (jidList.size > 1) {
+            makeGroupVoiceCall("")
+        } else {
+            if (!ChatManager.getAvailableFeatures().isOneToOneCallEnabled) {
+                CustomAlertDialog().showFeatureRestrictionAlert(activity)
+            } else {
+                makeVoiceCall(jidList[0], object : CallActionListener {
+                    override fun onResponse(isSuccess: Boolean, message: String) {
+                        LogMessage.i(TAG, "$CALL_UI makeVoiceCall: $message")
+                    }
+                })
+            }
+        }
+    }
+
+    private fun makeGroupVoiceCall(groupId: String) {
+        if (!ChatManager.getAvailableFeatures().isGroupCallEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(activity)
+        } else {
+            CallManager.makeGroupVoiceCall(jidList, groupId, object : CallActionListener {
+                override fun onResponse(isSuccess: Boolean, message: String) {
+                    LogMessage.i(TAG, "$CALL_UI makeVoiceCall: $message")
+                }
+            })
+            closeScreen()
+        }
+    }
+
     /**
      * This method is start the video call activity
      */
     @SuppressLint("MissingPermission")
     private fun makeVideoCall() {
         if (!jidList.contains(SharedPreferenceManager.instance.currentUserJid)) {
-            if (CallManager.isVideoCallPermissionsGranted()) {
-                if (groupId != null && groupId.isNotEmpty()) {
-                    makeGroupVideoCall(jidList, groupId, object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
-                        }
-                    })
-                    closeScreen()
-                } else if (jidList.size > 1) {
-                    makeGroupVideoCall(jidList, "", object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
-                        }
-                    })
-                    closeScreen()
-                } else {
-                    makeVideoCall(jidList[0], object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
-                        }
-                    })
-                }
+            if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) {
+                checkAndMakeVideoCall()
             } else MediaPermissions.requestVideoCallPermissions(
                 (activity as Activity),
                 (activity as ComponentActivity).registerForActivityResult(
@@ -246,6 +235,37 @@ class CallPermissionUtils(activity: Activity, isBlocked: Boolean, isAdminBlocked
                     }
                 }
             )
+        }
+    }
+
+    private fun checkAndMakeVideoCall() {
+        if (groupId != null && groupId.isNotEmpty()) {
+            makeGroupVideoCall(groupId)
+        } else if (jidList.size > 1) {
+            makeGroupVideoCall("")
+        } else {
+            if (!ChatManager.getAvailableFeatures().isOneToOneCallEnabled) {
+                CustomAlertDialog().showFeatureRestrictionAlert(activity)
+            } else {
+                makeVideoCall(jidList[0], object : CallActionListener {
+                    override fun onResponse(isSuccess: Boolean, message: String) {
+                        LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
+                    }
+                })
+            }
+        }
+    }
+
+    private fun makeGroupVideoCall(groupId: String) {
+        if (!ChatManager.getAvailableFeatures().isGroupCallEnabled) {
+            CustomAlertDialog().showFeatureRestrictionAlert(activity)
+        } else {
+            CallManager.makeGroupVideoCall(jidList, groupId, object : CallActionListener {
+                override fun onResponse(isSuccess: Boolean, message: String) {
+                    LogMessage.i(TAG, "$CALL_UI makeVideoCall: $message")
+                }
+            })
+            closeScreen()
         }
     }
 

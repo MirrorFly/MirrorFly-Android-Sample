@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import android.view.Menu
@@ -29,10 +30,12 @@ import com.contusfly.chat.FileMimeType
 import com.contusfly.chat.RealPathUtil
 import com.contusfly.chat.ShareMessagesController
 import com.contusfly.databinding.ActivityQuickShareBinding
+import com.contusfly.helpers.PaginationScrollListener
+import com.contusfly.helpers.UserListType
 import com.contusfly.interfaces.RecyclerViewItemClick
 import com.contusfly.models.ContactShareModel
 import com.contusfly.models.FileObject
-import com.contusfly.models.ProfileDetailsShareModel
+import com.contusfly.network.NetworkConnection
 import com.contusfly.utils.*
 import com.contusfly.utils.MediaPermissions.isPermissionAllowed
 import com.contusfly.viewmodels.ForwardMessageViewModel
@@ -43,7 +46,6 @@ import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.ChatManager.biometricActivty
 import com.contusflysdk.api.ChatManager.pinActivity
 import com.contusflysdk.api.FlyCore
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.helpers.ResourceHelper
 import com.contusflysdk.model.ContactMessage
@@ -61,7 +63,8 @@ import javax.inject.Inject
 import kotlin.collections.ArrayList
 import kotlin.concurrent.schedule
 
-class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFragment.DialogFragmentInterface,
+class QuickShareActivity : BaseActivity(),
+    FilesDialogFragment.DialogFragmentInterface,
     CommonDialogClosedListener {
 
     private lateinit var quickShareBinding: ActivityQuickShareBinding
@@ -74,75 +77,38 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
 
     private var isFileValidationsVerified = true
 
-    val SUPPORTED_IMAGE_VIDEO_FORMATS = arrayOf("jpg", "jpeg", "png", "webp", "gif", "mp4")
-    val SUPPORTED_AUDIO_FORMATS = arrayOf("wav", "mp3", "aac")
-    val supportedFormats = arrayOf("pdf", "txt", "rtf", "xls", "ppt", "pptx", "zip", "rar", "xlsx", "doc", "docx", "wav", "mp3", "mp4", "aac", "jpg", "jpeg", "png", "webp", "gif", "pptx", "csv")
-    var formats = listOf(*supportedFormats)
-    var videoImageFormats = listOf(*SUPPORTED_IMAGE_VIDEO_FORMATS)
-    var searchKey: String? = null
+    private val SUPPORTED_IMAGE_VIDEO_FORMATS = arrayOf("jpg", "jpeg", "png", "webp", "gif", "mp4")
+    private val supportedFormats = arrayOf("pdf", "txt", "rtf", "xls", "ppt", "pptx", "zip", "rar", "xlsx", "doc", "docx", "wav", "mp3", "mp4", "aac", "jpg", "jpeg", "png", "webp", "gif", "pptx", "csv")
+    private var formats = listOf(*supportedFormats)
+    private var videoImageFormats = listOf(*SUPPORTED_IMAGE_VIDEO_FORMATS)
 
-    var mTempData: List<ProfileDetails>? = null
-
-    /**
-     * Contains live and contus profile list
-     */
-    var liveAndContusContact: List<ProfileDetails>? = null
+    private var searchKey = Constants.EMPTY_STRING
+    private var mUserListType = UserListType.USER_LIST
 
     /**
-     * Contains groups profile list
+     * The handler to delay the search
      */
-    var myGroups: List<ProfileDetails>? = null
+    private lateinit var mHandler: Handler
 
-    /**
-     * Contains broadcast profile list
-     */
-    var myBroadcasts: List<ProfileDetails>? = null
-
-    var recentRosterList: ArrayList<ProfileDetailsShareModel>? = null
-    var liveAndContusContactList: ArrayList<ProfileDetailsShareModel>? = null
-    var myGroupsList: List<ProfileDetailsShareModel>? = null
-
-    /**
-     * Contains recent chat profile list
-     */
-    var recentRoster: List<ProfileDetails>? = null
+    private val selectedUsersWithNames = linkedMapOf<String, String>()
 
     /**
      * List holds the media files
      */
     var fileList: ArrayList<FileObject>? = null
-    var contactShareModels: ArrayList<ContactShareModel>? = null
+    private var contactShareModels: ArrayList<ContactShareModel>? = null
 
     /**
      * Dialog to show Invalid media files
      */
-    var dialogFragment: DialogFragment? = null
+    private var dialogFragment: DialogFragment? = null
     var i = 0
 
     /**
-     * View to show selected Users
+     * Adapter for quick share user selection List
      */
-    private var selectedUsers: CustomTextView? = null
-
-    /**
-     * Next Textview to go to preview
-     */
-    private var next: CustomTextView? = null
-
-    /**
-     * List View for Contacts
-     */
-    private var mRecyclerViewRecent: CustomRecyclerView? = null
-
-    /**
-     * The list of rosters to populate the list
-     */
-    private var mainRosterList: List<ProfileDetailsShareModel>? = null
-
-    /**
-     * Adapter for Contacts List
-     */
-    private lateinit var mContactsAdapter: SectionedShareAdapter
+    private lateinit var mQuickShareAdapter: SectionedShareAdapter
+    private lateinit var mSearchQuickShareAdapter: SectionedShareAdapter
 
     private val viewModel: ForwardMessageViewModel by viewModels()
 
@@ -177,9 +143,10 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     private val galleryPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-        if(readPermissionGranted) {
+        if (readPermissionGranted) {
             Toast.makeText(this, "Storage Permission Granted", Toast.LENGTH_SHORT).show()
             //Permissions are granted, handle the shared file now
             handleIntent()
@@ -205,7 +172,6 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
 
         progressDialog = DoProgressDialog(this)
         commonAlertDialog = CommonAlertDialog(this)
-        commonAlertDialog!!.setOnDialogCloseListener(this)
     }
 
     override fun userUpdatedHisProfile(jid: String) {
@@ -218,21 +184,22 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
      */
     override fun userDeletedHisProfile(jid: String) {
         super.userDeletedHisProfile(jid)
-        val position = getPositionOfProfile(jid)
-        if (position >= 0) {
-            mContactsAdapter.removeProfileDetails(position, jid)
-            selectedUsers!!.text = getSelectedUserNames()
-        }
+        mQuickShareAdapter.removeProfileDetails(jid)
+        mSearchQuickShareAdapter.removeProfileDetails(jid)
+        viewModel.removeProfileDetails(jid)
+        viewModel.removeSearchProfileDetails(jid)
+        selectedUsersWithNames.remove(jid)
+        quickShareBinding.selectedUsers.text = getSelectedUserNames()
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
 
         setLimitValues()
-        mainRosterList = ArrayList()
         fileList = ArrayList()
         initViews()
         setObservers()
+        observeNetworkListener()
         viewModel.loadForwardChatList(null)
         if (checkPermission()) {
             //handle sharing only when permissions are granted
@@ -241,17 +208,89 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     }
 
     private fun setObservers() {
-        viewModel.profileDetailsShareModelList.observe(this, {
+        viewModel.shareModelListLiveData.observe(this) {
             it?.let {
-                myGroupsList = it
-                mContactsAdapter.setProfileDetails(it)
-                mRecyclerViewRecent!!.adapter = mContactsAdapter
-                mContactsAdapter.notifyDataSetChanged()
+                mQuickShareAdapter.setProfileDetails(it)
+                quickShareBinding.viewListRecent.adapter = mQuickShareAdapter
+                mQuickShareAdapter.notifyDataSetChanged()
             }
-        })
+        }
+
+        viewModel.updatedProfile.observe(this) {
+            if (it.first.isValidIndex())
+                mQuickShareAdapter.addProfileDetails(it.first, it.second)
+        }
+
+        viewModel.userList.observe(this) { userList ->
+            userList?.let {
+                mQuickShareAdapter.addProfileList(userList)
+            }
+        }
+
+        viewModel.addLoader.observe(this) {
+            if (it)
+                mQuickShareAdapter.addLoadingFooter()
+        }
+
+        viewModel.removeLoader.observe(this) {
+            if (it)
+                mQuickShareAdapter.removeLoadingFooter()
+        }
+
+        viewModel.searchListLiveData.observe(this) {
+            it?.let {
+                mSearchQuickShareAdapter.setProfileDetails(it)
+                mSearchQuickShareAdapter.notifyDataSetChanged()
+            }
+        }
+
+        viewModel.searchUserList.observe(this ) { userList ->
+            userList?.let {
+                mSearchQuickShareAdapter.addProfileList(userList)
+            }
+        }
+
+        viewModel.addSearchLoader.observe(this) {
+            if (it)
+                mSearchQuickShareAdapter.addLoadingFooter()
+        }
+
+        viewModel.removeSearchLoader.observe(this) {
+            if (it)
+                mSearchQuickShareAdapter.removeLoadingFooter()
+        }
+
+        viewModel.fetchingError.observe(this) {
+            if (it)
+                CustomToast.show(context, getString(R.string.msg_no_internet))
+        }
+    }
+
+    private fun observeNetworkListener() {
+        val networkConnection = NetworkConnection(applicationContext)
+        networkConnection.observe(this) { connected ->
+            if (connected && viewModel.fetchingError.value == true) { //If user list fetch failed then re-fetch user list when internet is reconnected
+                if (searchKey.isBlank()) {
+                    mQuickShareAdapter.addLoadingFooter()
+                    viewModel.loadUserList()
+                } else {
+                    mSearchQuickShareAdapter.addLoadingFooter()
+                    viewModel.searchUserList(searchKey)
+                }
+            }
+        }
+    }
+
+    private fun setAdapterBasedOnSearchType() {
+        if (mUserListType == UserListType.USER_LIST && (quickShareBinding.viewListRecent.adapter as SectionedShareAdapter).getSearchKey().isNotBlank()) {
+            quickShareBinding.viewListRecent.adapter = mQuickShareAdapter
+        } else if (mUserListType == UserListType.SEARCH && (quickShareBinding.viewListRecent.adapter as SectionedShareAdapter).getSearchKey().isBlank()) {
+            quickShareBinding.viewListRecent.adapter = mSearchQuickShareAdapter
+        }
     }
 
     private fun initViews() {
+        mHandler = Handler(Looper.getMainLooper())
         quickShareBinding.toolBar.setTitle(R.string.quick_share_title)
         setSupportActionBar(quickShareBinding.toolBar)
         if (supportActionBar != null) supportActionBar!!.setDisplayHomeAsUpEnabled(true)
@@ -261,30 +300,58 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
          * Empty view for the recent chat.
          */
         val mEmptyView = quickShareBinding.emptyData.textEmptyView
-        selectedUsers = quickShareBinding.selectedUsers
-        next = quickShareBinding.next
         mEmptyView.text = getString(R.string.msg_no_results)
         mEmptyView.setTextColor(ResourceHelper.getColor(R.color.color_text_grey))
-        mRecyclerViewRecent = quickShareBinding.viewListRecent
-        mRecyclerViewRecent!!.layoutManager = LinearLayoutManager(context)
-        mRecyclerViewRecent!!.setEmptyView(mEmptyView)
-        mRecyclerViewRecent!!.itemAnimator = null
-        mContactsAdapter = SectionedShareAdapter(context!!, commonAlertDialog!!)
-        mContactsAdapter.selectedList = ArrayList()
-        mContactsAdapter.selectedProfileDetailsList = ArrayList()
-        mTempData = ArrayList<ProfileDetails>()
-        mContactsAdapter.setContactRecyclerViewItemOnClick(this)
+
+        mQuickShareAdapter = SectionedShareAdapter(context!!, commonAlertDialog!!, onItemClickListener)
+        mSearchQuickShareAdapter = SectionedShareAdapter(context!!, commonAlertDialog!!, onItemClickListener)
+
+        quickShareBinding.viewListRecent.apply {
+            layoutManager = LinearLayoutManager(context)
+            setEmptyView(mEmptyView)
+            itemAnimator = null
+            setScrollListener(this, layoutManager as LinearLayoutManager)
+        }
+    }
+
+    private fun setScrollListener(
+        recyclerView: CustomRecyclerView,
+        layoutManager: LinearLayoutManager
+    ) {
+        recyclerView.addOnScrollListener(object : PaginationScrollListener(layoutManager, handler = mHandler) {
+            override fun loadMoreItems() {
+                if (searchKey.isBlank())
+                    viewModel.loadUserList()
+                else
+                    viewModel.searchUserList(searchKey)
+            }
+
+            override fun isLastPage(): Boolean {
+                return if (searchKey.isBlank())
+                    viewModel.lastPageFetched()
+                else
+                    viewModel.searchLastPageFetched()
+            }
+
+            override fun isFetching(): Boolean {
+                return if (searchKey.isBlank())
+                    viewModel.getUserListFetching()
+                else
+                    viewModel.getSearchUserListFetching()
+            }
+        })
     }
 
     /**
      * Filter the list from the search key
      *
-     * @param filterKey The search key from the search bar
      */
-    fun filterList(filterKey: String?) {
-        searchKey = filterKey
-        mContactsAdapter.filter(filterKey!!)
-        mContactsAdapter.notifyDataSetChanged()
+    fun filterList() {
+        mUserListType = if (searchKey.isEmpty()) UserListType.USER_LIST else UserListType.SEARCH
+        setAdapterBasedOnSearchType()
+        mSearchQuickShareAdapter.setSearchKey(searchKey)
+        if (searchKey.isNotBlank())
+            viewModel.searchProfileList(searchKey)
     }
 
     /**
@@ -302,19 +369,23 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         if (receivedType != null && receivedType.equals(CONTACT, ignoreCase = true)) {
             shareType = ShareType.CONTACT
             val uri = intent.extras!![Intent.EXTRA_STREAM] as Uri?
-            contactShareModels = generateContactShareModel(parseVcard(uri!!)!!)
+            contactShareModels = generateContactShareModel(parseVcard(uri!!))
         } else if (receivedType != null && receivedType.equals(TEXT, ignoreCase = true)) {
             val fileURI = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-            if (fileURI == null) shareType = ShareType.TEXT
-            else handleSingleFileShare()
-        } else if (intent.action != null && intent.action.equals(Intent.ACTION_SEND, ignoreCase = true)) handleSingleFileShare()
-        else if (intent.action != null && intent.action.equals(Intent.ACTION_SEND_MULTIPLE, ignoreCase = true)) handleMultipleFileShare()
+            if (fileURI == null)
+                shareType = ShareType.TEXT
+            else
+                handleSingleFileShare()
+        } else if (intent.action != null && intent.action.equals(Intent.ACTION_SEND, ignoreCase = true))
+            handleSingleFileShare()
+        else if (intent.action != null && intent.action.equals(Intent.ACTION_SEND_MULTIPLE, ignoreCase = true))
+            handleMultipleFileShare()
         else Toast.makeText(applicationContext, "Unsupported Format", Toast.LENGTH_LONG).show()
         clickListeners()
     }
 
     private fun checkConditionForPin() {
-        if (AppLifecycleListener.isPinEnabled || (AppLifecycleListener.fromOnCreate && AppLifecycleListener.isPinEnabled)) {
+        if (!AppLifecycleListener.isForeground && AppLifecycleListener.isPinEnabled || (AppLifecycleListener.fromOnCreate && AppLifecycleListener.isPinEnabled)) {
             AppLifecycleListener.isFromQuickShareForBioMetric = true
             AppLifecycleListener.isFromQuickShareForPin = true
             openPinActivity()
@@ -335,7 +406,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         }
     }
 
-    fun handleSingleFileShare() {
+    private fun handleSingleFileShare() {
         progressDialog!!.showProgress()
         i = 1
         noOfFiles = 1
@@ -350,7 +421,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         convertFileSchemeToUri(fileURI!!, fileObject, i)
     }
 
-    fun handleMultipleFileShare() {
+    private fun handleMultipleFileShare() {
         progressDialog!!.showProgress()
         shareType = ShareType.MEDIA
         val urlList = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
@@ -364,14 +435,14 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
             for (uri in urlList) {
                 i++
                 Log.d("URI_LIST", uri.toString())
-                val fileObject: FileObject = FileObject()
+                val fileObject = FileObject()
                 convertFileSchemeToUri(uri, fileObject, i)
             }
         }
     }
 
     fun clickListeners() {
-        next!!.setOnClickListener { v: View? ->
+        quickShareBinding.next.setOnClickListener {
             if (FlyCore.isBusyStatusEnabled()) {
                 showBusyAlert()
                 return@setOnClickListener
@@ -381,7 +452,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     }
 
     private fun handleNextClick() {
-        if (mContactsAdapter.selectedList.isEmpty()) {
+        if (selectedUsersWithNames.isEmpty()) {
             Toast.makeText(this, "Select at least one User to Share ", Toast.LENGTH_SHORT).show()
         } else {
             when {
@@ -390,7 +461,12 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
                     composeTextMessage(intent.getStringExtra(Intent.EXTRA_TEXT))
                 }
                 shareType === ShareType.CONTACT -> {
-                    goToContactPreview()
+                    if (ChatManager.getAvailableFeatures().isContactAttachmentEnabled)
+                        goToContactPreview()
+                    else {
+                        CustomAlertDialog().showFeatureRestrictionAlert(this)
+                        return
+                    }
                 }
                 else -> shareFiles()
             }
@@ -399,23 +475,24 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
 
     private fun shareFiles() {
         val jidList = java.util.ArrayList<String>()
-        val chatTypeList = java.util.ArrayList<String>()
-        for (model in mContactsAdapter.selectedList) {
-            jidList.add(model.profileDetails.jid)
-            chatTypeList.add(model.profileDetails.getChatType())
+        for (key in selectedUsersWithNames.keys) {
+            jidList.add(key)
         }
         initializeDialog()
         if (isMediaScanSuccess && isFileValidationsVerified)
-            shareFiles(jidList, chatTypeList)
+            shareFiles(jidList)
         else if (isFileValidationsVerified) Toast.makeText(this, "Media Scan Failed", Toast.LENGTH_SHORT).show()
     }
 
-    private fun shareFiles(jidList: java.util.ArrayList<String>,
-                           chatTypeList: java.util.ArrayList<String>) {
+    private fun shareFiles(jidList: java.util.ArrayList<String>) {
+        if (!isFeatureAvailableForFiles(fileList!!)) {
+            CustomAlertDialog().showFeatureRestrictionAlert(this)
+            return
+        }
         val mediaFileList = ArrayList<FileObject>()
         val otherFileList = ArrayList<FileObject>()
         val uriList = java.util.ArrayList<Uri>()
-        val profileDetails = getSelectedProfileDetailsList()
+        val userIdList = getSelectedUserIdList()
         for (fileObj in fileList!!) {
             if (videoImageFormats.contains(fileObj.fileExtension.toLowerCase())) {
                 if (fileObj.uri != null) uriList.add(fileObj.uri!!)
@@ -426,7 +503,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         when {
             mediaFileList.isNotEmpty() -> {
                 if (AppUtils.isNetConnected(this) && otherFileList.isNotEmpty())
-                    sendOtherFiles(otherFileList, profileDetails, false)
+                    sendOtherFiles(otherFileList, userIdList, false)
                 else mediaFileList.addAll(otherFileList)
                 startActivity(
                     Intent(this, MediaPreviewActivity::class.java)
@@ -434,9 +511,8 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
                         .setType(intent.type)
                         .putExtra(Constants.INTENT_KEY_SHARE, "share")
                         .putStringArrayListExtra(Constants.INTENT_KEY_JID_LIST, jidList)
-                        .putStringArrayListExtra(Constants.INTENT_KEY_CHAT_TYPE_LIST, chatTypeList)
                         .putParcelableArrayListExtra("FILE_OBJECTS", mediaFileList)
-                        .putParcelableArrayListExtra(USERS, profileDetails)
+                        .putStringArrayListExtra(USERS, userIdList)
                         .putExtra(Constants.INTENT_KEY_RECEIVED_FILES, uriList)
                 )
                 finish()
@@ -444,23 +520,35 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
             otherFileList.isNotEmpty() -> {
                 progressDialog = DoProgressDialog(this)
                 progressDialog!!.showProgress()
-                sendOtherFiles(otherFileList, profileDetails,true)
+                sendOtherFiles(otherFileList, userIdList, true)
             }
             else -> Toast.makeText(this, "No files selected", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun sendOtherFiles(otherFileList: java.util.ArrayList<FileObject>, profileDetails: java.util.ArrayList<ProfileDetails>?, isNavigationEnable: Boolean) {
+    private fun isFeatureAvailableForFiles(fileObjects: java.util.ArrayList<FileObject>): Boolean {
+        val features = ChatManager.getAvailableFeatures()
+        val featureAvailable = true
+        for (fileObject in fileObjects) {
+            when (fileObject.fileMimeType) {
+                FileMimeType.IMAGE -> if (!features.isImageAttachmentEnabled) return false
+                FileMimeType.VIDEO -> if (!features.isVideoAttachmentEnabled) return false
+                FileMimeType.AUDIO -> if (!features.isAudioAttachmentEnabled) return false
+                FileMimeType.APPLICATION -> if (!features.isDocumentAttachmentEnabled) return false
+            }
+        }
+        return featureAvailable
+    }
+
+    private fun sendOtherFiles(otherFileList: java.util.ArrayList<FileObject>, userIdList: java.util.ArrayList<String>, isNavigationEnable: Boolean) {
         if (AppUtils.isNetConnected(this)) {
-            val usersJID = java.util.ArrayList<String>()
-            for (user in profileDetails!!) usersJID.add(user.jid)
-            shareMessagesController.sendMediaMessagesForSingleUser(otherFileList, usersJID)
+            shareMessagesController.sendMediaMessagesForSingleUser(otherFileList, userIdList)
 
             if (isNavigationEnable) {
-                val handler = Handler()
+                val handler = Handler(Looper.getMainLooper())
                 handler.postDelayed({
                     progressDialog!!.dismiss()
-                    navigateToAppropriateScreen(profileDetails)
+                    navigateToAppropriateScreen(userIdList)
                     finish()
                 }, 500)
             }
@@ -470,14 +558,16 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         }
     }
 
-    private fun navigateToAppropriateScreen(profileDetails: java.util.ArrayList<ProfileDetails>?) {
-        if (profileDetails!!.size == 1) {
-            val userRoster: ProfileDetails = profileDetails!![0]
-            startActivity(Intent(this, ChatActivity::class.java)
-                .putExtra(LibConstants.JID, userRoster.jid)
-                .putExtra(Constants.CHAT_TYPE, userRoster.getChatType().toString())
-                .putExtra(Constants.FROM_QUICK_SHARE, true))
-        } else if (profileDetails!!.size > 1) {
+    private fun navigateToAppropriateScreen(userIdList: java.util.ArrayList<String>) {
+        if (userIdList.size == 1) {
+            val userId = userIdList[0]
+            startActivity(
+                Intent(this, ChatActivity::class.java)
+                    .putExtra(LibConstants.JID, userId)
+                    .putExtra(Constants.CHAT_TYPE, ProfileDetailsUtils.getProfileDetails(userId)?.getChatType())
+                    .putExtra(Constants.FROM_QUICK_SHARE, true)
+            )
+        } else if (userIdList.size > 1) {
             val intent = Intent(this, DashboardActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             startActivity(intent)
@@ -495,7 +585,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         )
     }
 
-    fun getStringSizeLengthFile(size: Long): String {
+    private fun getStringSizeLengthFile(size: Long): String {
         val df = DecimalFormat("0.00")
         val sizeKb = 1024.0f
         val sizeMb = sizeKb * sizeKb
@@ -507,10 +597,10 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         return ""
     }
 
-    fun milliSecondsToTimer(milliseconds: Long): String {
+    private fun milliSecondsToTimer(milliseconds: Long): String {
         var finalTimerString = ""
         var minuteString = ""
-        var secondsString = ""
+        val secondsString: String
 
         //Convert total duration into time
         val hours = (milliseconds / (1000 * 60 * 60)).toInt()
@@ -526,7 +616,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         return finalTimerString
     }
 
-    fun setLimitValues() {
+    private fun setLimitValues() {
         val videoLimitString: String =
             SharedPreferenceManager.getString(Constants.VIDEO_LIMIT)
         val audioLimitString: String =
@@ -539,7 +629,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         imageLimit = 10000000
     }
 
-    private fun parseVcard(uri: Uri): ArrayList<ContactMessage>? {
+    private fun parseVcard(uri: Uri): ArrayList<ContactMessage> {
         val contactMessages = ArrayList<ContactMessage>()
         val cr = contentResolver
         var stream: InputStream? = null
@@ -572,7 +662,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
                     contactMessage.activeStatus.add("0")
                 }
             }
-            if (!contactMessage.phoneNumber.isEmpty()) {
+            if (contactMessage.phoneNumber.isNotEmpty()) {
                 contactMessages.add(contactMessage)
                 Log.d("CONTACT_MESSAGE", Utils.getGSONInstance().toJson(contactMessage))
             }
@@ -584,8 +674,10 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         super.onResume()
         AppLifecycleListener.isFromQuickShareForBioMetric = true
         AppLifecycleListener.isFromQuickShareForPin = true
-        if (isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE) &&
-                    MediaPermissions.isWriteFilePermissionAllowed(this) && permissionDenied) {
+        if (isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE)
+            && MediaPermissions.isWriteFilePermissionAllowed(this)
+            && permissionDenied
+        ) {
             permissionDenied = false
             handleIntent()
         }
@@ -595,8 +687,9 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
      * @return if permission not granted return FALSE, else TRUE
      */
     private fun checkPermission(): Boolean {
-        if (!(isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE) &&
-                    MediaPermissions.isWriteFilePermissionAllowed(this))) {
+        if (!(isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE)
+                    && MediaPermissions.isWriteFilePermissionAllowed(this))
+        ) {
             permissionDenied = true
             MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
             return false
@@ -604,13 +697,13 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         return true
     }
 
-    private fun getSelectedUserNames(): String? {
+    private fun getSelectedUserNames(): String {
         val stringBuilder = java.lang.StringBuilder()
-        return if (mContactsAdapter.selectedList.isEmpty()) {
+        return if (selectedUsersWithNames.isEmpty()) {
             "No user selected"
         } else {
-            for (model in mContactsAdapter.selectedList) {
-                stringBuilder.append(model.profileDetails.name)
+            for (name in selectedUsersWithNames.values) {
+                stringBuilder.append(name)
                 stringBuilder.append(", ")
             }
             val selectedNames = stringBuilder.toString()
@@ -618,7 +711,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         }
     }
 
-    private fun getInvalidFiles(): List<FileObject>? {
+    private fun getInvalidFiles(): List<FileObject> {
         val invalidFiles = java.util.ArrayList<FileObject>()
         for (fileObject in fileList!!) {
             for ((_, value) in fileObject.fileValidation!!.entries) {
@@ -631,7 +724,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     private fun initializeDialog() {
         val invalidList = getInvalidFiles()
         isFileValidationsVerified = true
-        if (invalidList!!.isNotEmpty()) {
+        if (invalidList.isNotEmpty()) {
             isFileValidationsVerified = false
             val ft = supportFragmentManager.beginTransaction()
             val prev = supportFragmentManager.findFragmentByTag("dialog")
@@ -647,7 +740,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     }
 
     @FileMimeType
-    private fun validateMimeType(mimeType: String?): String? {
+    private fun validateMimeType(mimeType: String?): String {
         return if (mimeType == null) {
             FileMimeType.UNSUPPORTED_FORMAT
         } else {
@@ -668,7 +761,7 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         fileObject.filePath = fileAbsolutePath
         fileObject.fileExtension = fileExtension
 
-        MediaScannerConnection.scanFile(this, arrayOf(fileAbsolutePath), null) { path: String, uri: Uri? ->
+        MediaScannerConnection.scanFile(this, arrayOf(fileAbsolutePath), null) { _: String, uri: Uri? ->
             // Use the FileProvider to get a content URI
             isMediaScanSuccess = uri != null
             fileObject.uri = uri!!
@@ -706,8 +799,8 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
 
         if (mimeType.isEmpty()) {
             val mime = name.substring(name.lastIndexOf('.') + 1)
-            fileObject.fileMimeType = validateMimeType(mime)!!
-        } else fileObject.fileMimeType = validateMimeType(mimeType)!!
+            fileObject.fileMimeType = validateMimeType(mime)
+        } else fileObject.fileMimeType = validateMimeType(mimeType)
 
         fileObject.size = fileSize
 
@@ -720,12 +813,12 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     }
 
     private fun getMimeTypeFromFilePath(uri: Uri): String {
-        return  if (ContentResolver.SCHEME_CONTENT == uri.scheme) {
+        return if (ContentResolver.SCHEME_CONTENT == uri.scheme) {
             val cr = context!!.contentResolver
             cr.getType(uri) ?: ""
         } else {
             val fileExtension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
-            MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileExtension.toLowerCase())?:""
+            MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileExtension.toLowerCase()) ?: ""
         }
     }
 
@@ -786,13 +879,13 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
     }
 
     private fun validateImageObject(fileObject: FileObject, fileValidation: HashMap<String, Boolean>) {
-            if (fileObject.fileMimeType == FileMimeType.IMAGE) {
-                val size: Long = fileObject.size
-                if (size > imageLimit) {
-                    fileValidation[FileValidation.SIZE] = false
-                }
+        if (fileObject.fileMimeType == FileMimeType.IMAGE) {
+            val size: Long = fileObject.size
+            if (size > imageLimit) {
+                fileValidation[FileValidation.SIZE] = false
             }
         }
+    }
 
     private fun getMediaDurationFromFilePath(absolutePath: String, fileObject: FileObject) {
         val retriever = MediaMetadataRetriever()
@@ -815,7 +908,11 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
             }
 
             override fun onQueryTextChange(searchString: String): Boolean {
-                filterList(searchString)
+                searchKey = searchString.trim()
+                mHandler.removeCallbacksAndMessages(null)
+                mHandler.postDelayed({
+                    filterList()
+                }, 500)
                 return true
             }
         })
@@ -831,12 +928,34 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         return super.onOptionsItemSelected(item)
     }
 
-    override fun onItemClicked(position: Int, profileDetails: ProfileDetails?) {
-        selectedUsers!!.text = getSelectedUserNames()
+    private val onItemClickListener = object : RecyclerViewItemClick {
+        override fun onItemClicked(position: Int, profileDetails: ProfileDetails) {
+            ProfileDetailsUtils.addContact(profileDetails)
+            if (isSelected(profileDetails.jid))
+                selectedUsersWithNames.remove(profileDetails.jid)
+            else {
+                if (!maxUserReached())
+                    selectedUsersWithNames[profileDetails.jid] = profileDetails.name
+            }
+
+            quickShareBinding.selectedUsers.text = getSelectedUserNames()
+
+            if (selectedUsersWithNames.isNotEmpty())
+                quickShareBinding.next.visibility = View.VISIBLE
+            else
+                quickShareBinding.next.visibility = View.INVISIBLE
+        }
+
+        override fun isSelected(userId: String): Boolean {
+            return selectedUsersWithNames.containsKey(userId)
+        }
     }
 
-    override fun onlyForwardUserRestriction() {
-        Toast.makeText(this, getText(R.string.msg_you_can_share_up_to_five_people), Toast.LENGTH_SHORT).show()
+    fun maxUserReached(): Boolean {
+        val maxUserReached = selectedUsersWithNames.size >= Constants.MAX_FORWARD_USER_RESTRICTION
+        if (maxUserReached)
+            Toast.makeText(context, context!!.getString(R.string.msg_you_can_share_up_to_five_people), Toast.LENGTH_SHORT).show()
+        return maxUserReached
     }
 
     override fun removeFile(fileObject: FileObject?) {
@@ -852,54 +971,30 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         if (commonAlertDialog!!.dialogAction === CommonAlertDialog.DialogAction.STATUS_BUSY && isSuccess) {
             FlyCore.enableDisableBusyStatus(false)
             handleNextClick()
-        } else if (isSuccess && mContactsAdapter.blockedUser.isNotEmpty()) {
-            if (AppUtils.isNetConnected(this)) {
-                FlyCore.unblockUser(mContactsAdapter.blockedUser) { success, _, _ ->
-                    if (isSuccess) {
-                        updateProfileDetails(mContactsAdapter.blockedUser)
-                        mContactsAdapter.blockedUser = emptyString()
-                    } else {
-                        mContactsAdapter.blockedUser = emptyString()
-                        CustomToast.show(this, Constants.ERROR_SERVER)
-                    }
-                }
-            } else {
-                CustomToast.show(this, getString(R.string.msg_no_internet))
-                mContactsAdapter.blockedUser = emptyString()
-            }
-        } else {
-            mContactsAdapter.blockedUser = emptyString()
         }
     }
 
     /*
     * Update Profile Details */
     private fun updateProfileDetails(userJid: String) {
-        val position = getPositionOfProfile(userJid)
+        val position = viewModel.getPositionOfProfile(userJid)
         if (position >= 0) {
-            val profileDetails = ContactManager.getProfileDetails(userJid)
-            mContactsAdapter.updateProfileDetails(position, profileDetails)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(userJid)
+            mQuickShareAdapter.updateProfileDetails(profileDetails)
+            mSearchQuickShareAdapter.updateProfileDetails(profileDetails)
         } else
             viewModel.loadForwardChatList(userJid)
-    }
-
-    private fun getPositionOfProfile(jid: String): Int {
-        viewModel.profileDetailsShareModelList.value?.forEachIndexed { index, item ->
-            if (item.profileDetails.jid!!.equals(jid, ignoreCase = true))
-                return index
-        }
-        return -1
     }
 
     override fun listOptionSelected(position: Int) {
         //do nothing
     }
 
-    fun composeTextMessage(shareText: String?) {
-        val profileDetails = getSelectedProfileDetailsList()
-        shareMessagesController.sendTextMessage(shareText!!, profileDetails!!)
+    private fun composeTextMessage(shareText: String?) {
+        val userIdList = getSelectedUserIdList()
+        shareMessagesController.sendTextMessage(shareText!!, userIdList)
         progressDialog!!.dismiss()
-        navigateToAppropriateScreen(profileDetails)
+        navigateToAppropriateScreen(userIdList)
         finish()
     }
 
@@ -909,12 +1004,12 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
                 .putExtra("QUICK_SHARE", true)
                 .putExtra("LIST", true)
                 .putParcelableArrayListExtra("CONTACTS", contactShareModels)
-                .putParcelableArrayListExtra(USERS, getSelectedProfileDetailsList())
+                .putStringArrayListExtra(USERS, getSelectedUserIdList())
         )
         finish()
     }
 
-    private fun generateContactShareModel(contactMessages: ArrayList<ContactMessage>): ArrayList<ContactShareModel>? {
+    private fun generateContactShareModel(contactMessages: ArrayList<ContactMessage>): ArrayList<ContactShareModel> {
         val contactShareModelArrayList = java.util.ArrayList<ContactShareModel>()
         for (contactMessage in contactMessages) {
             val contactsList = java.util.ArrayList<Contact>()
@@ -931,10 +1026,10 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
         return contactShareModelArrayList
     }
 
-    private fun getSelectedProfileDetailsList(): java.util.ArrayList<ProfileDetails>? {
-        val userList = java.util.ArrayList<ProfileDetails>()
-        for (model in mContactsAdapter.selectedList) {
-            userList.add(model.profileDetails)
+    private fun getSelectedUserIdList(): java.util.ArrayList<String> {
+        val userList = java.util.ArrayList<String>()
+        for (userId in selectedUsersWithNames.keys) {
+            userList.add(userId)
         }
         return userList
     }
@@ -958,11 +1053,13 @@ class QuickShareActivity : BaseActivity(), RecyclerViewItemClick, FilesDialogFra
 
     override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
         super.onAdminBlockedOtherUser(jid, type, status)
-        if (status && mContactsAdapter.selectedList.any { it.profileDetails.jid == jid }) {
-            val index = mContactsAdapter.selectedList.indexOfFirst { profileDetailsShareModel -> profileDetailsShareModel.profileDetails.jid == jid }
-            if (index.isValidIndex()) mContactsAdapter.selectedList.removeAt(index)
+        if (status && selectedUsersWithNames.containsKey(jid)) {
+            selectedUsersWithNames.remove(jid)
         }
-        viewModel.loadForwardChatList(null)
-        selectedUsers!!.text = getSelectedUserNames()
+        mQuickShareAdapter.removeProfileDetails(jid)
+        mSearchQuickShareAdapter.removeProfileDetails(jid)
+        viewModel.removeProfileDetails(jid)
+        viewModel.removeSearchProfileDetails(jid)
+        quickShareBinding.selectedUsers.text = getSelectedUserNames()
     }
 }

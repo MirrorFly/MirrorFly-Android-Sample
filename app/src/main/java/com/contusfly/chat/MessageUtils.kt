@@ -2,7 +2,9 @@ package com.contusfly.chat
 
 import com.contus.flycommons.MediaDownloadStatus
 import com.contus.flycommons.MediaUploadStatus
+import com.contus.flycommons.models.MessageType
 import com.contusflysdk.api.FlyMessenger
+import com.contusflysdk.api.models.ChatMessage
 import java.io.File
 import java.util.ArrayList
 
@@ -42,5 +44,19 @@ object MessageUtils {
             val file = File(filePath)
             file.exists()
         } else false
+    }
+
+    /**
+     * Get the view type based on the type of the message
+     *
+     * @param messageItem message object
+     * @return int Type of the chat
+     */
+    fun checkIsNotNotification(messageItem: ChatMessage?): Boolean {
+        if (messageItem != null) {
+            val msgType = messageItem.getMessageType()
+            return msgType != MessageType.NOTIFICATION
+        }
+        return true
     }
 }

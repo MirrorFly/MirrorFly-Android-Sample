@@ -6,7 +6,9 @@ import android.app.AppOpsManager
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.drawable.ColorDrawable
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
@@ -15,11 +17,22 @@ import android.os.Looper
 import android.os.Process
 import android.provider.ContactsContract
 import android.util.DisplayMetrics
+import android.view.LayoutInflater
 import android.view.View
+import android.view.Window
+import android.widget.LinearLayout
+import androidx.annotation.NonNull
+import androidx.annotation.Nullable
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSmoothScroller
+import androidx.recyclerview.widget.OrientationHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.contus.flycommons.LogMessage
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.activities.OtpActivity
+import com.contusfly.chatTag.interfaces.DialogPositiveButtonClick
+import com.contusfly.databinding.BottomSheetChatTagRemoveLayoutBinding
 import com.contusfly.databinding.BottomSheetEditProfileImageBinding
 import com.contusflysdk.api.models.ContactChatMessage
 import com.contusflysdk.utils.RequestCode
@@ -34,7 +47,7 @@ import java.io.File
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class CommonUtils {
+open class CommonUtils {
 
     companion object {
         /**
@@ -222,5 +235,119 @@ class CommonUtils {
         fun getJidFromUser(user: String?): String? {
             return user + "@" + SharedPreferenceManager.getString(Constants.XMPP_DOMAIN)
         }
+
+        fun chatTagRemoveBottomDialogShow(mContext: Context, buttonclick: DialogPositiveButtonClick){
+
+            val metrics = mContext.resources.displayMetrics
+            val screenWidth = (metrics.widthPixels * 0.100).toInt()
+            val binding = BottomSheetChatTagRemoveLayoutBinding.inflate(LayoutInflater.from(mContext))
+            var view= binding.root
+            val dialog= BottomSheetDialog(mContext, R.style.DialogSlideAnim)
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+            dialog.setContentView(view)
+            dialog.setCanceledOnTouchOutside(true)
+            dialog.setCancelable(true)
+            dialog.window!!.attributes.windowAnimations= R.style.SlideDialogAnimation
+            dialog.window!!.setLayout(screenWidth, LinearLayout.LayoutParams.WRAP_CONTENT)
+            dialog.window!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            dialog.behavior.state= BottomSheetBehavior.STATE_EXPANDED
+            dialog.behavior.isHideable=false
+            dialog.behavior.isDraggable=false
+            dialog.show()
+
+            binding.removeChatTag.setOnClickListener {
+
+                buttonclick.onItemClickListener(View.OnClickListener {  })
+                dialog.dismiss()
+            }
+
+        }
+
+
+        fun scrollToCenter(
+            layoutManager: LinearLayoutManager,
+            recyclerList: RecyclerView,
+            clickPosition: Int
+        ) {
+            val smoothScroller: RecyclerView.SmoothScroller? =
+                createSnapScroller(recyclerList, layoutManager)
+            if (smoothScroller != null) {
+                smoothScroller.setTargetPosition(clickPosition)
+                layoutManager.startSmoothScroll(smoothScroller)
+            }
+        }
+
+        // This number controls the speed of smooth scroll
+        private const val MILLISECONDS_PER_INCH = 70f
+
+        private const val DIMENSION = 2
+        private const val HORIZONTAL = 0
+        private const val VERTICAL = 1
+
+        @Nullable
+        private fun createSnapScroller(
+            mRecyclerView: RecyclerView,
+            layoutManager: RecyclerView.LayoutManager): LinearSmoothScroller? {
+            return if (layoutManager !is RecyclerView.SmoothScroller.ScrollVectorProvider) {
+                null
+            } else object : LinearSmoothScroller(mRecyclerView.getContext()) {
+                protected override fun onTargetFound(
+                    targetView: View,
+                    state: RecyclerView.State,
+                    action: Action
+                ) {
+                    val snapDistances = calculateDistanceToFinalSnap(layoutManager, targetView)
+                    val dx = snapDistances[HORIZONTAL]
+                    val dy = snapDistances[VERTICAL]
+                    val time: Int =
+                        calculateTimeForDeceleration(Math.max(Math.abs(dx), Math.abs(dy)))
+                    if (time > 0) {
+                        action.update(dx, dy, time, mDecelerateInterpolator)
+                    }
+                }
+
+                protected override fun calculateSpeedPerPixel(displayMetrics: DisplayMetrics): Float {
+                    return MILLISECONDS_PER_INCH / displayMetrics.densityDpi
+                }
+            }
+        }
+
+
+        private fun calculateDistanceToFinalSnap(
+            @NonNull layoutManager: RecyclerView.LayoutManager,
+            @NonNull targetView: View
+        ): IntArray {
+            val out = IntArray(DIMENSION)
+            if (layoutManager.canScrollHorizontally()) {
+                out[HORIZONTAL] = distanceToCenter(
+                    layoutManager, targetView,
+                    OrientationHelper.createHorizontalHelper(layoutManager)
+                )
+            }
+            if (layoutManager.canScrollVertically()) {
+                out[VERTICAL] = distanceToCenter(
+                    layoutManager, targetView,
+                    OrientationHelper.createHorizontalHelper(layoutManager)
+                )
+            }
+            return out
+        }
+
+
+        private fun distanceToCenter(
+            @NonNull layoutManager: RecyclerView.LayoutManager,
+            @NonNull targetView: View, helper: OrientationHelper
+        ): Int {
+            val childCenter: Int = (helper.getDecoratedStart(targetView)
+                    + helper.getDecoratedMeasurement(targetView) / 2)
+            val containerCenter: Int
+            containerCenter = if (layoutManager.getClipToPadding()) {
+                helper.getStartAfterPadding() + helper.getTotalSpace() / 2
+            } else {
+                helper.getEnd() / 2
+            }
+            return childCenter - containerCenter
+        }
+
     }
 }

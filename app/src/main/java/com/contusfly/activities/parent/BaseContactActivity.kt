@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.SystemClock
 import android.view.MenuItem
 import com.contus.flycommons.ChatType
+import com.contus.flycommons.FlyCallback
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.R
 import com.contusfly.activities.BaseActivity
@@ -13,6 +14,9 @@ import com.contusfly.fragments.ProfileDialogFragment
 import com.contusfly.showToast
 import com.contusfly.utils.Constants
 import com.contusfly.utils.ProfileDetailsUtils
+import com.contusflysdk.api.contacts.ContactManager
+import com.contusfly.views.CustomAlertDialog
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.contacts.ProfileDetails
 
 abstract class BaseContactActivity : BaseActivity() {
@@ -40,11 +44,15 @@ abstract class BaseContactActivity : BaseActivity() {
                     if (selectedUsersJid.size < 2 && !fromGroupInfo) {
                         showToast("Add at least two contacts")
                     } else {
-                        val output = Intent().apply {
-                            putStringArrayListExtra(Constants.USERS_JID, selectedUsersJid)
+                        if (!ChatManager.getAvailableFeatures().isGroupChatEnabled){
+                            CustomAlertDialog().showFeatureRestrictionAlert(this)
+                        } else {
+                            val output = Intent().apply {
+                                putStringArrayListExtra(Constants.USERS_JID, selectedUsersJid)
+                            }
+                            setResult(RESULT_OK, output)
+                            finish()
                         }
-                        setResult(RESULT_OK, output)
-                        finish()
                     }
                 }
 
@@ -56,6 +64,7 @@ abstract class BaseContactActivity : BaseActivity() {
 
     protected fun listItemClicked(profileClicked : Boolean, profile: ProfileDetails) {
         ProfileDetailsUtils.addContact(profile)
+        ContactManager.getUserProfile(profile.jid, true, false, FlyCallback { _, _, _ ->  })
         if (multiSelection) {
             handleMultiSelection(profile)
         } else {

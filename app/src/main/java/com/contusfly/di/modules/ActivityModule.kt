@@ -3,6 +3,8 @@ package com.contusfly.di.modules
 import com.contusfly.activities.*
 import com.contusfly.activities.parent.ChatParent
 import com.contusfly.call.calllog.CallHistoryDetailActivity
+import com.contusfly.chatTag.activities.ChatTagActivity
+import com.contusfly.chatTag.activities.EditTagActivity
 import com.contusfly.fragments.BottomSheetOtpFragment
 import com.contusfly.quickShare.QuickShareActivity
 import dagger.Module
@@ -19,6 +21,9 @@ abstract class ActivityModule {
 
     @ContributesAndroidInjector
     internal abstract fun contributeNewContactsActivity(): NewContactsActivity
+
+    @ContributesAndroidInjector
+    internal abstract fun contributeUserListActivity(): UserListActivity
 
     @ContributesAndroidInjector
     internal abstract fun contributeOtpActivity(): OtpActivity
@@ -67,4 +72,10 @@ abstract class ActivityModule {
 
     @ContributesAndroidInjector
     internal abstract fun contributeContactSelectionActivity(): ContactSelectionActivity
+
+    @ContributesAndroidInjector
+    internal abstract fun contributeChatTagActivity(): ChatTagActivity
+
+    @ContributesAndroidInjector
+    internal abstract fun contributeEditTagActivity(): EditTagActivity
 }

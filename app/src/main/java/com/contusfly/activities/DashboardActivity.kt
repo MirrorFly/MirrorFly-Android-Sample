@@ -1,9 +1,7 @@
 package com.contusfly.activities
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,15 +13,15 @@ import android.widget.TextView
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.viewpager.widget.ViewPager
+import androidx.viewpager2.widget.ViewPager2
 import com.contus.flycommons.ChatType
 import com.contus.webrtc.api.CallLogManager
-import com.contus.call.utils.GroupCallUtils
+import com.contus.flycommons.Features
 import com.contusfly.*
 import com.contusfly.activities.parent.DashboardParent
 import com.contusfly.adapters.ViewPagerAdapter
-import com.contusfly.call.CallNotificationUtils
 import com.contusfly.call.calllog.CallHistoryFragment
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.ActivityDashboardBinding
 import com.contusfly.fragments.RecentChatListFragment
 import com.contusfly.interfaces.RecentChatEvent
@@ -35,6 +33,7 @@ import com.contusflysdk.api.GroupManager
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
 import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.tabs.TabLayoutMediator
 import dagger.android.AndroidInjection
 
 /**
@@ -42,7 +41,7 @@ import dagger.android.AndroidInjection
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, View.OnClickListener, ActionMode.Callback, CommonAlertDialog.CommonDialogClosedListener{
+class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Callback, CommonAlertDialog.CommonDialogClosedListener{
 
     private var TAG = DashboardActivity::class.java.simpleName
 
@@ -56,6 +55,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     private var adminBlockStatus : Boolean = false
     private var userJid:String = Constants.EMPTY_STRING
     private var handler: Handler? = null
+    private var menuReference: Menu? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
@@ -68,7 +68,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         supportActionBar?.title = Constants.EMPTY_STRING
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
 
-        mAdapter = ViewPagerAdapter(supportFragmentManager, addFragmentsToViewPagerAdapter(),
+        mAdapter = ViewPagerAdapter(this, addFragmentsToViewPagerAdapter(),
                 arrayOf(getString(R.string.chats_label), getString(R.string.calls_label)))
         tabLayout = dashboardBinding.tabs
         mViewPager = dashboardBinding.viewPager
@@ -139,12 +139,20 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     }
 
     private fun addFragmentsToViewPagerAdapter(): ArrayList<Fragment> {
-        val fragmentsArray = ArrayList<Fragment>(2)
-        recentChatFragment = RecentChatListFragment()
-        callHistoryFragment = CallHistoryFragment()
-        fragmentsArray.add(recentChatFragment)
-        fragmentsArray.add(callHistoryFragment)
-        return fragmentsArray
+        return if (ChatManager.getAvailableFeatures().isOneToOneCallEnabled || ChatManager.getAvailableFeatures().isGroupCallEnabled) {
+            val fragmentsArray = ArrayList<Fragment>()
+            recentChatFragment = RecentChatListFragment()
+            callHistoryFragment = CallHistoryFragment()
+            fragmentsArray.add(recentChatFragment)
+            fragmentsArray.add(callHistoryFragment)
+            fragmentsArray
+        } else {
+            val fragmentsArray = ArrayList<Fragment>()
+            recentChatFragment = RecentChatListFragment()
+            callHistoryFragment = CallHistoryFragment()
+            fragmentsArray.add(recentChatFragment)
+            fragmentsArray
+        }
     }
 
     private fun setUpTabColors(position: Int) {
@@ -161,39 +169,59 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     }
 
     private fun setupTabPosition() {
-        if (intent.getBooleanExtra(GroupCallUtils.IS_CALL_NOTIFICATION, false) || GroupCallUtils.isCallsTabToBeShown()) {
+        if (intent.getBooleanExtra(CallUtils.IS_CALL_NOTIFICATION, false) || CallUtils.isCallsTabToBeShown()) {
             isLoadCallLogsOnMainThread = true
-            callHistoryFragment.isLoadDataOnMainThread = true
             mViewPager.currentItem = 1
-            GroupCallUtils.setCallsTabToBeShown(false)
         }
     }
 
     private fun setUpViewPager() {
         mViewPager.offscreenPageLimit = 2
         mViewPager.adapter = mAdapter
-        mViewPager.addOnPageChangeListener(this)
+        mViewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback(){
+            override fun onPageSelected(position: Int) {
+                isPageChanged = true
+                callHistoryFragment.clearSelectedMessages()
+                recentChatFragment.clearSelectedMessages()
+                invalidateOptionsMenu()
+                actionMode?.finish()
+                when (position) {
+                    0 -> {
+                        swipeRefreshLayout.isEnabled = false
+                        dashboardBinding.newChatFab.visibility = View.VISIBLE
+                    }
+                    1 -> {
+                        swipeRefreshLayout.isEnabled = false
+                        dashboardBinding.newChatFab.visibility = View.GONE
+                        //mark missed calls as read
+                        CallLogManager.markAllUnreadMissedCallsAsRead()
+                        validateMissedCallsCount()
+                    }
+                }
+                setUpTabColors(position)
+                searchKey = Constants.EMPTY_STRING
+            }
+        })
     }
 
     @SuppressLint("InflateParams")
     private fun setUpTabLayout() {
         tabLayout.show()
-        tabLayout.setupWithViewPager(mViewPager)
-
-        val viewChats = layoutInflater.inflate(R.layout.custom_tabs, null)
-        val viewCalls = layoutInflater.inflate(R.layout.custom_tabs, null)
-
-        tabLayout.getTabAt(0)?.customView = viewChats
-        tabLayout.getTabAt(1)?.customView = viewCalls
-
-        chatTitleTextView = viewChats.findViewById(R.id.text)
-        callTitleTextView = viewCalls.findViewById(R.id.text)
-
-        unReadChatCountTextView = viewChats.findViewById(R.id.text_unseen_count)
-        missedCallCountTextView = viewCalls.findViewById(R.id.text_unseen_count)
-
-        chatTitleTextView.text = getString(R.string.chats_label)
-        callTitleTextView.text = getString(R.string.calls_label)
+        TabLayoutMediator(tabLayout, mViewPager) { tab, position ->
+            val viewChats = layoutInflater.inflate(R.layout.custom_tabs, null)
+            val viewCalls = layoutInflater.inflate(R.layout.custom_tabs, null)
+            chatTitleTextView = viewChats.findViewById(R.id.text)
+            unReadChatCountTextView = viewChats.findViewById(R.id.text_unseen_count)
+            callTitleTextView = viewCalls.findViewById(R.id.text)
+            missedCallCountTextView = viewCalls.findViewById(R.id.text_unseen_count)
+            if (position == 0) {
+                tab.customView = viewChats
+                chatTitleTextView.text = getString(R.string.chats_label)
+            } else {
+                tab.customView = viewCalls
+                callTitleTextView.text = getString(R.string.calls_label)
+            }
+        }.attach()
 
         viewModel.updateUnReadChatCount()
         validateMissedCallsCount()
@@ -206,6 +234,8 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.dashboard_main, menu)
         val menuItem = menu?.findItem(R.id.action_search)
+        menuReference = menu
+        updateMenuIcons(ChatManager.getAvailableFeatures())
         mSearchView = menu?.findItem(R.id.action_search)?.actionView as SearchView
 
         /* Check if user searched in recent or contact. */
@@ -224,7 +254,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         })
 
         menuItem?.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
-            override fun onMenuItemActionExpand(item: MenuItem?): Boolean {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                 //make toolbar un-collapsible
                 val params: AppBarLayout.LayoutParams = dashboardBinding.toolbar.layoutParams as AppBarLayout.LayoutParams
                 params.scrollFlags = AppBarLayout.LayoutParams.SCROLL_FLAG_SNAP
@@ -235,7 +265,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
                 return true
             }
 
-            override fun onMenuItemActionCollapse(item: MenuItem?): Boolean {
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
                 //make toolbar collapsible
                 val params: AppBarLayout.LayoutParams = dashboardBinding.toolbar.layoutParams as AppBarLayout.LayoutParams
                 params.scrollFlags = (AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL
@@ -269,10 +299,6 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         }
     }
 
-    override fun onUserBlockedOrUnblockedBySomeone(userJid: String, blockType: Boolean) {
-        viewModel.setBlockUnBlockJID(userJid, blockType)
-    }
-
     override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
         super.onAdminBlockedOtherUser(jid, type, status)
         adminBlockStatus = status
@@ -282,43 +308,6 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
         handler?.postDelayed({
             viewModel.setAdminBlockedStatus(userJid, adminBlockStatus)
         }, 500)
-    }
-
-    override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
-        LogMessage.d(TAG, position.toString())
-    }
-
-    override fun onPageSelected(position: Int) {
-        isPageChanged = true
-        callHistoryFragment.clearSelectedMessages()
-        recentChatFragment.clearSelectedMessages()
-        invalidateOptionsMenu()
-        actionMode?.finish()
-        when (position) {
-            0 -> {
-                swipeRefreshLayout.isEnabled = false
-                dashboardBinding.newChatFab.visibility = View.VISIBLE
-            }
-
-            1 -> {
-                swipeRefreshLayout.isEnabled = false
-                dashboardBinding.newChatFab.visibility = View.GONE
-                //mark missed calls as read
-                CallLogManager.markAllUnreadMissedCallsAsRead()
-                validateMissedCallsCount()
-                CallNotificationUtils.setUnreadBadgeCount(
-                    this,
-                    CallLogManager.getUnreadMissedCallCount(),
-                    null
-                )
-            }
-        }
-        setUpTabColors(position)
-        searchKey = Constants.EMPTY_STRING
-    }
-
-    override fun onPageScrollStateChanged(state: Int) {
-        //No Implementation
     }
 
     // Action Mode Callbacks
@@ -347,7 +336,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     override fun onClick(v: View?) {
         when (v) {
             dashboardBinding.newChatFab -> {
-                startActivity(Intent(this, NewContactsActivity::class.java))
+                startActivity(Intent(this, UserListActivity::class.java))
             }
         }
     }
@@ -362,7 +351,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
             if (searchItemClickedPosition.isValidIndex())
                 recentChatFragment.updateSearchAdapter(searchItemClickedPosition)
         }
-        viewModel.getRecentChats()
+        viewModel.getRestartActivitygetrecentChatList()
         viewModel.getArchivedChatStatus()
         viewModel.updateUnReadChatCount()
         validateMissedCallsCount()
@@ -371,10 +360,13 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
 
     override fun onResume() {
         super.onResume()
-        viewModel.getRecentChats()
         viewModel.getArchivedChatStatus()
         viewModel.updateUnReadChatCount()
-        callLogviewModel.getCallLogsList(isLoadCallLogsOnMainThread)
+        if (callLogviewModel.isCallLogScreenInitiated()) {
+            callLogviewModel.addLoaderToTheList()
+            callLogviewModel.getCallLogsList(isLoadCallLogsOnMainThread)
+            CallUtils.setCallsTabToBeShown(false)
+        }
         isLoadCallLogsOnMainThread = false
         if (SharedPreferenceManager.getBoolean(Constants.SHOW_LABEL))
             netConditionalCall({ dashboardBinding.dashboardXmppConnectionStatusLayout.gone() }, { dashboardBinding.dashboardXmppConnectionStatusLayout.show() })
@@ -445,7 +437,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
 
         var value = ChatType.TYPE_GROUP_CHAT != recentList[0].getChatType()
         if(ChatType.TYPE_GROUP_CHAT == recentList[0].getChatType()){
-            value = !GroupManager.isMemberOfGroup(recentList[0].jid,SharedPreferenceManager.getCurrentUserJid())
+            value = ChatManager.getAvailableFeatures().isGroupChatEnabled && !GroupManager.isMemberOfGroup(recentList[0].jid,SharedPreferenceManager.getCurrentUserJid())
         }
         actionModeMenu.findItem(R.id.action_delete).isVisible = value
     }
@@ -484,7 +476,7 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
 
     private fun showDeleteOption(recentList: List<RecentChat>):Boolean{
         for(item in recentList){
-            if((item.getChatType() == ChatType.TYPE_GROUP_CHAT) && GroupManager.isMemberOfGroup(item.jid,SharedPreferenceManager.getCurrentUserJid()))
+            if((item.getChatType() == ChatType.TYPE_GROUP_CHAT) && ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(item.jid,SharedPreferenceManager.getCurrentUserJid()))
                 return false
         }
         return true
@@ -636,6 +628,43 @@ class DashboardActivity : DashboardParent(), ViewPager.OnPageChangeListener, Vie
     override fun onGroupProfileFetched(groupJid: String) {
         super.onGroupProfileFetched(groupJid)
         viewModel.getRecentChatOfUser(groupJid, RecentChatEvent.GROUP_EVENT)
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        super.updateFeatureActions(features)
+        updateMenuIcons(features)
+        updateAdapterItems(features)
+        callLogviewModel.updateFeatureActions(features)
+    }
+
+    private fun updateAdapterItems(features: Features) {
+        if (mAdapter.fragmentsArray.size == 2) {
+            if (!features.isOneToOneCallEnabled && !features.isGroupCallEnabled) {
+                mAdapter.fragmentsArray.remove(callHistoryFragment)
+                mAdapter.notifyDataSetChanged()
+                mViewPager.currentItem = 0
+            }
+        } else {
+            if (features.isOneToOneCallEnabled || features.isGroupCallEnabled) {
+                mAdapter.fragmentsArray.add(callHistoryFragment)
+                mAdapter.notifyDataSetChanged()
+            }
+        }
+    }
+
+    private fun updateMenuIcons(features: Features) {
+        menuReference?.let {
+            if (features.isGroupChatEnabled)
+                showMenu(it.get(R.id.action_group_chat))
+            else hideMenu(it.get(R.id.action_group_chat))
+            val menuItem = it.findItem(R.id.action_search)
+            if (features.isRecentChatSearchEnabled)
+                showMenu(it.get(R.id.action_search))
+            else {
+                menuItem.collapseActionView()
+                hideMenu(it.get(R.id.action_search))
+            }
+        }
     }
 
 }

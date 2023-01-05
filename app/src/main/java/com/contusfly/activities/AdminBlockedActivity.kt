@@ -8,11 +8,11 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import androidx.appcompat.widget.AppCompatTextView
-import com.contusfly.AppLifecycleListener
 import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.databinding.ActivityAdminBlockedBinding
+import com.contusfly.utils.CommonUtils
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager
@@ -26,9 +26,9 @@ class AdminBlockedActivity : BaseActivity(), View.OnClickListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AppLifecycleListener.isAdminBlockedActivityOpened = true
         adminBlockedBinding = ActivityAdminBlockedBinding.inflate(layoutInflater)
         setContentView(adminBlockedBinding.root)
+        SharedPreferenceManager.setBoolean(Constants.ADMIN_BLOCKED, false)
         initViews()
     }
 
@@ -47,8 +47,7 @@ class AdminBlockedActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun finishApp() {
-        AppLifecycleListener.isAdminBlockedActivityOpened = false
-        finishAffinity()
+        CommonUtils.navigateUserToLoggedOutUI(this)
     }
 
     override fun onClick(v: View?) {
@@ -58,7 +57,7 @@ class AdminBlockedActivity : BaseActivity(), View.OnClickListener {
         }
     }
 
-    private fun getEmailIntent(email: String): Intent? {
+    private fun getEmailIntent(email: String): Intent {
         val intent = Intent(Intent.ACTION_SENDTO)
         intent.data = Uri.parse("mailto:")
         //intent.type = "message/rfc822"
@@ -66,7 +65,7 @@ class AdminBlockedActivity : BaseActivity(), View.OnClickListener {
         return getIntent(intent, true)
     }
 
-    private fun getIntent(intent: Intent, isNewTask: Boolean): Intent? {
+    private fun getIntent(intent: Intent, isNewTask: Boolean): Intent {
         return if (isNewTask) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) else intent
     }
 
@@ -89,11 +88,5 @@ class AdminBlockedActivity : BaseActivity(), View.OnClickListener {
             }
             finish()
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        LogMessage.d(TAG, "onDestroy()")
-        AppLifecycleListener.isAdminBlockedActivityOpened = false
     }
 }

@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.resource.bitmap.CenterCrop;
 import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.request.RequestOptions;
@@ -42,7 +43,7 @@ private int margin = 3;
         size = Utility.convertDpToPixel(72, context) - 2;
         padding = (int) (size / 3.5);
         glide = Glide.with(context);
-        options = new RequestOptions().override(256).transform(new CenterCrop()).transform(new FitCenter());
+        options = new RequestOptions().override(256).transform(new CenterCrop()).transform(new FitCenter()).diskCacheStrategy(DiskCacheStrategy.ALL);
     }
 
     public void addOnSelectionListener(OnSelectionListener onSelectionListener) {

@@ -17,7 +17,7 @@ import com.contus.call.SpeakingIndicatorListener
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.CallStatus
 import com.contus.webrtc.api.CallManager
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.TextureViewRenderer
 import com.contusfly.R
 import com.contusfly.adapters.BaseViewHolder
 import com.contusfly.call.SetDrawable
@@ -26,14 +26,13 @@ import com.contusfly.databinding.CallGridUserItemBinding
 import com.contusfly.gone
 import com.contusfly.show
 import com.contusfly.utils.Constants
+import com.contusfly.utils.MediaUtils
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.utils.ChatUtils
-import com.contusflysdk.utils.MediaUtils
 import com.contusflysdk.utils.Utils
 import com.jakewharton.rxbinding3.view.clicks
 import org.webrtc.RendererCommon
-import org.webrtc.SurfaceViewRenderer
 import java.util.ArrayList
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -52,12 +51,12 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     /**
      * Surface views map
      */
-    private var callUsersGridSurfaceViews = ConcurrentHashMap<String, SurfaceViewRenderer>(8)
+    private var callUsersGridSurfaceViews = ConcurrentHashMap<String, TextureViewRenderer>(8)
 
     /**
      * contains the surface view initialisation status
      */
-    private var surfaceViewGridStatusMap = ConcurrentHashMap<SurfaceViewRenderer, Boolean>(8)
+    private var surfaceViewGridStatusMap = ConcurrentHashMap<TextureViewRenderer, Boolean>(8)
 
     fun onUserPinnedGridView(fn:(String) -> Unit) {
         onPinnedGridView = fn
@@ -116,7 +115,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
 
     private fun setMirrorView(holder: CallUserGridViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI setMirrorView position: $position userJid:${gridCallUserList[position]}")
-        if (gridCallUserList[position] == GroupCallUtils.getLocalUserJid()) {
+        if (gridCallUserList[position] == CallManager.getCurrentUserId()) {
             holder.binding.viewVideoSurface.setMirror(!CallUtils.getIsBackCameraCapturing())
         } else {
             holder.binding.viewVideoSurface.setMirror(false)
@@ -125,7 +124,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
 
     private fun setUpAudioMuted(holder: CallUserGridViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI #surface setUpAudioMuted position: $position userJid:${gridCallUserList[position]}")
-        if (((gridCallUserList[position] == GroupCallUtils.getLocalUserJid() && GroupCallUtils.isAudioMuted()) || CallManager.isRemoteAudioMuted(gridCallUserList[position]))) {
+        if (((gridCallUserList[position] == CallManager.getCurrentUserId() && CallManager.isAudioMuted()) || CallManager.isRemoteAudioMuted(gridCallUserList[position]))) {
             holder.binding.imageAudioMuted.show()
         } else {
             holder.binding.imageAudioMuted.gone()
@@ -135,7 +134,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setUpVideoMuted(holder: CallUserGridViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI setUpVideoMuted position: $position userJid:${gridCallUserList[position]}")
         when (gridCallUserList[position]) {
-            GroupCallUtils.getLocalUserJid() -> if (GroupCallUtils.isVideoMuted()) {
+            CallManager.getCurrentUserId() -> if (CallManager.isVideoMuted()) {
                 LogMessage.d(TAG, "$CALL_UI setUpVideoMuted userJid:${gridCallUserList[position]} is muted: true")
                 hideSurface(holder, gridCallUserList[position])
                 setUserInfo(holder, position)
@@ -157,7 +156,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setUserInfo(holder: CallUserGridViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI setUserInfo position: $position userJid:${gridCallUserList[position]}")
         holder.binding.textUserName.show()
-        if (gridCallUserList[position] == GroupCallUtils.getLocalUserJid()) {
+        if (gridCallUserList[position] == CallManager.getCurrentUserId()) {
             setLocalUserInfo(holder, position)
         } else {
             setRemoteUserInfo(holder, position)
@@ -167,7 +166,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setLocalUserInfo(holder: CallUserGridViewHolder, position: Int) {
         holder.binding.textUserName.text = Constants.YOU
         val image = SharedPreferenceManager.getString(Constants.USER_PROFILE_IMAGE)
-        val profileDetails = ContactManager.getProfileDetails(gridCallUserList[position])
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(gridCallUserList[position])
         val userName = Utils.returnEmptyStringIfNull(SharedPreferenceManager.getString(Constants.USER_PROFILE_NAME))
 
         val setDrawable = SetDrawable(context, profileDetails)
@@ -176,7 +175,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun setRemoteUserInfo(holder: CallUserGridViewHolder, position: Int) {
-        val profileDetails = ContactManager.getProfileDetails(gridCallUserList[position])
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(gridCallUserList[position])
         if (profileDetails != null) {
             val name =  Utils.returnEmptyStringIfNull(profileDetails.name)
             val image = profileDetails.image
@@ -197,7 +196,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun setSurfaceViewToVideoSink(holder: CallUserGridViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI setSurfaceViewToVideoSink position: $position userJid:${gridCallUserList[position]}")
         when {
-            gridCallUserList[position] == GroupCallUtils.getLocalUserJid() -> {
+            gridCallUserList[position] == CallManager.getCurrentUserId() -> {
                 try {
                     CallManager.getLocalProxyVideoSink()?.setTarget(holder.binding.viewVideoSurface)
                 } catch (e: Exception) {
@@ -316,7 +315,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
 
     private fun updateViewSize(holder: CallUserGridViewHolder, position: Int) {
         LogMessage.d(TAG, "$CALL_UI updateViewSize position: $position userJid:${gridCallUserList[position]}")
-        if (gridCallUserList[position] == GroupCallUtils.getLocalUserJid()) {
+        if (gridCallUserList[position] == CallManager.getCurrentUserId()) {
             setUserInfo(holder, position)
         }
         val gridLayoutParams = holder.binding.rootLayout.layoutParams as GridLayoutManager.LayoutParams
@@ -340,8 +339,8 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
             gridCallUserList.add(userJid)
             notifyItemInserted(gridCallUserList.indexOf(userJid))
         } else if (!gridCallUserList.contains(userJid)) {
-            if (userJid == GroupCallUtils.getLocalUserJid() || !gridCallUserList.contains(
-                    GroupCallUtils.getLocalUserJid())) {
+            if (userJid == CallManager.getCurrentUserId() || !gridCallUserList.contains(
+                    CallManager.getCurrentUserId())) {
                 gridCallUserList.add(userJid)
                 notifyItemInserted(gridCallUserList.indexOf(userJid))
             } else {
@@ -366,17 +365,17 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun updateGridConnectionStatus(index: Int) {
-        LogMessage.d(TAG, "$CALL_UI updateConnectionStatus() position: $index userJid:${gridCallUserList[index]} callStatus:${GroupCallUtils.getCallStatus(gridCallUserList[index])}")
+        LogMessage.d(TAG, "$CALL_UI updateConnectionStatus() position: $index userJid:${gridCallUserList[index]} callStatus:${CallManager.getCallStatus(gridCallUserList[index])}")
         val bundle = Bundle()
         bundle.putInt(CallActions.NOTIFY_VIEW_STATUS_UPDATED, 1)
         notifyItemChanged(index, bundle)
     }
 
     private fun updateGridConnectionStatus(holder: CallUserGridViewHolder, index: Int) {
-        LogMessage.d(TAG, "$CALL_UI updateConnectionStatus position: $index userJid:${gridCallUserList[index]} callStatus:${GroupCallUtils.getCallStatus(gridCallUserList[index])}")
-        when (GroupCallUtils.getCallStatus(gridCallUserList[index])) {
+        LogMessage.d(TAG, "$CALL_UI updateConnectionStatus position: $index userJid:${gridCallUserList[index]} callStatus:${CallManager.getCallStatus(gridCallUserList[index])}")
+        when (CallManager.getCallStatus(gridCallUserList[index])) {
             CallStatus.RINGING, CallStatus.CONNECTING, CallStatus.CALLING, CallStatus.DISCONNECTED -> {
-                if (gridCallUserList[index] != GroupCallUtils.getLocalUserJid()) {
+                if (gridCallUserList[index] != CallManager.getCurrentUserId()) {
                     showStatusInView(holder, index)
                 } else
                     holder.binding.callerStatusLayout.gone()
@@ -394,12 +393,12 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     private fun showStatusInView(holder: CallUserGridViewHolder, index: Int) {
         LogMessage.d(TAG, "$CALL_UI showStatusInView position: $index userJid:${gridCallUserList[index]}")
         setUpVideoMuted(holder, index)
-        val callerStatus = GroupCallUtils.getCallStatus(gridCallUserList[index])
+        val callerStatus = CallManager.getCallStatus(gridCallUserList[index])
         holder.binding.callerStatusLayout.show()
         holder.binding.callerStatusTextView.text = callerStatus
         holder.binding.callerNameBgLayout.gone()
         if ((CallStatus.CONNECTING == callerStatus || CallStatus.CALLING == callerStatus)
-            && GroupCallUtils.isOnGoingVideoCall()) {
+            && CallManager.isOnGoingVideoCall()) {
             holder.binding.imgProfileImage.show()
         }
     }
@@ -431,7 +430,7 @@ class GroupCallGridAdapter(val context: Context) : RecyclerView.Adapter<GroupCal
     }
 
     private fun updateUserSpeaking(holder: CallUserGridViewHolder, position: Int, audioLevel: Int) {
-        if (audioLevel == 0 || GroupCallUtils.isUserAudioMuted(gridCallUserList[position]))
+        if (audioLevel == 0 || CallManager.isUserAudioMuted(gridCallUserList[position]))
             updateUserStoppedSpeaking(holder, position)
         else {
             holder.binding.imageAudioMuted.gone()

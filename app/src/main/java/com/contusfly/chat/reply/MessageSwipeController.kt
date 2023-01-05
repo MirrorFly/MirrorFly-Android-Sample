@@ -101,7 +101,7 @@ class MessageSwipeController(private val context: Context, private val swipeCont
         recyclerView.setOnTouchListener { _, event ->
             swipeBack = event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
             if (swipeBack && abs(mView.translationX) >= this@MessageSwipeController.convertToDp(70))
-                swipeControllerActions.showSwipeInReplyUI(viewHolder.adapterPosition)
+                swipeControllerActions.showSwipeInReplyUI(viewHolder.layoutPosition)
             false
         }
     }

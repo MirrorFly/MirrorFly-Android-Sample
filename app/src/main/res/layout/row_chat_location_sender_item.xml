@@ -106,7 +106,7 @@
                         android:layout_marginRight="@dimen/margin_4"
                         android:paddingBottom="@dimen/margin_4"
                         android:contentDescription="@null"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         android:layout_toStartOf="@+id/image_loc_send_status"
                         android:layout_alignTop="@+id/image_loc_send_status"
                         android:layout_alignBottom="@+id/image_loc_send_status"

@@ -23,6 +23,7 @@ import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.utils.ChatMessageUtils.getFormattedTime
 import com.contusfly.utils.MediaDetailUtils.getMediaDuration
+import com.contusfly.views.MirrorFlySeekBar
 import com.contusflysdk.utils.Utils
 import java.io.File
 import java.util.*
@@ -74,7 +75,7 @@ class MediaController(private val context: Context) {
     /**
      * The updated progress.
      */
-    private var updatedProgress = 0
+     var updatedProgress = 0
 
     private var progressMilliSeconds = 100 // progress bar will be updated for every 100 ms
 
@@ -82,12 +83,12 @@ class MediaController(private val context: Context) {
      * The media player to display in the chat view for play the audio.
      */
     var mediaPlayer: MediaPlayer? = null
-        private set
+
 
     /**
      * The handler to play the audio.
      */
-    private var mHandler: Handler? = null
+     var mHandler: Handler? = null
 
     /**
      * The txt timer of the audio player.
@@ -95,29 +96,25 @@ class MediaController(private val context: Context) {
     private var txtTimer: TextView? = null
     private val mPlayedTime: HashMap<String?, Int>?
 
-    /**
-     * The listener of the seek bar.
-     */
-    private val listener: SeekBar.OnSeekBarChangeListener = object : SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
-            updatedProgress = i
-            updateSeekBarProgress(i)
-        }
 
-        override fun onStartTrackingTouch(seekBar: SeekBar) {
-            //Override method
-        }
+    var tempProgress = 0
+    var tempdurationTxtView: TextView? = null
 
-        override fun onStopTrackingTouch(seekBar: SeekBar) {
+
+    fun onStopTrackingTouch(seekBar: SeekBar?,path: String?) {
+        if(filePath.isNullOrBlank() || filePath == path) {
             timeConsumed = updatedProgress
             if (mediaPlayer != null) {
                 mediaPlayer!!.seekTo(timeConsumed * progressMilliSeconds)
                 currentPosition = timeConsumed * progressMilliSeconds
-                if (mediaPlayer!!.isPlaying)
-                    txtTimer!!.text = getFormattedTime(timeConsumed / 10)
+                txtTimer?.text = getFormattedTime(timeConsumed / 10)
             }
-            seekBar.progress = timeConsumed
+            seekBar?.progress = timeConsumed
             timeConsumed++
+        } else {
+            LogMessage.d(TAG,"temppro"+tempProgress.toString())
+            seekBar?.progress = tempProgress
+            tempdurationTxtView?.text = getFormattedTime(tempProgress / 10)
         }
     }
 
@@ -245,9 +242,9 @@ class MediaController(private val context: Context) {
                 this.imgPlay = imgPlay
                 this.seekBar = seekBar
                 this.txtTimer = txtTimer
-               imgPlay.setImageResource(R.drawable.ic_pause_audio_recipient)
+                imgPlay.setImageResource(R.drawable.ic_pause_audio_recipient)
                 seekBar.max = (mediaPlayer!!.duration / progressMilliSeconds)
-                seekBar.setOnSeekBarChangeListener(listener)
+
                 if (mHandler != null && songHandler.get() != null) {
                     mHandler!!.removeCallbacks(songHandler.get()!!)
                     mHandler!!.post(songHandler.get()!!)
@@ -270,6 +267,8 @@ class MediaController(private val context: Context) {
             currentPosition = 0
             timeConsumed = 0
             updatedProgress = 0
+            tempProgress = 0
+            tempdurationTxtView = null
             abandonAudioFocus()
             if (seekBar != null) seekBar!!.progress = 0
             if (mediaPlayer != null) {
@@ -306,7 +305,6 @@ class MediaController(private val context: Context) {
             abandonAudioFocus()
             LogMessage.v(TAG, "#audio Paused: timeConsumed:${timeConsumed}")
             imgPlay!!.setImageResource(R.drawable.ic_play_audio_recipient)
-            if (txtTimer != null) txtTimer!!.text = Utils.returnEmptyStringIfNull(getMediaDuration(context, duration))
             mHandler!!.removeCallbacks(songHandler.get()!!)
         } else if (!mediaPlayer!!.isPlaying && lastUsedMedia.equals(filePath, ignoreCase = true)) {
             if (requestAudioFocus(focusChangeListener, AudioManager.USE_DEFAULT_STREAM_TYPE,
@@ -348,12 +346,11 @@ class MediaController(private val context: Context) {
                 imgLastUsed = imgPlay
                 mediaPlayer!!.seekTo((timeConsumed * progressMilliSeconds))
                 currentPosition = mediaPlayer!!.currentPosition
-                seekBar!!.setOnSeekBarChangeListener(listener)
                 mp.start()
             }
             mediaPlayer!!.setOnCompletionListener { mp: MediaPlayer ->
                 mp.release()
-                resetAudioPlayer()
+                resetAudioPlayer(true)
             }
         } catch (e: Exception) {
             LogMessage.e(e)
@@ -364,18 +361,21 @@ class MediaController(private val context: Context) {
      * Reset the audio player to the initial state and releases the resources
      * currently associated with this MediaPlayer object.
      */
-    fun resetAudioPlayer() {
+    fun resetAudioPlayer(isCompleted: Boolean) {
         if (mediaPlayer != null) mediaPlayer!!.release()
         mediaPlayer = null
         lastUsedMedia = Constants.EMPTY_STRING
         imgLastUsed = null
         imgPlay!!.setImageResource(R.drawable.ic_play_audio_recipient)
-        seekBar!!.progress = 0
-        mHandler!!.removeCallbacks(songHandler.get()!!)
-        abandonAudioFocus()
-        timeConsumed = 0
-        txtTimer!!.text = Utils.returnEmptyStringIfNull(getMediaDuration(context, duration))
-        currentAudioPosition = -1
+        if (isCompleted) {
+            seekBar!!.progress = 0
+            txtTimer!!.text = Utils.returnEmptyStringIfNull(getMediaDuration(context, duration))
+        }
+            mHandler!!.removeCallbacks(songHandler.get()!!)
+            abandonAudioFocus()
+            timeConsumed = 0
+            currentAudioPosition = -1
+
     }
 
     /**
@@ -411,6 +411,84 @@ class MediaController(private val context: Context) {
             Log.d("TAG", "mPlayedTime: filePath: $filePath")
         }
     }
+
+    /**
+     * Handle the audio seekbar progressbarchange listener for chat screen
+     *
+     * @param progress          Message Item data
+     * @param path              View holder of current view in adapter
+     * @param playImage         Play button of the audio view
+     * @param mirrorFlySeekBar  Mirrorfly seek bar of the audio
+     * @param durationView      TextView used to set the duration
+     * @param fromUser          Boolean to identify whether the audio message is posted by sender
+     * @param layoutPosition    position of the holder
+     */
+    fun updateSeekbarChanges(progress: Int,layoutPosition: Int,path: String?,
+                             fromUser: Boolean,durationView: TextView,
+                             mirrorFlySeekBar: MirrorFlySeekBar,
+                             imgPlayer: ImageView) {
+
+     if (filePath.isNullOrBlank() || filePath == path) {
+
+         currentAudioPosition = layoutPosition
+         updatedProgress = progress
+         setMediaSeekBar(mirrorFlySeekBar)
+         setMediaTimer(durationView)
+
+         if (mediaPlayer == null) {
+             imgPlay = imgPlayer
+             mediaPlayer = MediaPlayer.create(context, Uri.parse(path))
+             mHandler = Handler(Looper.getMainLooper())
+         }
+
+         if (fromUser) mediaPlayer?.seekTo(progress)
+         updateSeekBarProgress(progress)
+     } else {
+         tempProgress = progress
+         tempdurationTxtView = durationView
+     }
+
+    }
+
+    /**
+     * Handle the audio seekbar progressbarchange listener for starred msg
+     *
+     * @param progress          Message Item data
+     * @param path              View holder of current view in adapter
+     * @param playImage         Play button of the audio view
+     * @param seekBar           seek bar of the audio
+     * @param durationView      TextView used to set the duration
+     * @param fromUser          Boolean to identify whether the audio message is posted by sender
+     * @param layoutPosition    position of the holder
+     */
+
+    fun updateSeekbarChangesForStarredMsg(progress: Int,layoutPosition: Int,path: String?,
+                             fromUser: Boolean,durationView: TextView,
+                             seekBar: SeekBar?,
+                             imgPlayer: ImageView) {
+
+        if (filePath.isNullOrBlank() || filePath == path) {
+
+            currentAudioPosition = layoutPosition
+            updatedProgress = progress
+            setMediaSeekBar(seekBar)
+            setMediaTimer(durationView)
+
+            if (mediaPlayer == null) {
+                imgPlay = imgPlayer
+                mediaPlayer = MediaPlayer.create(context, Uri.parse(path))
+                mHandler = Handler(Looper.getMainLooper())
+            }
+
+            if (fromUser) mediaPlayer?.seekTo(progress)
+            updateSeekBarProgress(progress)
+        } else {
+            tempProgress = progress
+            tempdurationTxtView = durationView
+        }
+
+    }
+
 
     companion object {
 

@@ -72,7 +72,6 @@
                         android:background="@android:color/transparent"
                         android:gravity="center"
                         android:hint="@string/title_user_name"
-                        android:maxLength="30"
                         android:singleLine="true"
                         android:maxLines="1"
                         android:textColorHint="?attr/contact_status_color"

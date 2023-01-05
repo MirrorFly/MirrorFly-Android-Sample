@@ -11,7 +11,6 @@ import android.view.View
 import android.widget.AdapterView
 import com.contus.flycommons.FlyCallback
 import com.contus.flycommons.exception.FlyException
-import com.contus.xmpp.chat.models.Profile
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.adapters.ProfileStartStatusAdapter
@@ -26,6 +25,7 @@ import com.contusflysdk.api.FlyCore.deleteProfileStatus
 import com.contusflysdk.api.FlyCore.getMyProfileStatus
 import com.contusflysdk.api.FlyCore.getProfileStatusList
 import com.contusflysdk.api.FlyCore.setMyProfileStatus
+import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ProfileStatus
 import com.contusflysdk.utils.RequestCode
 import com.contusflysdk.utils.Utils
@@ -103,8 +103,8 @@ class ProfileStartStatusActivity : BaseActivity(), View.OnClickListener, CommonA
         }
     }
 
-    override fun profileCallback(profile: Profile) {
-        super.profileCallback(profile)
+    override fun userProfileFetched(jid: String, profileDetails: ProfileDetails) {
+        super.userProfileFetched(jid, profileDetails)
         if (profileStatus.isNullOrEmpty()) {
             setMyProfileStatus(getString(R.string.default_status), FlyCallback { isSuccess: Boolean, throwable: Throwable?, data: HashMap<String?, Any?>? -> })
             profileStatus = getMyProfileStatus()?.status

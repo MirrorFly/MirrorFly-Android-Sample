@@ -15,9 +15,9 @@ import androidx.lifecycle.observe
 import com.contus.call.CallConstants
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.call.joincall.JoinCallListener
-import com.contus.call.utils.GroupCallUtils
 import com.contus.flycommons.Error
 import com.contus.flycommons.LogMessage
+import com.contus.webrtc.TextureViewRenderer
 import com.contus.webrtc.api.CallActionListener
 import com.contus.webrtc.api.CallManager
 import com.contus.webrtc.api.JoinCallActionListener
@@ -33,9 +33,7 @@ import com.contusflysdk.AppUtils
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
 import org.webrtc.RendererCommon
-import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
-import java.util.*
 import kotlin.collections.ArrayList
 
 class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonAlertDialog.CommonDialogClosedListener {
@@ -45,7 +43,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     /**
      * Instance for surface view render local view
      */
-    private var videoLocalView: SurfaceViewRenderer? = null
+    private var videoLocalView: TextureViewRenderer? = null
 
     private var progressDialog: DoProgressDialog? = null
 
@@ -154,7 +152,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     private fun validateAndStartJoinCallSetup(callLink: String) {
         val onGngCallLink = CallManager.getCallLink()
-        if ((GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall()) && (onGngCallLink != callLink)) {
+        if (CallManager.isOnGoingCall() && (onGngCallLink != callLink)) {
             hideProgressDialog()
             askCallSwitchPopup(callLink)
         } else if (CallManager.isOnTelephonyCall(this)) {
@@ -198,7 +196,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     }
 
     private fun handleOnFailure(error: Error) {
-        LogMessage.d(TAG, "$CALL_UI ${error.code.toString()}")
+        LogMessage.d(TAG, "$CALL_UI ${error.code}")
         var callEnded: String = Constants.EMPTY_STRING
         var callEndedMessage: String = Constants.EMPTY_STRING
         var isInvalidLink = false
@@ -255,7 +253,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     private fun checkCallPermissions() {
         /* Video Permission */
-        if (CallManager.isVideoCallPermissionsGranted()) {
+        if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) {
             CallManager.muteVideo(false)
             muteVideoImage.isActivated = true
             showLocalVideoView(true)
@@ -267,7 +265,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
         }
 
         /* Audio Permission */
-        if (CallManager.isAudioCallPermissionsGranted()) {
+        if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) {
             CallManager.muteAudio(false)
             muteAudioImage.isActivated = true
         } else {
@@ -288,7 +286,6 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     private fun initVideoLocalView() {
         videoLocalView!!.init(CallManager.getRootEglBase()!!.eglBaseContext, null)
         videoLocalView!!.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
-        videoLocalView!!.setZOrderMediaOverlay(true)
         videoLocalView!!.setMirror(true)
         /* setting Target SurfaceViews to VideoSinks  */
         CallManager.getLocalProxyVideoSink()?.setTarget(videoLocalView)
@@ -303,9 +300,9 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     private fun observeNetworkListener() {
         val networkConnection = NetworkConnection(applicationContext)
-        networkConnection.observe(this, { isConnected ->
+        networkConnection.observe(this) { isConnected ->
             checkUserCallSubscribeDetails(isConnected)
-        })
+        }
     }
 
     private fun checkUserCallSubscribeDetails(subscribeStatus: Boolean) {
@@ -382,7 +379,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     }
 
     private fun showJoinCallOrCallEndedView(usersList: List<String>) {
-        if (usersList.isNullOrEmpty() || usersList.size == 1) {
+        if (usersList.isEmpty() || usersList.size == 1) {
             onGoingCallPreviewScreenBinding.toolbar.toolbarTitle.text = Constants.EMPTY_STRING
             callEndedView!!.visibility = View.VISIBLE
             joinCallView!!.visibility = View.GONE
@@ -403,7 +400,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
     }
 
     private fun setAudioMuteUnMuteStatus() {
-        if (CallManager.isAudioCallPermissionsGranted() && !isAudioMuteClicked) {
+        if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false) && !isAudioMuteClicked) {
             setViewMuteAndUnMuteStatus(muteAudioImage, false)
             toggleMic()
         }
@@ -411,7 +408,7 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     override fun userUpdatedHisProfile(jid: String) {
         super.userUpdatedHisProfile(jid)
-        if (!groupUsersList.isNullOrEmpty()) updateGroupMemberDetails(groupUsersList)
+        if (groupUsersList.isNotEmpty()) updateGroupMemberDetails(groupUsersList)
     }
 
     private fun showUserProfilePic() {
@@ -440,11 +437,11 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
         when(v.id) {
             R.id.image_mute_audio -> {
                 isAudioMuteClicked = true
-                if (CallManager.isAudioCallPermissionsGranted()) toggleMic()
+                if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) toggleMic()
                 else MediaPermissions.requestAudioCallPermissions(this, permissionAlertDialog, audioCallPermissionLauncher)
             }
             R.id.image_mute_video -> {
-                if (CallManager.isVideoCallPermissionsGranted()) toggleVideoMute()
+                if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) toggleVideoMute()
                 else MediaPermissions.requestVideoCallPermissions(this, permissionAlertDialog, videoCallPermissionLauncher)
             }
             R.id.text_join -> checkAndAllowToOnGngCall()
@@ -454,10 +451,10 @@ class OnGoingCallPreviewActivity : BaseActivity(), View.OnClickListener, CommonA
 
     private fun checkAndAllowToOnGngCall() {
         if (AppUtils.isNetConnected(this)) {
-            if (!CallManager.isAudioCallPermissionsGranted()) MediaPermissions.requestAudioCallPermissions(
+            if (!CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) MediaPermissions.requestAudioCallPermissions(
                 this,
                 permissionAlertDialog, audioCallPermissionLauncher)
-            else if (muteVideoImage.isActivated && !CallManager.isVideoCallPermissionsGranted()) MediaPermissions.requestVideoCallPermissions(
+            else if (muteVideoImage.isActivated && !CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) MediaPermissions.requestVideoCallPermissions(
                 this,
                 permissionAlertDialog, videoCallPermissionLauncher)
             else {

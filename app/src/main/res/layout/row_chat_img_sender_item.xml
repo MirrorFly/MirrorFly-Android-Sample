@@ -36,7 +36,6 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@null"
             android:padding="@dimen/margin_3"
-            android:visibility="gone"
             app:srcCompat="@drawable/ic_forward_media" />
 
         <LinearLayout

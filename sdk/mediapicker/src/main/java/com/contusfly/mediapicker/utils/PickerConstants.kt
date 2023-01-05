@@ -9,6 +9,8 @@ object PickerConstants {
 
     const val EMPTY_STRING = ""
     const val SEND_TO = "send_to"
+    const val IMAGE_CAN_SHOW = "image_can_show"
+    const val VIDEO_CAN_SHOW = "video_can_show"
     const val MAX_MEDIA_SELECTION_RESTRICTION = "max_media_selection_restriction"
 
     const val LOCAL_PATH = "UIKit"

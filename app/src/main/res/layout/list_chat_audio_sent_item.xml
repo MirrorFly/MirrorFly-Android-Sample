@@ -56,7 +56,7 @@
             android:visibility="gone"
             app:srcCompat="@drawable/ic_forward_media" />
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <LinearLayout
             android:id="@+id/view_chat_send_audio"
             android:layout_width="@dimen/margin_250"
             android:layout_height="wrap_content"
@@ -65,29 +65,20 @@
             android:contentDescription="@string/content_sent_audio"
             android:orientation="vertical">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/view_text_sent_reply_layout"
+            <include
+                android:id="@+id/view_text_sent_reply"
+                layout="@layout/list_chat_reply_sent_item"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="@dimen/margin_3"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <include
-                    android:id="@+id/view_text_sent_reply"
-                    layout="@layout/list_chat_reply_sent_item"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                android:layout_margin="@dimen/margin_3"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/audio_sent_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/drawable_audio_message_sender_background"
-                android:padding="@dimen/margin_5"
-                app:layout_constraintTop_toBottomOf="@+id/view_text_sent_reply_layout">
+                android:padding="@dimen/margin_5">
 
 
                 <androidx.appcompat.widget.AppCompatImageView
@@ -110,7 +101,7 @@
                     android:layout_marginEnd="@dimen/margin_8"
                     android:contentDescription="@null"
                     android:padding="@dimen/margin_2"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toStartOf="@+id/download_progress_layout"
                     app:layout_constraintStart_toEndOf="@id/image_audio_type"
@@ -124,7 +115,7 @@
                     android:layout_marginStart="@dimen/margin_5"
                     android:layout_marginEnd="@dimen/margin_5"
                     android:background="@drawable/bg_upload_progress"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toStartOf="@+id/audio_retry_layout"
                     app:layout_constraintStart_toEndOf="@+id/image_audio_action"
@@ -170,7 +161,7 @@
                     android:layout_marginStart="@dimen/margin_5"
                     android:layout_marginEnd="@dimen/margin_5"
                     android:background="@drawable/bg_upload_progress"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toStartOf="@+id/audio_carbon_retry_layout"
                     app:layout_constraintStart_toEndOf="@+id/download_progress_layout"
@@ -241,49 +232,45 @@
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <ImageView
-                android:id="@+id/image_audio_favorite"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/margin_5"
-                android:contentDescription="@null"
-                android:paddingStart="@dimen/margin_0"
-                android:paddingEnd="0dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/image_audio_status"
-                app:layout_constraintRight_toLeftOf="@+id/image_audio_status"
-                app:layout_constraintTop_toBottomOf="@+id/audio_sent_view"
-                app:srcCompat="@drawable/ic_star" />
+                android:gravity="end|center_vertical"
+                android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/image_audio_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/margin_5"
-                android:contentDescription="@string/NotAcknowledge_content_description"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/text_audio_time"
-                app:layout_constraintRight_toLeftOf="@+id/text_audio_time"
-                app:layout_constraintTop_toBottomOf="@+id/audio_sent_view"
-                app:srcCompat="@drawable/ic_message_unsent" />
+                <ImageView
+                    android:id="@+id/image_audio_favorite"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/margin_5"
+                    android:contentDescription="@null"
+                    android:paddingStart="@dimen/margin_0"
+                    android:paddingEnd="0dp"
+                    android:visibility="gone"
+                    app:srcCompat="@drawable/ic_star" />
 
-            <androidx.appcompat.widget.AppCompatTextView
-                android:id="@+id/text_audio_time"
-                style="@style/ChatTimeTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/margin_5"
-                android:layout_marginBottom="@dimen/margin_5"
-                android:fontFamily="@font/sf_ui_display_regular"
-                android:includeFontPadding="false"
-                android:paddingStart="0dp"
-                android:paddingEnd="@dimen/margin_7"
-                android:textColor="@color/color_sent_message_time"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/audio_sent_view" />
+                <ImageView
+                    android:id="@+id/image_audio_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/margin_5"
+                    android:contentDescription="@string/NotAcknowledge_content_description"
+                    app:srcCompat="@drawable/ic_message_unsent" />
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:id="@+id/text_audio_time"
+                    style="@style/ChatTimeTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/margin_5"
+                    android:layout_marginBottom="@dimen/margin_5"
+                    android:fontFamily="@font/sf_ui_display_regular"
+                    android:includeFontPadding="false"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="@dimen/margin_7"
+                    android:textColor="@color/color_sent_message_time" />
+
+            </LinearLayout>
+        </LinearLayout>
     </RelativeLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

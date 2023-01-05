@@ -99,7 +99,7 @@ class CommonAlertDialog(context: Context?) {
      * @param dialogType     the dialog type
      */
     fun showAlertDialog(msg: String?, positiveString: String?, negativeString: String?,
-                        dialogType: DIALOGTYPE, smartreply: Boolean, isCheckBoxShown: Boolean = false) {
+                        dialogType: DIALOGTYPE, smartreply: Boolean, isCheckBoxShown: Boolean = false, dialogListener: CommonDialogClosedListener? = null) {
         val builder = AlertDialog.Builder(context, R.style.AdminBlockAlertDialogStyle)
         builder.setMessage(msg)
         if (isCheckBoxShown) builder.setView(createAndSetCheckBox())
@@ -107,10 +107,12 @@ class CommonAlertDialog(context: Context?) {
             builder.setNegativeButton(negativeString) { dialog: DialogInterface, which: Int ->
                 dialog.dismiss()
                 listener?.onDialogClosed(dialogType, false)
+                dialogListener?.onDialogClosed(dialogType, false)
             }
         }
         builder.setPositiveButton(positiveString) { dialog: DialogInterface, which: Int ->
             listener?.onDialogClosed(dialogType, true)
+            dialogListener?.onDialogClosed(dialogType, true)
             dialog.dismiss()
         }
         if (smartreply) builder.setCancelable(false)
@@ -345,6 +347,24 @@ class CommonAlertDialog(context: Context?) {
         checkBox.setOnCheckedChangeListener { _: CompoundButton?, isChecked: Boolean -> SharedPreferenceManager.setBoolean(Constants.DELETE_MEDIA_FROM_PHONE, isChecked) }
         checkBox.setText(R.string.delete_media_from_gallery)
         return checkBoxView
+    }
+
+    fun showAlertDialogWithChatTagRemove(title: String?, msg: String?, positiveString: String?, negativeString: String?,
+                                         dialogType: DIALOGTYPE) {
+        val builder = AlertDialog.Builder(context, R.style.ChatTagRemoveAlertDialogStyle)
+        builder.setTitle(title)
+        builder.setMessage(msg)
+        if (dialogType == DIALOGTYPE.DIALOG_DUAL) {
+            builder.setNegativeButton(negativeString) { dialog: DialogInterface, _: Int ->
+                dialog.dismiss()
+                listener?.onDialogClosed(dialogType, false)
+            }
+        }
+        builder.setPositiveButton(positiveString) { dialog: DialogInterface, _: Int ->
+            listener?.onDialogClosed(dialogType, true)
+            dialog.dismiss()
+        }
+        builder.create().show()
     }
 
     /**

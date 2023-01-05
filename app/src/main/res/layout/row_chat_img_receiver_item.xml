@@ -103,6 +103,7 @@
                         android:layout_marginStart="@dimen/padding_6"
                         android:layout_marginEnd="@dimen/margin_5"
                         android:paddingBottom="@dimen/padding_5"
+                        android:visibility="gone"
                         android:contentDescription="@null"
                         android:layout_alignTop="@+id/text_receive_time"
                         android:layout_alignBottom="@+id/text_receive_time"

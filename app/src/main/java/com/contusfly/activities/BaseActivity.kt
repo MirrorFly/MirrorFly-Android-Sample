@@ -1,20 +1,16 @@
 package com.contusfly.activities
 
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.service.notification.StatusBarNotification
 import android.view.MenuItem
 import android.view.WindowManager
-import androidx.core.app.NotificationManagerCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.contus.call.utils.GroupCallUtils
+import com.contus.flycommons.Features
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallActionListener
 import com.contus.webrtc.api.CallManager
@@ -24,16 +20,17 @@ import com.contusfly.call.groupcall.isCallNotConnected
 import com.contusfly.call.groupcall.isInComingCall
 import com.contusfly.call.groupcall.isInPIPMode
 import com.contusfly.chat.AndroidUtils
-import com.contusfly.checkInternetAndExecute
 import com.contusfly.constants.MobileApplication
+import com.contusfly.notification.AppNotificationManager
 import com.contusfly.showToast
 import com.contusfly.utils.*
 import com.contusflysdk.activities.FlyBaseActivity
-import com.contusflysdk.api.FlyCore
+import com.contusflysdk.api.AvailableFeaturesCallback
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
-import java.util.*
+import com.contusflysdk.api.models.ChatMessage
 
 /**
  *
@@ -55,6 +52,21 @@ open class BaseActivity : FlyBaseActivity() {
 
     private var adminBlockedOtherUserStatus = false
 
+    private val adminBlockRunnable = Runnable {
+        LogMessage.d(TAG, "#onAdminBlockedStatus adminBlockRunnable == $adminBlockStatus")
+        if (adminBlockStatus) {
+            SharedPreferenceManager.clearAllPreference(true)
+            AppNotificationManager.cancelNotifications(this)
+            if (checkIsUserInCall()) {
+                CallManager.disconnectCall(object : CallActionListener {
+                    override fun onResponse(isSuccess: Boolean, message: String) {
+                        startShowStopperActivity()
+                    }
+                })
+            } else startShowStopperActivity()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AndroidUtils.calculateAndStoreDeviceWidth(this)
@@ -70,6 +82,12 @@ open class BaseActivity : FlyBaseActivity() {
         }
 
         registerBroadcast()
+
+        ChatManager.setAvailableFeaturesCallback(object : AvailableFeaturesCallback{
+            override fun onUpdateAvailableFeatures(features: Features) {
+                updateFeatureActions(features)
+            }
+        })
     }
 
     override fun myProfileUpdated(isSuccess: Boolean) {
@@ -153,31 +171,31 @@ open class BaseActivity : FlyBaseActivity() {
         /*Implementation will be added in extended activity*/
     }
 
+    /**
+     * Callback for update feature actions
+     */
+    protected open fun updateFeatureActions(features: Features) {
+        /*Implementation will be added in extended activity*/
+    }
+
     override fun onBackPressed() {
         finish()
         super.onBackPressed()
     }
 
-    override fun showOrUpdateOrCancelNotification(jid: String) {
-        super.showOrUpdateOrCancelNotification(jid)
-        if (FlyMessenger.getUnreadMessagesCount() <= 0) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                val barNotifications: Array<StatusBarNotification> = notificationManager.activeNotifications
-                for (notification in barNotifications) {
-                    NotificationManagerCompat.from(applicationContext).cancel(notification.id)
-                }
-            } else
-                NotificationManagerCompat.from(applicationContext).cancel(Constants.NOTIFICATION_ID)
+    override fun showOrUpdateOrCancelNotification(jid: String, chatMessage: ChatMessage?) {
+        super.showOrUpdateOrCancelNotification(jid, chatMessage)
+        if (FlyMessenger.getUnreadMessagesCount() <= 0 || !SharedPreferenceManager.getBoolean(Constants.IS_PROFILE_LOGGED) || chatMessage == null) {
+            AppNotificationManager.cancelNotifications(applicationContext)
         } else {
-            if (ContactManager.getProfileDetails(jid)?.isMuted != true)
-                NotificationUtils.createNotification(MobileApplication.getContext())
+            if (ProfileDetailsUtils.getProfileDetails(jid)?.isMuted != true)
+                AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)
         }
     }
 
-    override fun updateGroupReplyNotificationForArchivedSettingsEnabled() {
-        super.updateGroupReplyNotificationForArchivedSettingsEnabled()
-        NotificationUtils.createNotification(MobileApplication.getContext())
+    override fun updateGroupReplyNotificationForArchivedSettingsEnabled(chatMessage: ChatMessage) {
+        super.updateGroupReplyNotificationForArchivedSettingsEnabled(chatMessage)
+        AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -189,40 +207,26 @@ open class BaseActivity : FlyBaseActivity() {
     }
 
     override fun onLoggedOut() {
-        SharedPreferenceManager.clearAllPreference()
         super.onLoggedOut()
-    }
-
-    override fun onConnected() {
-        super.onConnected()
-        checkInternetAndExecute(false) {
-            FlyCore.getFriendsList(true) { isSuccess, _, _ ->
-                if (isSuccess)
-                    userDetailsUpdated()
-            }
-        }
+        SharedPreferenceManager.setBoolean(Constants.SHOW_PIN, false)
+        SharedPreferenceManager.setBoolean(Constants.BIOMETRIC, false)
+        SharedPreferenceManager.setString(Constants.CHANGE_PIN_NEXT, "")
+        SharedPreferenceManager.setString(Constants.MY_PIN, "")
+        SafeChatUtils.silentDisableSafeChat(this)
+        SharedPreferenceManager.clearAllPreference(true)
     }
 
     override fun onAdminBlockedUser(jid: String, status: Boolean) {
         adminBlockStatus = status
         LogMessage.d(TAG, "#onAdminBlockedStatus == $adminBlockStatus")
         //To avoid multiple callbacks
-        handler?.postDelayed({
-            if (adminBlockStatus) {
-                if (checkIsUserInCall()) {
-                    CallManager.disconnectCall(object : CallActionListener {
-                        override fun onResponse(isSuccess: Boolean, message: String) {
-                            startShowStopperActivity()
-                        }
-                    })
-                } else startShowStopperActivity()
-            }
-        }, 800)
+        handler?.removeCallbacks(adminBlockRunnable)
+        handler?.postDelayed(adminBlockRunnable, 800)
     }
 
     private fun checkIsUserInCall(): Boolean {
-        return (GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall()) ||
-                (GroupCallUtils.isCallNotConnected() && GroupCallUtils.isInComingCall()) || isInPIPMode()
+        return CallManager.isOnGoingCall() ||
+                (CallManager.isCallNotConnected() && CallManager.isInComingCall()) || isInPIPMode()
     }
 
     private fun startShowStopperActivity() {
@@ -240,7 +244,7 @@ open class BaseActivity : FlyBaseActivity() {
         adminBlockedOtherUserStatus = status
         //To avoid multiple callbacks
         otherUserHandler?.postDelayed({
-            if (GroupCallUtils.getGroupId() == jid && adminBlockedOtherUserStatus && checkIsUserInCall()) {
+            if (CallManager.getGroupID() == jid && adminBlockedOtherUserStatus && checkIsUserInCall()) {
                 CallManager.disconnectCall(object : CallActionListener {
                     override fun onResponse(isSuccess: Boolean, message: String) {
                         startDashboardActivity()
@@ -248,6 +252,14 @@ open class BaseActivity : FlyBaseActivity() {
                 })
             }
         }, 800)
+    }
+
+    /*
+     * Blocked List
+     */
+    override fun usersIBlockedListFetched(jidList: List<String>) {
+        super.usersIBlockedListFetched(jidList)
+        UIKitContactUtils.updateBlockedStatusOfUser(jidList)
     }
 
     /**

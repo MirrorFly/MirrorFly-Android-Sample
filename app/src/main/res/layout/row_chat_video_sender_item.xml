@@ -36,7 +36,6 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@null"
             android:padding="@dimen/margin_3"
-            android:visibility="gone"
             app:srcCompat="@drawable/ic_forward_media" />
 
         <LinearLayout
@@ -127,7 +126,7 @@
                         android:layout_marginRight="@dimen/margin_4"
                         android:paddingBottom="@dimen/margin_5"
                         android:contentDescription="@null"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         android:layout_toStartOf="@+id/image_message_status"
                         android:layout_alignTop="@+id/image_message_status"
                         android:layout_alignBottom="@+id/image_message_status"

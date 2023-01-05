@@ -28,10 +28,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
      * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        super.onMessageReceived(remoteMessage)
         // Data messages are handled here in onMessageReceived whether the app is in the foreground
         // or background. Data messages are the type traditionally used with GCM.
-        val notificationData: Map<String, String>? = remoteMessage.data
-        if (notificationData!!.isNotEmpty()) {
+        val notificationData: Map<String, String> = remoteMessage.data
+        if (notificationData.isNotEmpty()) {
             LogMessage.d(TAG, "RemoteMessage:$notificationData")
             firebaseUtils.handleReceivedMessage(this, notificationData)
         }

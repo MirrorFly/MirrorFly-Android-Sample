@@ -98,7 +98,7 @@ class HorizontalListViewAdapter(
          */
         override fun onClick(v: View) {
             if (onItemClickListener != null) {
-                onItemClickListener!!.onItemClick(v, adapterPosition)
+                onItemClickListener!!.onItemClick(v, layoutPosition)
             }
         }
 

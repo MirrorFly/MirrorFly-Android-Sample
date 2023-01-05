@@ -11,12 +11,15 @@ import com.contus.flycommons.Constants
 import com.contus.flycommons.FlyCallback
 import com.contus.flycommons.LogMessage
 import com.contus.call.database.model.CallLog
+import com.contus.flycommons.getData
 import com.contusfly.TAG
 import com.contusfly.diffCallBacks.ProfileDiffCallback
 import com.contusfly.diffCallBacks.RecentChatDiffCallback
 import com.contusfly.getChatType
 import com.contusfly.interfaces.RecentChatEvent
 import com.contusfly.isValidIndex
+import com.contusfly.models.ProfileDetailsShareModel
+import com.contusfly.notification.AppNotificationManager
 import com.contusfly.sortProfileList
 import com.contusfly.utils.AppChatShortCuts.dynamicAppShortcuts
 import com.contusfly.utils.Constants.Companion.SDK_DATA
@@ -24,17 +27,21 @@ import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyMessenger
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusflysdk.api.RecentChatListBuilder
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
-import com.contusflysdk.models.RecentSearch
+import com.contusflysdk.model.ChatTagModel
+import com.contusflysdk.models.RecentChatListParams
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.*
 import javax.inject.Inject
+import kotlin.collections.ArrayList
 
 /**
  *
@@ -44,7 +51,7 @@ import javax.inject.Inject
 class DashboardViewModel @Inject
 constructor() : ViewModel() {
 
-    private val exceptionHandler = CoroutineExceptionHandler { context, exception ->
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         println("Coroutine Exception ${TAG}:  ${exception.printStackTrace()}")
     }
 
@@ -57,8 +64,19 @@ constructor() : ViewModel() {
     val showMessage: LiveData<String>
         get() = _showMessage
 
+    private var isSearchFetching = false
+    private var currentSearchPage = 0
+    private var totalSearchPage = 1
+    private var resultPerPage = 10
+    private var isPaginate:Boolean=false
+
+    val restartactivityRecentChatListlivedata = MutableLiveData<Boolean>()
+
     val chatList = MutableLiveData<LinkedList<RecentChat>>()
+    val chatTagList = MutableLiveData<ArrayList<ChatTagModel>>()
     val recentChatList = MutableLiveData<LinkedList<RecentChat>>()
+    val notifyRecentChatRemoved = MutableLiveData<Int>()
+    val notifyRecentChatInserted = MutableLiveData<Pair<Int, Int>>()
     val chats = MutableLiveData<Triple<String, Int, Int>>()
     val recentChat = MutableLiveData<Triple<String, Int, Int>>()
     val unreadChatCountLiveData = MutableLiveData<Int>()
@@ -71,7 +89,15 @@ constructor() : ViewModel() {
     val archivedSettingsStatus = MutableLiveData<Boolean>()
     val archiveChatUpdated = MutableLiveData<Pair<String, Boolean>>()
     val selectedArchiveChats = MutableLiveData<MutableList<String>>()
+    val addSearchLoader = MutableLiveData<Boolean>()
+    val removeSearchLoader = MutableLiveData<Boolean>()
+    val fetchingError = MutableLiveData<Boolean>()
+    val onTypingStatusGoneUpdate = MutableLiveData<String>()
 
+
+    //Define the Recent Chat List Builder class
+    private lateinit var recentChatListParams : RecentChatListParams
+    private lateinit var recentChatListBuilder: RecentChatListBuilder
 
     /**
      * Selected recent chats when long press
@@ -112,8 +138,10 @@ constructor() : ViewModel() {
 
     // = = = = = = = = Search Data = = = = = = = =
     val filterRecentChatList = MutableLiveData<List<RecentChat>>()
-    val messageList = MutableLiveData<Pair<Int, List<RecentSearch>>>()
-    val filterProfileList = MutableLiveData<List<ProfileDetails>>()
+    val messageList = MutableLiveData<Pair<Int, List<com.contusfly.models.RecentSearch>>>()
+    val filterProfileList = MutableLiveData<List<ProfileDetailsShareModel>>()
+    private var searchList = mutableListOf<ProfileDetailsShareModel>()
+
 
     val isUserBlockedUnblockedMe = MutableLiveData<Pair<String, Boolean>>()
     val isUserBlockedByAdmin = MutableLiveData<Pair<String, Boolean>>()
@@ -147,11 +175,14 @@ constructor() : ViewModel() {
     val selectedCallLogs: ArrayList<String> by lazy { ArrayList() }
     val callLogDiffResult = MutableLiveData<DiffUtil.DiffResult>()
 
+    // = = = = = = = = Language Data = = = = = = = =
+    val updateLanguageSearch = MutableLiveData<String>()
+
     /*
     * Get Profile List */
     fun getProfileDetailsList() {
         viewModelScope.launch {
-            FlyCore.getFriendsList(false, FlyCallback { isSuccess, throwable, data ->
+            FlyCore.getRegisteredUsers(false, FlyCallback { isSuccess, _, data ->
                 if (isSuccess) {
                     val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
                     profileDetailsList.value = sortProfileList(profileDetails)
@@ -161,11 +192,16 @@ constructor() : ViewModel() {
         }
     }
 
+    fun getRestartActivitygetrecentChatList(){
+
+        restartactivityRecentChatListlivedata.value=true
+    }
+
     /*
     * Get Recent Chats list */
     fun getRecentChats() {
         LogMessage.d(TAG, "getRecentChats() called to update the UI")
-        viewModelScope.launch(Dispatchers.Main.immediate) {
+        viewModelScope.launch(Main.immediate) {
             if (recentChatList.value == null && !SharedPreferenceManager.getBoolean(com.contusfly.utils.Constants.PIN_SCREEN)) {
                 recentChatList.value = LinkedList(FlyCore.getRecentChatList())
                 recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
@@ -184,6 +220,87 @@ constructor() : ViewModel() {
                 }
             }
         }
+    }
+    fun getInitialChatList() {
+        LogMessage.d(TAG, "getRecentChats() called to update the UI")
+        viewModelScope.launch(Main.immediate) {
+            recentChatListParams = RecentChatListParams().apply { limit = 50 }
+            recentChatListBuilder = RecentChatListBuilder(recentChatListParams)
+            recentChatListBuilder.loadRecentChatList { isSuccess, _, data ->
+                if (isSuccess && recentChatList.value == null && !SharedPreferenceManager.getBoolean(com.contusfly.utils.Constants.PIN_SCREEN)) {
+                    recentChatList.value = LinkedList(data[SDK_DATA] as MutableList<RecentChat>)
+                    recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
+                    recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer
+                    recentChatAdapter.clear()
+                    recentChatAdapter.addAll(recentChatList.value!!)
+                    recentChatDiffResult.value = null
+                }
+            }
+        }
+    }
+
+    fun getChatTagData(){
+        FlyCore.getChatTagdata(object:FlyCallback {
+            override fun flyResponse(
+                isSuccess: Boolean,
+                throwable: Throwable?,
+                data: HashMap<String, Any>) {
+                try{
+                    if(isSuccess){
+                        viewModelScope.launch(Dispatchers.Main.immediate) {
+                            var chatTagnamelist=ArrayList<ChatTagModel>()
+                            try{
+                                 chatTagnamelist= data.getData() as ArrayList<ChatTagModel>
+                            }catch(e:Exception){
+                                LogMessage.e(TAG,e.toString())
+                            }
+                            chatTagList.value=chatTagnamelist
+                        }
+                    }
+                }catch(e:Exception){
+                    LogMessage.e(TAG,e.toString())
+                }
+            }
+        },true)
+    }
+
+    fun getRecentChatListBasedOnTagData(jidList:String) {
+        viewModelScope.launch(Dispatchers.Main.immediate) {
+            recentChatList.value = LinkedList(FlyCore.getRecentChatListByChatTag(jidList))
+            recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
+            recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer
+            recentChatAdapter.clear()
+            recentChatAdapter.addAll(recentChatList.value!!)
+            recentChatDiffResult.value = null
+        }
+    }
+
+    fun nextSetOfRecentChatList() {
+        LogMessage.d(TAG, "nextSetOfRecentChatList() called to update the UI with next set of list")
+        viewModelScope.launch(Main.immediate) {
+            recentChatListBuilder.nextSetOfData { isSuccess, _, data ->
+                if (isSuccess) {
+                    try {
+                        updateRecentChats(data)
+                    } catch (e: Exception) {
+                        LogMessage.e(TAG, "Recent Chat List loading issue in nextSetOfRecentChatList() ==> Exception: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateRecentChats(data: HashMap<String, Any>) {
+        val recentChats = data[SDK_DATA] as MutableList<RecentChat>
+        val recentChatSize = recentChatAdapter.size
+        recentChatList.value!!.removeAt(recentChatList.value!!.size - 1) // Recent Chat Footer item removed
+        recentChatAdapter.removeAt(recentChatAdapter.size - 1) // Recent Chat Footer item removed
+        notifyRecentChatRemoved.postValue(recentChatAdapter.size)
+        recentChatList.value!!.addAll(LinkedList(recentChats))
+        recentChatAdapter.addAll(recentChats)
+        recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer item adding
+        recentChatAdapter.add(recentChatAdapter.size, RecentChat()) // Recent Chat Footer item adding
+        notifyRecentChatInserted.postValue(Pair(recentChatSize, recentChats.size))
     }
 
     fun setTypingStatus(typingStatus: Triple<String, String, Boolean>) {
@@ -225,19 +342,92 @@ constructor() : ViewModel() {
         }
     }
 
-    private suspend fun getDiffUtilResult(diffUtilCallback: DiffUtil.Callback): DiffUtil.DiffResult = withContext(Dispatchers.IO) {
+    private suspend fun getDiffUtilResult(diffUtilCallback: DiffUtil.Callback): DiffUtil.DiffResult = withContext(IO) {
         DiffUtil.calculateDiff(diffUtilCallback)
     }
 
     fun filterContactsList(searchKey: String, jidList: ArrayList<String>) {
-        viewModelScope.launch {
-            FlyCore.getFriendsList(false) { isSuccess, _, data ->
+        if (searchLastPageFetched()) {
+            setIsPaginate(false)
+            return
+        }
+        addSearchLoader.postValue(true)
+        fetchingError.value = false
+        viewModelScope.launch(IO) {
+            currentSearchPage += 1
+            setSearchUserListFetching(true)
+            FlyCore.getUserList(currentSearchPage, resultPerPage, searchKey) { isSuccess, _, data ->
                 if (isSuccess) {
                     val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
-                    filterProfileList.value = profileDetails.filter { !jidList.contains(it.jid) && it.name.contains(searchKey, true) }.sortedBy { it.name }
+                    totalSearchPage = data[com.contusfly.utils.Constants.TOTAL_PAGES] as Int
+                    val searchListResult = ProfileDetailsUtils.removeAdminBlockedProfiles(profileDetails, false)
+                    val searchListShareModel = filterSearchList(jidList,searchListResult as MutableList<ProfileDetails>)
+                    viewModelScope.launch(Main) {
+                        removeSearchLoader.postValue(true)
+                        searchList.addAll(searchListShareModel)
+                        filterProfileList.value = searchListShareModel
+
+                    }
+                }else {
+                    currentSearchPage -= 1
+                    viewModelScope.launch(Main) {
+                        removeSearchLoader.postValue(true)
+                        fetchingError.value = true
+                    }
                 }
+                updatePaginate()
+                setSearchUserListFetching(false)
             }
         }
+    }
+
+    private fun updatePaginate(){
+        if(currentSearchPage>1)
+            setIsPaginate(true)
+        else
+            setIsPaginate(false)
+    }
+
+    private fun filterSearchList(jidList: ArrayList<String>,userListResult: MutableList<ProfileDetails>): List<ProfileDetailsShareModel> {
+        val profileShareModelList = mutableListOf<ProfileDetailsShareModel>()
+        jidList.forEach { jid ->
+            val index = userListResult.indexOfFirst {
+                it.jid== jid }
+            if (index.isValidIndex())
+                userListResult.removeAt(index)
+        }
+
+        userListResult.forEach { profileDetail ->
+            val profileDetailsShareModel =
+                ProfileDetailsShareModel(profileDetail.getChatType(), profileDetail)
+            if (!profileDetail.isAdminBlocked) profileShareModelList.add(profileDetailsShareModel)
+        }
+
+        return profileShareModelList
+    }
+
+    fun searchLastPageFetched() = currentSearchPage >= totalSearchPage
+
+     fun resetSearch() {
+        currentSearchPage = 0
+        totalSearchPage = 1
+        setSearchUserListFetching(false)
+        removeSearchLoader.postValue(true)
+    }
+
+    fun setSearchUserListFetching(isSearchFetching: Boolean) {
+        this.isSearchFetching = isSearchFetching
+    }
+    fun getSearchUserListFetching(): Boolean {
+        return isSearchFetching
+    }
+
+    fun setIsPaginate(isPaginate:Boolean){
+        this.isPaginate=isPaginate
+    }
+
+    fun getPaginateBoolean():Boolean{
+        return isPaginate
     }
 
     fun getRecentChatOfUser(jid: String, @RecentChatEvent event: String) {
@@ -370,7 +560,7 @@ constructor() : ViewModel() {
     /**
      * Updating db once the recent chat is read
      */
-    fun markAsReadRecentChats() {
+    fun markAsReadRecentChats(context: Context) {
         val jidList = ArrayList<String>()
         for (selectedRecentChat in selectedRecentChats) {
             jidList.add(selectedRecentChat.jid)
@@ -378,6 +568,7 @@ constructor() : ViewModel() {
         FlyCore.markConversationAsRead(jidList)
         jidList.clear()
         for (selectedRecentChat in selectedRecentChats) {
+            AppNotificationManager.clearConversationOnNotification(context, selectedRecentChat.jid)
             val recentListPosition = recentChatList.value!!.indexOfFirst { it.jid == selectedRecentChat.jid }
             val recent = FlyCore.getRecentChatOf(selectedRecentChat.jid)
             if (recent != null) {
@@ -416,14 +607,14 @@ constructor() : ViewModel() {
 
     fun filterMessageList(searchKey: String) {
         viewModelScope.launch {
-            FlyCore.searchConversation(searchKey, Constants.EMPTY_STRING, true) { isSuccess, throwable, data ->
+            FlyCore.searchConversation(searchKey, Constants.EMPTY_STRING, true) { isSuccess, _, data ->
                 if (isSuccess) {
-                    val mRecentSearchList = ArrayList<RecentSearch>()
+                    val mRecentSearchList = ArrayList<com.contusfly.models.RecentSearch>()
                     val result = data[SDK_DATA] as ArrayList<ChatMessage>
                     var i = 0
                     result.forEach { message ->
-                        val searchMessageItem = RecentSearch(message.getChatUserJid(), message.getMessageId(),
-                                Constants.TYPE_SEARCH_MESSAGE, message.getMessageChatType().toString(), true)
+                        val searchMessageItem = com.contusfly.models.RecentSearch(message.getChatUserJid(), message.getMessageId(),
+                                Constants.TYPE_SEARCH_MESSAGE, message.getMessageChatType().toString(), true,ProfileDetails())
                         mRecentSearchList.add(0, searchMessageItem)
                         i++
                     }
@@ -513,8 +704,8 @@ constructor() : ViewModel() {
 
     fun getArchivedChats() {
         LogMessage.d(TAG, "getAllChats() called to update the UI")
-        viewModelScope.launch(Dispatchers.Main.immediate) {
-            FlyCore.getArchivedChatList(FlyCallback { isSuccess, throwable, data ->
+        viewModelScope.launch(Main.immediate) {
+            FlyCore.getArchivedChatList(FlyCallback { isSuccess, _, data ->
                 if (isSuccess) {
                     chatList.value = LinkedList(data["data"] as MutableList<RecentChat>)
                     chatList.value!!.add(0, RecentChat()) // Recent Chat Header
@@ -586,7 +777,7 @@ constructor() : ViewModel() {
     }
 
     fun clearUnreadCount(item: RecentChat, itemPos: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(IO) {
             if (item.isConversationUnRead) {
                 item.unreadMessageCount = 0
                 item.isConversationUnRead = false
@@ -599,7 +790,7 @@ constructor() : ViewModel() {
 
 
     fun getArchivedChatStatus() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(IO) {
             FlyCore.getArchivedChatList { isSuccess, _, data ->
                 if (isSuccess) {
                     val archiveChats = data["data"] as MutableList<RecentChat>
@@ -635,5 +826,9 @@ constructor() : ViewModel() {
 
     fun updateArchiveChatsList(selectedJids: MutableList<String>) {
         selectedArchiveChats.value = selectedJids
+    }
+
+    fun updateSearchLanguage(searchKey: String) {
+        updateLanguageSearch.postValue(searchKey)
     }
 }

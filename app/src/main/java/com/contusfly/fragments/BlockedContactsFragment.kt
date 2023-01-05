@@ -113,7 +113,6 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
 
         blockedContactsBinding.viewListContacts.apply {
             layoutManager = LinearLayoutManager(context)
-            setEmptyView(blockedContactsBinding.statusView.root)
             itemAnimator = null
             adapter = mAdapter
         }
@@ -131,6 +130,8 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
                 mAdapter.notifyDataSetChanged()
             }
             if (progressDialog.isShowing) progressDialog.dismiss()
+            blockedContactsBinding.viewListContacts.setEmptyView(blockedContactsBinding.statusView.root)
+
         }
     }
 

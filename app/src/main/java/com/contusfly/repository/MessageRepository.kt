@@ -1,6 +1,5 @@
 package com.contusfly.repository
 
-import android.util.Log
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.models.MessageType
 import com.contusfly.TAG
@@ -8,12 +7,12 @@ import com.contusfly.getSenderJid
 import com.contusfly.isMediaMessage
 import com.contusfly.isMediaUploadOrDownload
 import com.contusfly.utils.ChatTimeOperations
-import com.contusfly.utils.ChatViewUtils
 import com.contusfly.utils.Constants
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.models.ChatMessage
 import java.text.DateFormatSymbols
+import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Singleton
 import kotlin.collections.ArrayList
@@ -22,6 +21,7 @@ import kotlin.collections.HashMap
 @Singleton
 class MessageRepository {
 
+    val calendar: Calendar = Calendar.getInstance()
 
     private var containsRecalled = false
     private var containsRecalledSet = false
@@ -39,9 +39,14 @@ class MessageRepository {
     private var canShowInfo = true
     private var canShowReport = true
 
-    private fun getMessageListWithDate(messageList: List<ChatMessage>): List<ChatMessage> {
+    private val chatTimeOperations = ChatTimeOperations(Calendar.getInstance())
+    private val dateFormat = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+
+    fun getMessageListWithDate(messageList: List<ChatMessage>, skipFirstMessage: Boolean = false): ArrayList<ChatMessage> {
         val dateList = ArrayList<ChatMessage>()
         for (position in messageList.indices) {
+            if (skipFirstMessage && position == 0)
+                continue
             if (position == 0 || isDateChanged(position, messageList)) {
                 val message = addDateHeaderMessage(messageList[position])
                 if (message.messageId != null)
@@ -70,15 +75,13 @@ class MessageRepository {
      * @param message message object
      * @return long Header id of the list
      */
-    private fun getDateID(message: ChatMessage): Long {
-        val chatTimeOperations = ChatTimeOperations()
+    fun getDateID(message: ChatMessage): Long {
         return chatTimeOperations.getDateInMilli(message.messageSentTime)
     }
 
     private fun addDateHeaderMessage(item: ChatMessage): ChatMessage {
         val date: String
-        val messageDate = ChatViewUtils().getDateFromTimestamp(item.messageSentTime)
-        val calendar = Calendar.getInstance()
+        val messageDate = getDateFromTimestamp(item.messageSentTime)
         val monthNumber = calendar[Calendar.MONTH]
         val month: String = getMonthForInt(monthNumber)
         val yesterdayDate = calendar[Calendar.DATE] - 1
@@ -94,6 +97,17 @@ class MessageRepository {
         } else if (!messageDate.contains("1970"))
             dateHeaderMessage = createDateHeaderMessageWithDate(messageDate, item)
         return dateHeaderMessage
+    }
+
+    /**
+     * Get the date from the timestamp with the dd/MM/yyyy format
+     *
+     * @param timeStamp Time stamp of the message
+     * @return String Formatted date
+     */
+    fun getDateFromTimestamp(timeStamp: Long): String {
+        val now = Date(timeStamp / 1000)
+        return dateFormat.format(now.time)
     }
 
     private fun getMonthForInt(num: Int): String {
@@ -140,8 +154,6 @@ class MessageRepository {
         }
         return newMessageList
     }
-
-    fun getAllMessages(jid: String) = getMessageListWithDate(getMessages(jid))
 
     private fun initBoolean() {
         containsRecalled = false
@@ -238,9 +250,7 @@ class MessageRepository {
         return messageIds
     }
 
-    fun getBroadcastMessageID(mid: String): String = mid
-
-    fun getMessages(userJid: String): List<ChatMessage> {
+    private fun getMessages(userJid: String): List<ChatMessage> {
         LogMessage.i(TAG, "getMessages working in ${Thread.currentThread().name}")
         val startTime = System.currentTimeMillis()
         val messageList = FlyMessenger.getMessagesOfJid(userJid)

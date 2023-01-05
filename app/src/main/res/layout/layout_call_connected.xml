@@ -12,7 +12,7 @@
         android:layout_height="match_parent"
         android:background="@color/audio_call_background" />
 
-    <org.webrtc.SurfaceViewRenderer
+    <com.contus.webrtc.TextureViewRenderer
         android:id="@+id/view_video_pinned"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -165,6 +165,7 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            app:cardCornerRadius="@dimen/margin_12"
             app:cardBackgroundColor="@color/list_background">
 
             <RelativeLayout
@@ -188,7 +189,7 @@
                     android:textColor="@color/color_white"
                     android:textSize="@dimen/text_size_14" />
 
-                <org.webrtc.SurfaceViewRenderer
+                <com.contus.webrtc.TextureViewRenderer
                     android:id="@+id/view_video_local"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"

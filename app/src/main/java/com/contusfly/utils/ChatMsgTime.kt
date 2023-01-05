@@ -10,27 +10,27 @@ import java.util.*
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class ChatMsgTime {
+class ChatMsgTime constructor(val calendar: Calendar) {
 
     /**
      * hh:mm aa DateFormat
      */
-    private var hhmmaaDateFormat: SimpleDateFormat? = null
+    private var hhmmaaDateFormat: SimpleDateFormat = SimpleDateFormat("hh:mm aa", Locale.getDefault())
 
     /**
      * h:mm aa DateFormat
      */
-    private var hmmaaDateFormat: SimpleDateFormat? = null
+    private var hmmaaDateFormat: SimpleDateFormat = SimpleDateFormat("h:mm aa", Locale.getDefault())
 
     /**
      * hh:mm DateFormat
      */
-    private var hhmmDateFormat: SimpleDateFormat? = null
+    private var hhmmDateFormat: SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     /**
      * h:mm DateFormat
      */
-    private var hmmDateFormat: SimpleDateFormat? = null
+    private var hmmDateFormat: SimpleDateFormat = SimpleDateFormat("H:mm", Locale.getDefault())
 
     /**
      * Gets the day sent msg. The epoche time getting timestamp using date object getting the
@@ -45,9 +45,8 @@ class ChatMsgTime {
         val dateHourFormat: SimpleDateFormat
         val timeLong = epocheTime / 1000
         val now = Date(timeLong)
-        val cal = Calendar.getInstance()
-        cal.time = now
-        val hours = cal[Calendar.HOUR_OF_DAY]
+        calendar.time = now
+        val hours = calendar[Calendar.HOUR_OF_DAY]
         val format = if (DateFormat.is24HourFormat(context)) 24 else 12
         dateHourFormat = setDateHourFormat(format, hours)
         return dateHourFormat.format(timeLong)
@@ -61,40 +60,27 @@ class ChatMsgTime {
      * @return SimpleDateFormat Formatted date
      */
     fun setDateHourFormat(format: Int, hours: Int): SimpleDateFormat {
-        val dateHourFormat: SimpleDateFormat
-        if (format == 12) {
-            if (hours < 10) dateHourFormat = getHhmmaaDateFormat() else dateHourFormat = getHmmaaDateFormat()
+        val dateHourFormat: SimpleDateFormat = if (format == 12) {
+            if (hours < 10) getHhmmaaDateFormat() else getHmmaaDateFormat()
         } else {
-            if (hours < 10) dateHourFormat = getHhmmDateFormat() else dateHourFormat = getHmmDateFormat()
+            if (hours < 10) getHhmmDateFormat() else getHmmDateFormat()
         }
         return dateHourFormat
     }
 
     private fun getHhmmaaDateFormat(): SimpleDateFormat {
-        if (hhmmaaDateFormat == null) {
-            hhmmaaDateFormat = SimpleDateFormat("hh:mm aa", Locale.getDefault())
-        }
-        return hhmmaaDateFormat as SimpleDateFormat
+        return hhmmaaDateFormat
     }
 
     private fun getHmmaaDateFormat(): SimpleDateFormat {
-        if (hmmaaDateFormat == null) {
-            hmmaaDateFormat = SimpleDateFormat("h:mm aa", Locale.getDefault())
-        }
-        return hmmaaDateFormat as SimpleDateFormat
+        return hmmaaDateFormat
     }
 
     private fun getHhmmDateFormat(): SimpleDateFormat {
-        if (hhmmDateFormat == null) {
-            hhmmDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        }
-        return hhmmDateFormat as SimpleDateFormat
+        return hhmmDateFormat
     }
 
     private fun getHmmDateFormat(): SimpleDateFormat {
-        if (hmmDateFormat == null) {
-            hmmDateFormat = SimpleDateFormat("H:mm", Locale.getDefault())
-        }
-        return hmmDateFormat as SimpleDateFormat
+        return hmmDateFormat
     }
 }

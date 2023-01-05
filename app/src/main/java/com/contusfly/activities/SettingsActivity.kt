@@ -5,17 +5,25 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.widget.EditText
+import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
+import androidx.core.view.MenuItemCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.ViewModelProvider
 import com.contusfly.R
-import com.contusfly.applySourceColorFilter
+import com.contusfly.TAG
 import com.contusfly.applySrcInColorFilter
 import com.contusfly.databinding.ActivitySettingsBinding
 import com.contusfly.fragments.SettingsFragment
-import com.contusfly.utils.*
+import com.contusfly.utils.Constants
+import com.contusfly.utils.LogMessage
+import com.contusfly.utils.SafeChatUtils
+import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.viewmodels.DashboardViewModel
 import dagger.android.AndroidInjection
 import kotlinx.coroutines.CoroutineScope
@@ -41,7 +49,7 @@ class SettingsActivity : BaseActivity(), CoroutineScope {
     /**
      * menus
      */
-    private val mMenu: Menu? = null
+    private var mMenu: Menu? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
@@ -77,7 +85,13 @@ class SettingsActivity : BaseActivity(), CoroutineScope {
     }
 
     fun showSearchMenu(show: Boolean) {
-        if (mMenu != null) mMenu.findItem(R.id.action_search).isVisible = show
+        if (mMenu != null) {
+            val searchItem: MenuItem = mMenu!!.findItem(R.id.action_search)
+            LogMessage.e(TAG,"showSearchMenu is not null")
+            val searchView = MenuItemCompat.getActionView(searchItem) as SearchView
+            searchView.clearFocus()
+            searchItem.setVisible(show)
+        }
     }
 
 
@@ -106,6 +120,8 @@ class SettingsActivity : BaseActivity(), CoroutineScope {
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 1) {
             fragmentManager.popBackStackImmediate()
+            hideSoftKeyboard(this)
+            showSearchMenu(false)
             val fragments = fragmentManager.fragments
             if (fragments.isNotEmpty()) {
                 when {
@@ -127,4 +143,34 @@ class SettingsActivity : BaseActivity(), CoroutineScope {
 
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.IO + Job()
+
+    /**
+     * Implemented the search listener for country selection.
+     *
+     * @param menu Menu item
+     * @return
+     */
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_search, menu)
+        val searchItem: MenuItem = menu.findItem(R.id.action_search)
+        val searchView = MenuItemCompat.getActionView(searchItem) as SearchView
+
+        searchView.setOnCloseListener { true }
+        val searchPlate = searchView.findViewById(androidx.appcompat.R.id.search_src_text) as EditText
+        searchPlate.hint = getString(R.string.toolbar_search_label)
+        val searchPlateView: View = searchView.findViewById(androidx.appcompat.R.id.search_plate)
+        searchPlateView.setBackgroundColor(ContextCompat.getColor(this, android.R.color.transparent))
+        searchItem.isVisible = false
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return false
+            }
+            override fun onQueryTextChange(newText: String): Boolean {
+                viewModel.updateSearchLanguage(newText)
+                return false
+            }
+        })
+        mMenu = menu
+        return super.onCreateOptionsMenu(menu)
+    }
 }

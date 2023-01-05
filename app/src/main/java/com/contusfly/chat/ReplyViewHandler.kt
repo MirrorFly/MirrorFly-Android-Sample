@@ -13,7 +13,6 @@ import com.contusfly.views.CustomTextView
 import com.contusfly.views.MessageTextView
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.api.utils.ImageUtils
 import com.contusflysdk.utils.Utils
 
 
@@ -73,9 +72,9 @@ class ReplyViewHandler(val context: Context, replyLayout: View) {
         if(replyMessage.isMessageRecalled() || replyMessage.isMessageDeleted())
             showRecalledReplyMessage(replyMessage)
         else {
-            messageContent.text = replyMessage.getMessageTextContent()
+            messageContent.text = ChatUtils.getSpannedText(context,replyMessage.getMessageTextContent())
             messageSenderName.text = replyMessage.getSenderName()
-            val msg = replyMessage.getMessageTextContent()
+            val msg = ChatUtils.getSpannedText(context,replyMessage.getMessageTextContent())
             messageContent.text = msg
         }
     }

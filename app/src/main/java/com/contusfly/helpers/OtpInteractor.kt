@@ -3,8 +3,12 @@ package com.contusfly.helpers
 import android.app.Activity
 import android.text.TextUtils
 import android.view.View
+import com.contus.flycommons.FlyCallback
+import com.contus.flycommons.FlyConstants
 import com.contus.flycommons.LogMessage
+import com.contus.flycommons.getData
 import com.contus.flynetwork.ApiCalls
+import com.contus.flynetwork.model.verifyfcm.VerifyFcmResponse
 import com.contusfly.BuildConfig
 import com.contusfly.R
 import com.contusfly.activities.OtpActivity
@@ -14,6 +18,7 @@ import com.contusfly.interfaces.IOtpView
 import com.contusfly.utils.Constants
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.AppUtils
+import com.contusflysdk.api.FlyCore
 import com.contusflysdk.views.CustomToast
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseException
@@ -123,6 +128,7 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
                     iOtpView.setTextForOtpTextView(phoneAuthCredential.smsCode.toString())
                 }
                 iOtpView.dismissProgress()
+                iOtpView.otpAutoLogin()
             }
 
             /**
@@ -202,13 +208,38 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
         val mUser = FirebaseAuth.getInstance().currentUser
         mUser!!.getIdToken(true).addOnCompleteListener { task: Task<GetTokenResult> ->
             if (task.isSuccessful) {
-                CustomToast.showShortToast(iOtpView.activityContext, otpActivity.getString(R.string.msg_otp_validated))
-                iOtpView.registerAccount()
+                val idToken = task.result!!.token
+                verifyTokenWithServer(idToken)
             } else {
                 iOtpView.dismissProgress()
                 LogMessage.d(TAG, task.exception!!.message)
             }
         }
+    }
+
+    private fun verifyTokenWithServer(token: String?) {
+        /*
+         * Check whether user sign-in by using google or mobile number
+         */
+        /* Check whether the user signed-in using Google or with phone number. */
+        val userName: String = if (!SharedPreferenceManager.getBoolean(Constants.LOGIN_MODE))
+            iOtpView.getDialNumber().replace("+", "") + iOtpView.getMobileNumber()
+        else
+            SharedPreferenceManager.getString(Constants.USERNAME).toString()
+
+        FlyCore.verifyToken(userName, token!!, object:FlyCallback{
+            override fun flyResponse(isSuccess: Boolean, error: Throwable?, hashMap: HashMap<String, Any>) {
+                if (isSuccess) {
+                    var response=hashMap.getData() as VerifyFcmResponse
+                    var devicetoken=response.data!!.deviceToken
+                    validateDeviceToken(devicetoken)
+                } else {
+                    CustomToast.show(iOtpView.activityContext, otpActivity.getString(R.string.error_otp_authorization))
+                    iOtpView.dismissProgress()
+                }
+            }
+
+        })
     }
 
     /**
@@ -221,9 +252,15 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
         if (firebaseToken.isEmpty()) {
             FirebaseInstallations.getInstance().getToken(true).addOnCompleteListener {
                 firebaseToken = it.result!!.token
+                SharedPreferenceManager.setString(Constants.FIRE_BASE_TOKEN, firebaseToken)
+                navigateToUserRegisterMethod(deviceToken, firebaseToken)
             }
-            SharedPreferenceManager.setString(Constants.FIRE_BASE_TOKEN, firebaseToken)
+        } else {
+            navigateToUserRegisterMethod(deviceToken, firebaseToken)
         }
+    }
+
+    private fun navigateToUserRegisterMethod(deviceToken: String?, firebaseToken: String?) {
         CustomToast.showShortToast(iOtpView.activityContext, otpActivity.getString(R.string.msg_otp_validated))
         if (TextUtils.isEmpty(deviceToken) || deviceToken == firebaseToken) {
             if (!iOtpView.getOtpProgress()!!.isShowing) iOtpView.showProgress()
@@ -254,7 +291,7 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
 
         val options = PhoneAuthOptions.newBuilder(mAuth)
                 .setPhoneNumber(phoneNumber)       // Phone number to verify
-                .setTimeout(60L, TimeUnit.SECONDS) // Timeout and unit
+                .setTimeout(10L, TimeUnit.SECONDS) // Timeout and unit
                 .setActivity(iOtpView.activityContext)                 // Activity (for callback binding)
                 .setCallbacks(mCallbacks)          // OnVerificationStateChangedCallbacks
         if (isResendCode && resendingToken != null) {

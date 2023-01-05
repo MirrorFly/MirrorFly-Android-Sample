@@ -1,17 +1,19 @@
 package com.contusfly.call.groupcall.utils
 
+import android.app.Activity
 import android.content.Context
 import androidx.core.content.ContextCompat
 import com.contus.call.CallConstants
-import com.contus.call.utils.GroupCallUtils
+import com.contus.flycommons.TAG
+import com.contus.webrtc.Logger
 import com.contus.webrtc.ProxyVideoSink
 import com.contus.webrtc.api.CallManager
 import com.contusfly.*
 import com.contusfly.call.groupcall.isUserVideoMuted
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.SetDrawable
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ChatUtils
 import com.contusflysdk.utils.Utils
@@ -19,12 +21,25 @@ import java.util.ArrayList
 
 object CallUtils {
 
+    const val IS_CALL_NOTIFICATION = "is_call_notification"
+    const val ACTION_PHONE_CALL_STATE_CHANGED = "call.action.PHONE_CALL_STATE_CHANGED"
+
     /**
      * flag indicates whether group call grid view is showing or not
      */
     private var isGridViewEnabled = false
 
     private var isVideoViewInitialized = false
+
+    /**
+     * boolean represents whether we have to show calls tab or not.
+     */
+    private var showCallsTab = false
+
+    /**
+     * Boolean stating whether if add participant in progress
+     */
+    private var isAddUsersToTheCall = false
 
     /**
      * flag indicates whether call grid/list view updates currently happening
@@ -45,6 +60,11 @@ object CallUtils {
      * flag indicates whether user tile pinned
      */
     private var isUserTilePinned = false
+
+    /**
+     * Boolean to identify whether the action is with respect to the call initiation.
+     */
+    private var mIsCallStarted: String? = null
 
     /**
      * This indicates whether the back camera capturing or not
@@ -123,9 +143,9 @@ object CallUtils {
     }
 
     fun isSpeakingUserCanBeShownOnTop(userJid: String, audioLevel: Int): Boolean {
-        return userJid != GroupCallUtils.getLocalUserJid() // Local User view no need to move to top
+        return userJid != CallManager.getCurrentUserId() // Local User view no need to move to top
                 && !getIsUserTilePinned()  // If any user is pinned then no need to move to top
-                && !GroupCallUtils.isOneToOneCall() // In 1-1 call no need to move speaking user to top
+                && !CallManager.isOneToOneCall() // In 1-1 call no need to move speaking user to top
                 && isSpeakingLevelsReceivedForSameUser(userJid, audioLevel)
                 && !getIsGridViewEnabled() // In Grid view no need to move speaking user to top
     }
@@ -225,7 +245,7 @@ object CallUtils {
     }
 
     private fun getNameAndProfileDetails(jid: String): Pair<String, ProfileDetails?> {
-        val profileDetails = ContactManager.getProfileDetails(jid)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(jid)
         val name = if (profileDetails != null) {
             com.contusfly.utils.Utils.returnEmptyStringIfNull(profileDetails.name)
         } else Utils.getFormattedPhoneNumber(ChatUtils.getUserFromJid(jid)) ?: Constants.EMPTY_STRING
@@ -270,26 +290,140 @@ object CallUtils {
         return membersName.toString()
     }
 
+    fun getCallUsersName(callUsers: ArrayList<String>): StringBuilder {
+        var name = StringBuilder("")
+        for (i in callUsers.indices) {
+            if (i == 2) {
+                name.append(" and (+").append(callUsers.size - i).append(")")
+                break
+            } else if (i == 1) {
+                name.append(", ").append(ProfileDetailsUtils.getDisplayName(callUsers[i]))
+            } else {
+                name = StringBuilder(ProfileDetailsUtils.getDisplayName(callUsers[i]))
+            }
+        }
+        return name
+    }
+
+    /**
+     * this method return the user jid for the call
+     */
+    fun getCallLogUserJidList(toUser: String?, callUsers: List<String>? = null, withDeletedUser: Boolean = true): List<String> {
+        val userList = mutableListOf<String>()
+        if (toUser != null
+            && toUser != CallManager.getCurrentUserId()
+            && (withDeletedUser || ProfileDetailsUtils.getProfileDetails(toUser)?.isDeletedContact() != true))
+            userList.add(toUser)
+        if (callUsers != null) {
+            for (jid in callUsers) {
+                if (jid != CallManager.getCurrentUserId()
+                    && !userList.contains(jid)
+                    && (withDeletedUser || ProfileDetailsUtils.getProfileDetails(jid)?.isDeletedContact() != true))
+                    userList.add(jid)
+            }
+        }
+        return userList
+    }
+
+    fun getCallLogUserNames(toUser: String?, callUsers: List<String>? = null): String {
+        val userNames = mutableListOf<String?>()
+        if (toUser != null && toUser != CallManager.getCurrentUserId()) {
+            userNames.add(ProfileDetailsUtils.getDisplayName(toUser))
+        }
+        if (callUsers != null) {
+            for (jid in callUsers) {
+                if (jid.isNotEmpty()
+                    && jid != CallManager.getCurrentUserId()
+                    && !userNames.contains(ProfileDetailsUtils.getDisplayName(jid)))
+                    userNames.add(ProfileDetailsUtils.getDisplayName(jid))
+            }
+        }
+        return userNames.filter { !it.isNullOrEmpty() }.joinToString(", ")
+    }
+
     fun getPinnedVideoSink(): ProxyVideoSink? {
-        return if (getPinnedUserJid() == GroupCallUtils.getLocalUserJid())
+        return if (getPinnedUserJid() == CallManager.getCurrentUserId())
             CallManager.getLocalProxyVideoSink()
         else
             CallManager.getRemoteProxyVideoSink(getPinnedUserJid())
     }
 
     fun getVideoSinkForUser(userJid: String): ProxyVideoSink? {
-        return if (userJid == GroupCallUtils.getLocalUserJid())
+        return if (userJid == CallManager.getCurrentUserId())
             CallManager.getLocalProxyVideoSink()
         else
             CallManager.getRemoteProxyVideoSink(userJid)
     }
 
     fun isLocalUserPinned() : Boolean {
-        return getPinnedUserJid() == GroupCallUtils.getLocalUserJid()
+        return getPinnedUserJid() == CallManager.getCurrentUserId()
     }
 
     fun getPinnedUserVideoMuted(): Boolean {
-        return GroupCallUtils.isUserVideoMuted(getPinnedUserJid())
+        return CallManager.isUserVideoMuted(getPinnedUserJid())
+    }
+
+    /**
+     * Determines whether the action is in respect to the call initiation.
+     *
+     * @return string representing the call action.
+     */
+    fun getIsCallStarted(): String? {
+        return mIsCallStarted
+    }
+
+    /**
+     * Sets the boolean if the action is related to call initiation.
+     *
+     * @param isCallStarted string stating the call action.
+     */
+    @JvmStatic
+    fun setIsCallStarted(isCallStarted: String?) {
+        mIsCallStarted = isCallStarted
+    }
+
+    /*
+     *
+     * Method to check the activity is destroyed or finished
+     *  @param activity instance of an activity.
+     * */
+    @JvmStatic
+    fun isActivityDestroyed(activity: Activity): Boolean {
+        return activity.isDestroyed
+    }
+
+    /**
+     * @return boolean returns whether we have to show calls tab or not
+     */
+    fun isCallsTabToBeShown(): Boolean {
+        return showCallsTab
+    }
+
+    /**
+     * @param isCallsTabToBeShown sets whether we have to show calls tab or not
+     */
+    fun setCallsTabToBeShown(isCallsTabToBeShown: Boolean) {
+        showCallsTab = isCallsTabToBeShown
+    }
+
+    /**
+     * @return true, if add participant in progress
+     */
+    @JvmStatic
+    fun isAddUsersToTheCall(): Boolean {
+        Logger.d(TAG, "isAddUsersToTheCall: $isAddUsersToTheCall")
+        return isAddUsersToTheCall
+    }
+
+    /**
+     * This method is used to set the add participant in progress
+     *
+     * @param isAddUsers boolean value, which is true when add participant in progress
+     */
+    @JvmStatic
+    fun setIsAddUsersToTheCall(isAddUsers: Boolean) {
+        Logger.d(TAG, "setIsAddUsersToTheCall: $isAddUsers")
+        isAddUsersToTheCall = isAddUsers
     }
 
     fun resetValues() {
@@ -299,6 +433,8 @@ object CallUtils {
         setIsListViewAnimated(false)
         setPinnedUserJid(Constants.EMPTY_STRING)
         setIsUserTilePinned(false)
+        setIsCallStarted(null)
+        setIsAddUsersToTheCall(false)
         setPeakSpeakingUser(Constants.EMPTY_STRING, 0)
     }
 }

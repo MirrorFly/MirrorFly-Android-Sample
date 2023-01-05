@@ -25,7 +25,6 @@ import com.bumptech.glide.Priority
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.RequestOptions
@@ -84,7 +83,7 @@ object ImageUtils {
      * @param imageUrl Image url
      * @return Bitmap Instance of bitmap
      */
-    fun rotateImage(bmp: Bitmap?, imageUrl: String?): Bitmap? {
+    private fun rotateImage(bmp: Bitmap?, imageUrl: String?): Bitmap? {
         return if (bmp != null && imageUrl != null) {
             val ei: ExifInterface
             var orientation = 0
@@ -164,15 +163,33 @@ object ImageUtils {
     }
 
     /**
+     * Load image in view with [Drawable] as a placeholder.
+     *
+     * @param context   The startupActivityContext of the activity
+     * @param path      String path
+     * @param imageView The image view
+     * @param base64    base64 string
+     */
+    fun loadImageInView(context: Context, path: String, imageView: ImageView, base64: String) {
+        if (path.isNotEmpty()) {
+            val file = File(path)
+            if (file.exists())
+                loadImageWithGlide(context, path, imageView, base64)
+            else if (!TextUtils.isEmpty(base64))
+                loadBase64(context, imageView, base64)
+        } else if (!TextUtils.isEmpty(base64))
+            loadBase64(context, imageView, base64)
+    }
+
+    /**
     * Load image in view with [Drawable] as a placeholder.
     *
     * @param context   The startupActivityContext of the activity
     * @param imageView The image view
     * @param base64    base64 string
-    * @param drawable  placeholder drawable
     */
-    fun loadReceiverVideoImageInView(context: Context, imageView: ImageView, base64: String, drawable: Drawable?) {
-        loadBase64(context, imageView, base64, drawable)
+    fun loadReceiverVideoImageInView(context: Context, imageView: ImageView, base64: String) {
+        loadBase64(context, imageView, base64)
     }
 
     /**
@@ -206,6 +223,25 @@ object ImageUtils {
             val array = Base64.decode(base64, Base64.DEFAULT)
             val mBitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
             mBitmap?.let { loadImageWithGlide(context, it, imageView, errorImg) }
+        } catch (e: Exception) {
+            LogMessage.e(e)
+        }
+    }
+
+    /**
+     * Load base64 of the image into image view with [Drawable] as a placeholder
+     *
+     * @param context   startupActivityContext instance
+     * @param imageView Image view to load
+     * @param base64    Base64 string
+     */
+    private fun loadBase64(context: Context, imageView: ImageView, base64: String) {
+        LogMessage.d(TAG, "loadBase64")
+        try {
+            val array = Base64.decode(base64, Base64.DEFAULT)
+            val mBitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
+            val thumbnail: Drawable = BitmapDrawable(context.resources, mBitmap)
+            mBitmap?.let { loadImageWithGlide(context, it, imageView, thumbnail) }
         } catch (e: Exception) {
             LogMessage.e(e)
         }
@@ -269,6 +305,7 @@ object ImageUtils {
         if (imgUrl != null && imgUrl.isNotEmpty()) {
             val options = RequestOptions().centerCrop()
                     .placeholder(errorImg)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .priority(Priority.HIGH)
             Glide.with(context!!).asBitmap().load(Uri.fromFile(File(imgUrl))).apply(options).into(imgView)
         } else
@@ -343,6 +380,32 @@ object ImageUtils {
      */
     fun loadImageWithGlide(context: Context, imgUrl: String?, imgView: ImageView, errorImg: Drawable?) {
         LogMessage.d(TAG, "loadImageWithGlide#url#drawablePlaceholder")
+        if (imgUrl != null && imgUrl.isNotEmpty()) {
+            val placeHolderDrawable = copyDrawable(context, errorImg)
+            val options = RequestOptions().frame(1000)
+                .placeholder(placeHolderDrawable) //to avoid flickering issue
+                .error(errorImg)
+                .dontTransform()
+                .dontAnimate()
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .priority(Priority.HIGH)
+            Glide.with(context).load(imgUrl).thumbnail(0.1f).apply(options).into(imgView)
+        } else imgView.setImageDrawable(errorImg)
+    }
+
+    /**
+     * Load image with glide with [Drawable] as a placeholder.
+     *
+     * @param context  Instance of the startupActivityContext
+     * @param imgUrl   image url
+     * @param imgView  Image view to display the image
+     * @param base64  Base64 thump image string
+     */
+    fun loadImageWithGlide(context: Context, imgUrl: String?, imgView: ImageView, base64: String) {
+        LogMessage.d(TAG, "loadImageWithGlide#url#drawablePlaceholder")
+        val array = Base64.decode(base64, Base64.DEFAULT)
+        val mBitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
+        val errorImg: Drawable = BitmapDrawable(context.resources, mBitmap)
         if (imgUrl != null && imgUrl.isNotEmpty()) {
             val placeHolderDrawable = copyDrawable(context, errorImg)
             val options = RequestOptions().frame(1000)
@@ -433,7 +496,7 @@ object ImageUtils {
      * @param path    Photo path
      * @return String Path of the image
      */
-    fun startIntentForPhoto(intent: Intent, context: Activity, path: String?): String {
+    private fun startIntentForPhoto(intent: Intent, context: Activity, path: String): String {
         val photo = getImageFile(path)
         val userProfileImg = photo.absolutePath
         val uri = FileProvider.getUriForFile(context, ChatManager.fileProviderAuthority, photo)
@@ -453,7 +516,7 @@ object ImageUtils {
      * @param path Path of the parent folder
      * @return File New image file
      */
-    fun getImageFile(path: String?): File {
+    private fun getImageFile(path: String): File {
         return getFile(path, ".jpg")
     }
 
@@ -465,7 +528,7 @@ object ImageUtils {
      * @return File New image file
      */
     @JvmStatic
-    fun getFile(path: String?, extension: String): File {
+    fun getFile(path: String, extension: String): File {
         val todayDate = Calendar.getInstance()
         val dateToday = (todayDate[Calendar.DAY_OF_MONTH].toString() + "-" + (todayDate[Calendar.MONTH] + 1) + "-"
                 + todayDate[Calendar.YEAR] + "-" + todayDate[Calendar.HOUR] + "-"
@@ -479,7 +542,7 @@ object ImageUtils {
      *
      * @param path Path of the folder
      */
-    private fun createFolderIfNotExist(path: String?) {
+    private fun createFolderIfNotExist(path: String) {
         val folder = File(path)
         if (!folder.exists())
             folder.mkdirs()
@@ -493,7 +556,7 @@ object ImageUtils {
      * @param isCropImage True if the image crop
      * @return String Path of the image
      */
-    fun takePhotoFromCamera(context: Activity, path: String?, isCropImage: Boolean): String? {
+    fun takePhotoFromCamera(context: Activity, path: String, isCropImage: Boolean): String? {
         var userProfileImg: String? = null
         try {
             val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)

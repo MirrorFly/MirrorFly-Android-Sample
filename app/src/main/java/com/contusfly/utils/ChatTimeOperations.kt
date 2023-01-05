@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class ChatTimeOperations {
+class ChatTimeOperations constructor(val calendar: Calendar) {
 
     /**
      * Recent chat DateFormat
@@ -35,7 +35,7 @@ class ChatTimeOperations {
     /**
      * chatMsg instance
      */
-    private val chatMsgTime: ChatMsgTime = ChatMsgTime()
+    private val chatMsgTime: ChatMsgTime = ChatMsgTime(calendar)
 
     /**
      * date object
@@ -50,7 +50,7 @@ class ChatTimeOperations {
      * @return return the duration
      */
     @SuppressLint("DefaultLocale")
-    fun getCallDurationTime(startTime: Long, endTime: Long): String? {
+    fun getCallDurationTime(startTime: Long, endTime: Long): String {
         return if (startTime == 0L || endTime == 0L) {
             com.contusfly.utils.Constants.EMPTY_TIME
         } else {
@@ -66,7 +66,6 @@ class ChatTimeOperations {
      * @return long Message date in milli without time
      */
     fun getDateInMilli(timeStamp: Long): Long {
-        val calendar = Calendar.getInstance()
         calendar.timeInMillis = timeStamp / 1000
         calendar[Calendar.HOUR_OF_DAY] = 0
         calendar[Calendar.MINUTE] = 0
@@ -76,13 +75,13 @@ class ChatTimeOperations {
     }
 
     /**
-     * This funtion formats the the duration of call.
+     * This function formats the the duration of call.
      *
      * @param timeInMilliseconds call duration in milliseconds
      * @return return the  formatted duration
      */
     @SuppressLint("DefaultLocale")
-    fun getFormattedCallDurationTime(timeInMilliseconds: Long): String? {
+    fun getFormattedCallDurationTime(timeInMilliseconds: Long): String {
         return if (timeInMilliseconds < 1000) {
             com.contusfly.utils.Constants.EMPTY_TIME
         } else {
@@ -112,12 +111,12 @@ class ChatTimeOperations {
      * @param epochTime Timestamp of the chat
      * @return String Formatted date
      */
-    fun getRecentChatTime(context: Context?, epochTime: Long): String? {
+    fun getRecentChatTime(context: Context?, epochTime: Long): String {
+        val cal = Calendar.getInstance()
         if (epochTime == 0L) return Constants.EMPTY_STRING
         val convertedTime = epochTime / 1000
         messageDate.time = convertedTime
         val hourTime = manipulateMessageTime(context!!, messageDate)
-        val cal = Calendar.getInstance()
         val currentYear = cal[Calendar.YEAR]
         cal.time = messageDate
         val time: String = if (currentYear == cal[Calendar.YEAR]) {
@@ -154,14 +153,13 @@ class ChatTimeOperations {
     private fun equalsWithYesterday(srcDate: Date, day: String): Boolean {
         // Time part has
         // discarded
-        val cal = Calendar.getInstance()
-        if (day == Constants.YESTERDAY) cal.add(Calendar.DATE, -1)
+        if (day == Constants.YESTERDAY) calendar.add(Calendar.DATE, -1)
         /*
           Get yesterday's Date without time part
          */
         val yesterday: Date
         try {
-            yesterday = getCommonDateFormat()!!.parse(getCommonDateFormat()!!.format(cal.timeInMillis))
+            yesterday = getCommonDateFormat()!!.parse(getCommonDateFormat()!!.format(calendar.timeInMillis))
             val srcDateWithoutTime = getCommonDateFormat()!!.parse(getCommonDateFormat()?.format(srcDate))
             /*
               Checks src date equals yesterday.
@@ -180,7 +178,7 @@ class ChatTimeOperations {
      * @param epochTime call time in millisecond
      * @return return the date and time format
      */
-    fun getCallTime(context: Context, epochTime: Long): String? {
+    fun getCallTime(context: Context, epochTime: Long): String {
         messageDate.time = epochTime
         val hourTime: String = manipulateMessageTime(context, messageDate)
         /* The time stamp. */

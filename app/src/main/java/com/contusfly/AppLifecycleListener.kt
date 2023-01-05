@@ -7,17 +7,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.text.format.DateFormat
 import android.util.Log
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
-import com.contus.flycommons.Prefs
-import com.contus.call.utils.GroupCallUtils
+import androidx.lifecycle.*
+import com.contus.webrtc.api.CallManager
 import com.contusfly.activities.AdminBlockedActivity
 import com.contusfly.utils.Constants
-import com.contusfly.utils.LogMessage
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusflysdk.api.ChatManager
-import com.contusflysdk.api.FlyCore
 
 
 class AppLifecycleListener : LifecycleObserver {
@@ -46,12 +41,10 @@ class AppLifecycleListener : LifecycleObserver {
         deviceContactCount = 0
 
         //To check the user blocked by admin status and navigate to show stopper screen
-        if (FlyCore.getIsProfileBlockedByAdmin()) {
-            if (!isAdminBlockedActivityOpened) {
-                val intent = Intent(ChatManager.applicationContext, AdminBlockedActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                ChatManager.applicationContext.startActivity(intent)
-            }
+        if (SharedPreferenceManager.getBoolean(Constants.ADMIN_BLOCKED)) {
+            val intent = Intent(ChatManager.applicationContext, AdminBlockedActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ChatManager.applicationContext.startActivity(intent)
             return
         }
 
@@ -60,7 +53,7 @@ class AppLifecycleListener : LifecycleObserver {
         SharedPreferenceManager.setBoolean(Constants.IS_TIME_FORMAT_CHANGED, deviceTimeFormat != devicePreviousTimeFormat)
         SharedPreferenceManager.setBoolean(Constants.IS_24_FORMAT, deviceTimeFormat)
 
-        if (isPinEnabled && !(GroupCallUtils.isOnGoingAudioCall() || GroupCallUtils.isOnGoingVideoCall())) {
+        if (isPinEnabled && !CallManager.isOnGoingCall()) {
             fromOnCreate = false
             Log.d(TAG, " show pin $isOnCall$backPressedSP")
             showPinActivity("onMoveToForeground")
@@ -124,6 +117,9 @@ class AppLifecycleListener : LifecycleObserver {
         var pinActivityShowing = false
 
         @JvmField
+        var pinScreenShowing = true
+
+        @JvmField
         var deviceContactCount = 0
 
         @JvmField
@@ -132,8 +128,9 @@ class AppLifecycleListener : LifecycleObserver {
         @JvmField
         var isFromQuickShareForPin = false
 
-        @JvmField
-        var isAdminBlockedActivityOpened = false
+        val _adminBlockedOtherUser = MutableLiveData<Triple<String, String, Boolean>>()
+        val adminBlockedOtherUser: LiveData<Triple<String, String, Boolean>>
+            get() = _adminBlockedOtherUser
 
         val backPressedSP: Boolean
             get() = SharedPreferenceManager.getBoolean(Constants.BACK_PRESS) && !shouldShowPinActivity()

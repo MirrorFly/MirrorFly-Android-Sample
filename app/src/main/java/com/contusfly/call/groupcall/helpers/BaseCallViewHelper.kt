@@ -18,7 +18,7 @@ import com.contus.call.CallActions
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.*
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.api.CallManager
 import com.contusfly.*
 import com.contusfly.R
 import com.contusfly.call.groupcall.*
@@ -115,7 +115,7 @@ class BaseCallViewHelper(
     }
 
     private fun startCallTimer() {
-        startTime = GroupCallUtils.getCallStartTime()
+        startTime = CallManager.getCallTimerStartTime()
         durationHandler.postDelayed(updateTimerThread, 0)
     }
 
@@ -131,8 +131,8 @@ class BaseCallViewHelper(
         hidePIPLayout()
         resizeLocalTile()
 
-        if (GroupCallUtils.isCallAttended()) callDuration = activity.getString(R.string.start_timer)
-        if (GroupCallUtils.isCallConnected()) {
+        if (CallManager.isCallAnswered()) callDuration = activity.getString(R.string.start_timer)
+        if (CallManager.isCallConnected()) {
             startCallTimer()
             enableCallOptionAnimation()
         }
@@ -144,20 +144,20 @@ class BaseCallViewHelper(
     override fun ownVideoMuteStatusUpdated() {
         LogMessage.d(TAG, "$CALL_UI ownVideoMuteStatusUpdated")
         if (CallUtils.getIsGridViewEnabled()) {
-            val gridIndex = callUserGridAdapter.gridCallUserList.indexOf(GroupCallUtils.getLocalUserJid())
+            val gridIndex = callUserGridAdapter.gridCallUserList.indexOf(CallManager.getCurrentUserId())
             if (gridIndex.isValidIndex()) { // if local user available in grid view then refresh grid view
                 val bundle = Bundle()
                 bundle.putInt(CallActions.NOTIFY_VIEW_VIDEO_MUTE_UPDATED, 1)
                 callUserGridAdapter.notifyItemChanged(gridIndex, bundle)
             }
         } else {
-            val index = callUsersListAdapter.callUserList.indexOf(GroupCallUtils.getLocalUserJid())
+            val index = callUsersListAdapter.callUserList.indexOf(CallManager.getCurrentUserId())
             if (index.isValidIndex()) { // if local user available in list view then refresh list view
                 val bundle = Bundle()
                 bundle.putInt(CallActions.NOTIFY_VIEW_VIDEO_MUTE_UPDATED, 1)
                 callUsersListAdapter.notifyItemChanged(index, bundle)
             } else {
-                if (GroupCallUtils.isOneToOneCall())
+                if (CallManager.isOneToOneCall())
                     callConnectedViewHelper.checkAndShowLocalVideoView()
                 else
                     callConnectedViewHelper.updatePinnedUserVideoMuteStatus()
@@ -166,14 +166,14 @@ class BaseCallViewHelper(
     }
 
     fun setUpProfileDetails(callUsers: ArrayList<String>) {
-        if (GroupCallUtils.isCallConnected())
+        if (CallManager.isCallConnected())
             callConnectedViewHelper.updateCallMemberDetails(callUsers)
         else
             callNotConnectedViewHelper.updateCallMemberDetails(callUsers)
     }
 
     fun updateCallStatus() {
-        if (GroupCallUtils.isCallNotConnected())
+        if (CallManager.isCallNotConnected())
             callNotConnectedViewHelper.updateCallStatus()
         else {
             callConnectedViewHelper.updateCallStatus()
@@ -204,14 +204,14 @@ class BaseCallViewHelper(
         LogMessage.d(TAG, "$CALL_UI setOverlayBackground()")
         if (activity.isInPIPMode())
             binding.viewOverlay.background = null
-        else if (GroupCallUtils.isCallNotConnected()) {
-            if (GroupCallUtils.isVideoCall()) {
+        else if (CallManager.isCallNotConnected()) {
+            if (CallManager.isVideoCall()) {
                 binding.viewOverlay.setBackgroundColor(ContextCompat.getColor(activity, R.color.color_black_transparent))
             } else {
                 binding.viewOverlay.background = ContextCompat.getDrawable(activity, R.drawable.ic_audio_call_bg)
             }
         } else {
-            if (!GroupCallUtils.isOneToOneVideoCall())
+            if (!CallManager.isOneToOneVideoCall())
                 binding.viewOverlay.setBackgroundColor(ContextCompat.getColor(activity, R.color.audio_caller_background))
             else
                 binding.viewOverlay.background = null
@@ -272,6 +272,7 @@ class BaseCallViewHelper(
         binding.imageMinimizeCall.show()
         callNotConnectedViewHelper.hideRetryLayout()
         retryCallViewHelper.hideRetryLayout()
+        callConnectedViewHelper.makeCallAgain()
     }
 
     fun hidePIPLayout() {
@@ -281,9 +282,9 @@ class BaseCallViewHelper(
     fun gotoPIPMode() {
         LogMessage.d(
             TAG,
-            "$CALL_UI gotoPIPMode(): ${Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && GroupCallUtils.isCallConnected() && !GroupCallUtils.isAddUsersToTheCall()}"
+            "$CALL_UI gotoPIPMode(): ${Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && CallManager.isCallConnected() && !CallUtils.isAddUsersToTheCall()}"
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && GroupCallUtils.isCallConnected() && !GroupCallUtils.isAddUsersToTheCall()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && CallManager.isCallConnected() && !CallUtils.isAddUsersToTheCall()) {
             if (CommonUtils.isPipModeAllowed(activity)) {
                 // Calculate the aspect ratio of the PiP screen.
                 val aspectRatio = Rational(binding.rootLayout.width, binding.rootLayout.height)
@@ -318,7 +319,7 @@ class BaseCallViewHelper(
                 durationHandler.removeCallbacks(hideOptionsRunnable)
                 showGridTitle()
             }
-            GroupCallUtils.isOneToOneVideoCall() -> durationHandler.postDelayed(hideOptionsRunnable, 3000)
+            CallManager.isOneToOneVideoCall() -> durationHandler.postDelayed(hideOptionsRunnable, 3000)
             else -> durationHandler.removeCallbacks(hideOptionsRunnable)
         }
     }
@@ -338,7 +339,7 @@ class BaseCallViewHelper(
         LogMessage.d(TAG, "$CALL_UI onCallOptionsHidden()")
         val bottomMarginStart =
             binding.layoutCallOptions.layoutCallOptions.height // margin start value
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             val bottomMarginTo = CommonUtils.convertDpToPixel(activity, 20) // where to animate to
             val params =
                 binding.layoutCallConnected.layoutOneToOneAudioCall.layoutParams as RelativeLayout.LayoutParams
@@ -375,7 +376,7 @@ class BaseCallViewHelper(
     override fun onCallOptionsVisible() {
         LogMessage.d(TAG, "$CALL_UI onCallOptionsVisible()")
         val bottomMarginTo = binding.layoutCallOptions.layoutCallOptions.height // where to animate to
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             val bottomMarginStart = CommonUtils.convertDpToPixel(activity, 20) // margin start value
             val params =
                 binding.layoutCallConnected.layoutOneToOneAudioCall.layoutParams as RelativeLayout.LayoutParams
@@ -458,10 +459,10 @@ class BaseCallViewHelper(
      */
     override fun animateCallOptionsView() {
         LogMessage.d(TAG, "$CALL_UI animateCallOptionsView()")
-        if (!GroupCallUtils.isCallConnected() || GroupCallUtils.isAddUsersToTheCall()
-            || !CallUtils.getIsGridViewEnabled() && (GroupCallUtils.isOneToOneAudioCall()
-                    || GroupCallUtils.isOneToOneRemoteVideoMuted()
-                    || GroupCallUtils.isReconnecting())
+        if (!CallManager.isCallConnected() || CallUtils.isAddUsersToTheCall()
+            || !CallUtils.getIsGridViewEnabled() && (CallManager.isOneToOneAudioCall()
+                    || CallManager.isOneToOneRemoteVideoMuted()
+                    || CallManager.isReconnecting())
         )
             return
 
@@ -561,7 +562,7 @@ class BaseCallViewHelper(
 
     private fun animateListView() {
         LogMessage.d(TAG, "$CALL_UI animateListView()")
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             animateOneToOneCallOption()
         } else {
             animateGroupListView()
@@ -577,7 +578,7 @@ class BaseCallViewHelper(
         } else {
             animateCallOptions(R.anim.slide_up, View.VISIBLE, View.GONE)
             animateCallDetails(R.anim.slide_out_down, View.VISIBLE)
-            if (GroupCallUtils.isOneToOneVideoCall())
+            if (CallManager.isOneToOneVideoCall())
                 durationHandler.postDelayed(hideOptionsRunnable, 3000)
         }
     }
@@ -645,7 +646,7 @@ class BaseCallViewHelper(
     fun updateDisconnectedStatus(callStatus: String) {
         if (isCallUIVisible()) {
             val animation = AnimationUtils.loadAnimation(activity, R.anim.blink)
-            if (callDuration.isNotBlank() || GroupCallUtils.isCallConnected()) {
+            if (callDuration.isNotBlank() || CallManager.isCallConnected()) {
                 binding.layoutCallConnected.textCallDuration.text = callStatus
                 if (binding.layoutCallConnected.layoutTitle.visibility == View.GONE) {
                     if (CallUtils.getIsGridViewEnabled())
@@ -678,7 +679,7 @@ class BaseCallViewHelper(
     }
 
     private fun isCallUIVisible(): Boolean {
-        return !(activity.isInPIPMode()) && AppLifecycleListener.isForeground && !GroupCallUtils.isAddUsersToTheCall()
+        return !(activity.isInPIPMode()) && AppLifecycleListener.isForeground && !CallUtils.isAddUsersToTheCall()
     }
 
     fun updateRemoteAudioMuteStatus(userJid: String) {
@@ -703,23 +704,35 @@ class BaseCallViewHelper(
     }
 
     /**
+     * In a video call once local video track available this method will be triggered
+     */
+    fun onLocalVideoTrackAdded() {
+        LogMessage.d(TAG, "$CALL_UI onLocalVideoTrackAdded()")
+        if (!CallUtils.isActivityDestroyed(activity)) {
+            if (!activity.isInPIPMode()) {
+                callConnectedViewHelper.onLocalVideoTrackAdded()
+            }
+        } else LogMessage.d(TAG, "$CALL_UI onLocalVideoTrackAdded Activity Destroyed")
+    }
+
+    /**
      * After the video call is connected the video view will be placed near call options view
      */
     fun onVideoTrackAdded(userJid: String) {
         LogMessage.d(TAG, "$CALL_UI onVideoTrackAdded():$userJid")
-        if (!GroupCallUtils.isActivityDestroyed(activity)) {
+        if (!CallUtils.isActivityDestroyed(activity)) {
             if (activity.isInPIPMode()) {
                 pipViewHelper.onVideoTrackAdded(userJid)
             } else {
                 callConnectedViewHelper.onVideoTrackAdded(userJid)
-                if (GroupCallUtils.isOneToOneCall())
+                if (CallManager.isOneToOneCall())
                     resizeLocalTile()
             }
         } else LogMessage.d(TAG, "$CALL_UI onVideoTrackAdded Activity Destroyed")
     }
 
     private fun resizeLocalTile() {
-        if (GroupCallUtils.isLocalTileCanResize()) {
+        if (CallManager.isLocalTileCanResize()) {
             LogMessage.d(TAG, "$CALL_UI resizeLocalTile isLocalTileCanResize")
             val params = binding.layoutCallConnected.layoutOneToOneAudioCall.layoutParams as RelativeLayout.LayoutParams
             val rightMargin = CommonUtils.convertDpToPixel(activity, 20)
@@ -754,7 +767,7 @@ class BaseCallViewHelper(
 
     override fun animateListViewWithCallOptions() {
         LogMessage.i(TAG, "$CALL_UI animateListViewWithCallOptions")
-        if (!CallUtils.getIsGridViewEnabled() && GroupCallUtils.isCallConnected())
+        if (!CallUtils.getIsGridViewEnabled() && CallManager.isCallConnected())
             binding.layoutCallOptions.layoutCallOptions.post {
                 CallUtils.setIsListViewAnimated(true)
                 if (binding.layoutCallOptions.layoutCallOptions.visibility == View.VISIBLE) {
@@ -830,7 +843,7 @@ class BaseCallViewHelper(
     }
 
     fun onUserStoppedSpeaking(userJid: String) {
-        if (GroupCallUtils.isCallConnected()) {
+        if (CallManager.isCallConnected()) {
             if (activity.isInPIPMode())
                 pipViewHelper.onUserStoppedSpeaking(userJid)
             else
@@ -840,12 +853,16 @@ class BaseCallViewHelper(
     }
 
     fun onUserSpeaking(userJid: String, audioLevel: Int) {
-        if (GroupCallUtils.isCallConnected()) {
+        if (CallManager.isCallConnected()) {
             CallUtils.onUserSpeaking(userJid, audioLevel)
             if (activity.isInPIPMode())
                 pipViewHelper.onUserSpeaking(userJid, audioLevel)
             else
                 callConnectedViewHelper.onUserSpeaking(userJid, audioLevel)
         }
+    }
+
+    fun updateFeatureActions() {
+        callConnectedViewHelper.checkAddParticipantsAvailable()
     }
 }

@@ -3,14 +3,15 @@ package com.contusfly.call.groupcall.helpers
 import android.content.Context
 import com.contus.call.CallConstants.CALL_UI
 import com.contus.flycommons.LogMessage
-import com.contus.call.utils.GroupCallUtils
+import com.contus.webrtc.api.CallManager
 import com.contusfly.*
+import com.contusfly.call.groupcall.getEndCallerJid
 import com.contusfly.call.groupcall.getOnGoingCallStatus
 import com.contusfly.call.groupcall.isCallNotConnected
 import com.contusfly.call.groupcall.isOutgoingCall
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.LayoutCallNotConnectedBinding
-import com.contusflysdk.api.contacts.ContactManager
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusflysdk.utils.Utils
 
 class CallNotConnectedViewHelper(
@@ -19,7 +20,7 @@ class CallNotConnectedViewHelper(
 ) {
 
     fun updateCallStatus() {
-        binding.textCallStatus.text = GroupCallUtils.getOnGoingCallStatus(context)
+        binding.textCallStatus.text = CallManager.getOnGoingCallStatus(context)
     }
 
     private fun showCallStatus() {
@@ -30,11 +31,11 @@ class CallNotConnectedViewHelper(
     * Set up call details before user attend the call
     * */
     fun setUpCallUI() {
-        if (GroupCallUtils.isCallNotConnected()) {
+        if (CallManager.isCallNotConnected()) {
             binding.layoutCallNotConnected.show()
             showCallStatus()
             updateCallStatus()
-            updateCallMemberDetails(GroupCallUtils.getAvailableCallUsersList())
+            updateCallMemberDetails(CallManager.getCallUsersList())
             showCallerImage()
             CallUtils.setIsListViewAnimated(false)
         } else
@@ -42,9 +43,9 @@ class CallNotConnectedViewHelper(
     }
 
     private fun showCallerImage() {
-        if (GroupCallUtils.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall()) {
             binding.layoutGroupCallMembersImage.layoutMembersImage.gone()
-            if (GroupCallUtils.isOutgoingCall()) {
+            if (CallManager.isOutgoingCall()) {
                 binding.layoutOutgoingProfile.show()
                 binding.rippleBg.startRippleAnimation()
                 binding.callerProfileImage.gone()
@@ -60,13 +61,13 @@ class CallNotConnectedViewHelper(
     }
 
     fun showRetryLayout() {
-        if (GroupCallUtils.isOneToOneCall())
+        if (CallManager.isOneToOneCall())
             binding.rippleBg.stopRippleAnimation()
         updateCallStatus()
     }
 
     fun hideRetryLayout() {
-        if (GroupCallUtils.isOneToOneCall())
+        if (CallManager.isOneToOneCall())
             binding.rippleBg.startRippleAnimation()
         updateCallStatus()
     }
@@ -79,9 +80,9 @@ class CallNotConnectedViewHelper(
     fun updateCallMemberDetails(callUsers: ArrayList<String>) {
         LogMessage.d(TAG, "$CALL_UI getProfile $callUsers")
         showCallerImage()
-        if (GroupCallUtils.isOneToOneCall()) {
-            val profileDetails = if (GroupCallUtils.getEndCallerJid().contains("@"))
-                ContactManager.getProfileDetails(GroupCallUtils.getEndCallerJid())
+        if (CallManager.isOneToOneCall()) {
+            val profileDetails = if (CallManager.getEndCallerJid().contains("@"))
+                ProfileDetailsUtils.getProfileDetails(CallManager.getEndCallerJid())
             else null
 
             profileDetails?.let {

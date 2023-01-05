@@ -17,16 +17,16 @@ import com.contus.webrtc.CallMode
 import com.contus.webrtc.CallState
 import com.contus.webrtc.CallType
 import com.contus.call.database.model.CallLog
-import com.contus.call.utils.GroupCallUtils
 import com.contusfly.R
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.gone
 import com.contusfly.setOnClickListener
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.Constants
 import com.contusfly.utils.EmojiUtils
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.CustomTextView
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.utils.ChatTimeFormatter
 import com.contusflysdk.utils.CommonUtils
@@ -64,7 +64,7 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
         setCallStatusIcon(holder, callLog)
         updateSelectedItem(holder.itemView, selectedCallLogs.contains(callLog.roomId))
         holder.imageViewCallIcon.setOnClickListener(1000) {
-            if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+            if (CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false).isNotEmpty())
                 listener.onItemClick(holder.imageViewCallIcon, mCallLogsList.indexOf(callLog))
         }
     }
@@ -122,7 +122,7 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
                     || callLog.callState == CallState.MISSED_CALL) callLog.fromUser else callLog.toUser
             if (!endUserJids!!.contains("@"))
                 endUserJids = CommonUtils.getJidFromUser(endUserJids)
-            val profileDetails = ContactManager.getProfileDetails(endUserJids!!)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(endUserJids!!)
             if (profileDetails != null) {
                 profileIcon(holder, profileDetails)
             } else {
@@ -138,16 +138,16 @@ class CallHistorySearchAdapter(val context: Context, private val mCallLogsList: 
     private fun profileIconForManyUsers(holder: CallHistorySearchViewHolder, position: Int) {
         val callLog = mCallLogsList[position]
         if (!callLog.groupId.isNullOrEmpty()) {
-            val profileDetails = ContactManager.getProfileDetails(callLog.groupId!!)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)
             if (profileDetails != null) {
                 profileIcon(holder, profileDetails)
             } else {
                 holder.imgRoster.addImage(arrayListOf(callLog.groupId!!))
-                holder.txtChatPersonName.text = ContactManager.getDisplayName(callLog.groupId!!)
+                holder.txtChatPersonName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
             }
         } else {
-            holder.txtChatPersonName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            holder.imgRoster.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as ArrayList<String>)
+            holder.txtChatPersonName.text = CallUtils.getCallLogUserNames(callLog.fromUser, callLog.userList)
+            holder.imgRoster.addImage(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as ArrayList<String>)
         }
         holder.emailContactIcon.gone()
     }

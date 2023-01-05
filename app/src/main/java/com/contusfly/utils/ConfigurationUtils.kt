@@ -1,12 +1,10 @@
 package com.contusfly.utils
 
-import android.app.NotificationManager
 import android.content.Context
 import android.media.RingtoneManager
-import android.os.Build
 import com.contus.flycommons.FlyCallback
 import com.contusfly.R
-import com.contusfly.utils.NotifyRefererUtils.buildNotificationChannel
+import com.contusfly.notification.AppNotificationManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.FlyCore.getBusyStatusList
 import com.contusflysdk.api.FlyCore.getMyBusyStatus
@@ -38,10 +36,7 @@ class ConfigurationUtils {
                     SharedPreferenceManager.setBoolean(Constants.VIBRATION, false)
                     SharedPreferenceManager.setBoolean(Constants.KEY_CHANGE_FLAG, false)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    buildNotificationChannel(context, notificationManager)
-                }
+                AppNotificationManager.cancelNotifications(context)
             }
         }
 

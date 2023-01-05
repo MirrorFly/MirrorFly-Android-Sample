@@ -4,7 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Parcelable
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -18,7 +19,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.flycommons.*
 import com.contus.flynetwork.ApiCalls
@@ -30,26 +30,28 @@ import com.contus.webrtc.api.CallLogManager
 import com.contus.webrtc.api.CallManager
 import com.contus.call.database.model.CallLog
 import com.contus.call.utils.CallConstants
-import com.contus.call.utils.GroupCallUtils
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.activities.ChatActivity
 import com.contusfly.activities.DashboardActivity
-import com.contusfly.activities.NewContactsActivity
+import com.contusfly.activities.UserListActivity
 import com.contusfly.call.CallConfiguration
 import com.contusfly.call.CallPermissionUtils
+import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.FragmentCallHistoryBinding
 import com.contusfly.di.factory.AppViewModelFactory
+import com.contusfly.helpers.PaginationScrollListener
 import com.contusfly.setOnClickListener
 import com.contusfly.setVisible
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.MediaPermissions
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.ItemClickSupport
 import com.contusflysdk.views.CustomToast
@@ -60,17 +62,13 @@ import kotlin.coroutines.CoroutineContext
 
 class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.CommonDialogClosedListener, CallLogManager.CallLogActionListener {
 
-    /**
-     * if we came to this screen from notification load data in main thread to avoid no call
-     * logs found ui which shows for a second
-     */
-    var isLoadDataOnMainThread: Boolean = false
-
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         println("Coroutine Exception ${TAG}:  ${exception.printStackTrace()}")
     }
 
     private var lastCallAction = ""
+
+    private val mHandler = Handler(Looper.getMainLooper())
 
     @Inject
     lateinit var apiCalls: ApiCalls
@@ -146,7 +144,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         super.onAttach(context)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         callHistoryBinding = FragmentCallHistoryBinding.inflate(inflater, container, false)
         return callHistoryBinding.root
     }
@@ -156,26 +154,39 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         initView()
         setObservers()
         setListeners()
-        viewModel.getCallLogsList(isLoadDataOnMainThread)
-        isLoadDataOnMainThread = false
+        viewModel.addLoaderToTheList()
+        viewModel.getCallLogsList(CallUtils.isCallsTabToBeShown())
+        CallUtils.setCallsTabToBeShown(false)
     }
 
     private fun initView() {
         CallLogManager.setCallLogsListener(object : CallLogManager.CallLogsListener {
             override fun onCallLogsUpdated() {
+                mAdapter.clearCallLogs()
+                viewModel.addLoaderToTheList()
                 viewModel.getCallLogsList(false)
                 Log.d(TAG, "Call Logs Updated")
                 (activity as DashboardActivity).validateMissedCallsCount()
             }
         })
+        mAdapter = CallHistoryAdapter(
+            requireContext(),
+            viewModel.callLogAdapterList,
+            viewModel.selectedCallLogs,
+            listener
+        )
+        mAdapter.setHasStableIds(true)
+        callHistoryBinding.listCallHistory.adapter = mAdapter
+
         callHistoryBinding.listCallHistory.apply {
             layoutManager = LinearLayoutManager(context)
             setItemViewCacheSize(20)
             itemAnimator = null
             setHasFixedSize(true)
             setEmptyView(callHistoryBinding.viewNoCallHistory.root)
+            setScrollListener(layoutManager as LinearLayoutManager)
         }
-        callHistoryBinding.fabAddCall.setVisible(CallConfiguration.isGroupCallEnabled())
+        callHistoryBinding.fabAddCall.setVisible(ChatManager.getAvailableFeatures().isGroupCallEnabled && CallConfiguration.isGroupCallEnabled())
         callHistoryBinding.fabAddCall.setOnClickListener {
             if (callHistoryBinding.fabMakeVoiceCall.isVisible) {
                 callHistoryBinding.fabMakeVoiceCall.hide()
@@ -187,7 +198,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
 
         callHistoryBinding.fabMakeVoiceCall.setOnClickListener(1000) {
-            val intent = Intent(context, NewContactsActivity::class.java).apply {
+            val intent = Intent(context, UserListActivity::class.java).apply {
                 putExtra(com.contusfly.utils.Constants.TITLE, getString(R.string.title_contacts))
                 putExtra(com.contusfly.utils.Constants.MULTI_SELECTION, true)
                 putExtra(com.contusfly.utils.Constants.IS_MAKE_CALL, true)
@@ -200,7 +211,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
 
         callHistoryBinding.fabMakeVideoCall.setOnClickListener(1000) {
-            val intent = Intent(context, NewContactsActivity::class.java).apply {
+            val intent = Intent(context, UserListActivity::class.java).apply {
                 putExtra(com.contusfly.utils.Constants.TITLE, getString(R.string.title_contacts))
                 putExtra(com.contusfly.utils.Constants.MULTI_SELECTION, true)
                 putExtra(com.contusfly.utils.Constants.IS_MAKE_CALL, true)
@@ -213,10 +224,24 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
     }
 
-    private fun setObservers() {
-        viewModel.callLogDiffResult.observe(viewLifecycleOwner, Observer {
-            initCallLogsListAdapter(it)
+    private fun setScrollListener(layoutManager: LinearLayoutManager) {
+        callHistoryBinding.listCallHistory.addOnScrollListener(object : PaginationScrollListener(layoutManager, handler = mHandler){
+            override fun loadMoreItems() {
+                viewModel.getCallLogsList(false)
+            }
+
+            override fun isLastPage(): Boolean {
+                return viewModel.lastPageFetched()
+            }
+
+            override fun isFetching(): Boolean {
+              return viewModel.getUserListFetching()
+            }
         })
+    }
+
+    private fun setObservers() {
+        setPaginationObservers()
         dashBoardViewModel.isUserBlockedUnblockedMe.observe(viewLifecycleOwner, Observer {
             val bundle = Bundle()
             bundle.putInt(AppConstants.NOTIFY_PROFILE_ICON, 3)
@@ -250,20 +275,52 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         profileUpdateObserver()
     }
 
+    private fun setPaginationObservers() {
+        viewModel.callList.observe(viewLifecycleOwner) { userList ->
+            userList?.let {
+                mAdapter.addCallLogList(userList)
+            }
+        }
+
+        viewModel.addLoader.observe(viewLifecycleOwner) {
+            if (it)
+                mAdapter.addLoadingFooter()
+        }
+
+        viewModel.removeLoader.observe(viewLifecycleOwner) {
+            if (it)
+                mAdapter.removeLoadingFooter()
+        }
+
+        viewModel.fetchingError.observe(viewLifecycleOwner) {
+            if (it)
+                CustomToast.show(context, getString(R.string.msg_no_internet))
+        }
+    }
+
     private fun profileUpdateObserver() {
-        dashBoardViewModel.profileUpdatedLiveData.observe(viewLifecycleOwner, { userJid ->
+        dashBoardViewModel.profileUpdatedLiveData.observe(viewLifecycleOwner) { userJid ->
             val bundle = Bundle()
             bundle.putInt(AppConstants.NOTIFY_PROFILE_ICON, 3)
             getIndicesOfUserInCallLog(userJid, true).forEachIndexed { _, _ ->
                 if (mCallLogsType == CallLogsType.NORMAL && (callHistoryBinding.listCallHistory.adapter is CallHistoryAdapter)) {
                     mAdapter.notifyDataSetChanged()
                 } else if (mCallLogsType == CallLogsType.SEARCH && (callHistoryBinding.listCallHistory.adapter is CallHistorySearchAdapter)) {
-                    mAdapter.notifyDataSetChanged()
+                    mSearchAdapter.notifyDataSetChanged()
                 }
             }
-        })
+        }
         dashBoardViewModel.callsSearchKey.observe(viewLifecycleOwner, Observer { doSearch(it) })
         viewModel.filteredCallLogsList.observe(viewLifecycleOwner, Observer { observeFilteredCallLogs(it) })
+        viewModel.updatedFeaturesLiveData.observe(viewLifecycleOwner) {
+            callHistoryBinding.fabAddCall.setVisible(it.isGroupCallEnabled)
+            if (it.isGroupCallEnabled) {
+                if (callHistoryBinding.listCallHistory.adapter == null)
+                    callHistoryBinding.listCallHistory.adapter = mAdapter
+                else
+                    setAdapterBasedOnSearchType()
+            }
+        }
     }
 
     private fun doSearch(searchKey: String) {
@@ -285,6 +342,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     private fun observeFilteredCallLogs(callLogs: List<CallLog>) {
         mSearchCallLogs.clear()
         mSearchCallLogs.addAll(callLogs)
+        callHistoryBinding.listCallHistory.recycledViewPool.clear() // This line is used to clear recycle pool while reloading the data
         mSearchAdapter.notifyDataSetChanged()
     }
 
@@ -342,26 +400,6 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
 
     }
 
-    private fun initCallLogsListAdapter(diffUtilResult: DiffUtil.DiffResult?) {
-        if (!::mAdapter.isInitialized) {
-            mAdapter = CallHistoryAdapter(
-                requireContext(),
-                viewModel.callLogAdapterList,
-                viewModel.selectedCallLogs,
-                listener
-            )
-            mAdapter.setHasStableIds(true)
-            callHistoryBinding.listCallHistory.adapter = mAdapter
-        } else {
-            // Save Current Scroll state to retain scroll position after DiffUtils Applied
-            val previousState =
-                callHistoryBinding.listCallHistory.layoutManager?.onSaveInstanceState() as Parcelable
-            diffUtilResult!!.dispatchUpdatesTo(mAdapter)
-            callHistoryBinding.listCallHistory.layoutManager?.onRestoreInstanceState(previousState)
-            mAdapter.notifyDataSetChanged()
-        }
-    }
-
     private fun handleOnItemClicked(view: View, position: Int) {
         if (viewModel.selectedCallLogs.isEmpty())
             openChatView(view, position)
@@ -398,7 +436,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                 || callLog.callState == CallState.MISSED_CALL)
             callLog.fromUser else callLog.toUser
 
-        if (!callLog.groupId.isNullOrEmpty() || (!callLog.userList.isNullOrEmpty() && callLog.userList!!.filter { it != GroupCallUtils.getLocalUserJid() }.size > 1)) {
+        if (!callLog.groupId.isNullOrEmpty() || (!callLog.userList.isNullOrEmpty() && callLog.userList!!.filter { it != CallManager.getCurrentUserId() }.size > 1)) {
             openGroupChatView(callLog, view)
         } else {
             openDirectChatView(callLog, view, toUser)
@@ -406,7 +444,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     }
 
     private fun openDirectChatView(callLog: CallLog, view: View, toUser: String?) {
-        val profileDetails = ContactManager.getProfileDetails(toUser!!)
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(toUser!!)
         val mTempUserListWithoutOwnJid = callLog.userList
         mTempUserListWithoutOwnJid?.remove(SharedPreferenceManager.instance.currentUserJid)
         if (!mTempUserListWithoutOwnJid.isNullOrEmpty() && mTempUserListWithoutOwnJid.size >= 2) {
@@ -445,7 +483,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                 arrayListOf(profileDetails.jid)
             )
         } else {
-            val userProfile = FlyCore.getUserProfile(jid)
+            val userProfile = ProfileDetailsUtils.getProfileDetails(jid)
             if (userProfile != null && userProfile.isAdminBlocked) {
                 LogMessage.d(TAG, getString(R.string.user_block_message_label))
                 return
@@ -467,14 +505,15 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                 return
             }
 
-            if(CallConfiguration.isGroupCallEnabled()) {
+            if (CallConfiguration.isGroupCallEnabled()) {
                 makeCall(
                     callLog.callType!!,
                     callLog.groupId,
                     false, false,
-                    GroupCallUtils.getConferenceUserList(
+                    CallUtils.getCallLogUserJidList(
                         callLog.fromUser,
-                        callLog.userList
+                        callLog.userList,
+                        false
                     ) as java.util.ArrayList<String>
                 )
             } else {
@@ -487,9 +526,9 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
 
     private fun isAdminBlocked(callLog: CallLog): Boolean {
         return if (callLog.callMode == CallMode.ONE_TO_ONE && (callLog.userList == null || callLog.userList!!.size < 2)) {
-            ContactManager.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
+            ProfileDetailsUtils.getProfileDetails(if (callLog.callState == CallState.OUTGOING_CALL) callLog.toUser!! else callLog.fromUser!!)!!.isAdminBlocked
         } else if (callLog.groupId!!.isNotEmpty()) {
-            ContactManager.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
+            ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)!!.isAdminBlocked
         } else false
     }
 
@@ -507,12 +546,12 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     ) {
         lastCallAction = callType
         if (callType == CallType.AUDIO_CALL) {
-            GroupCallUtils.setIsCallStarted(CallType.AUDIO_CALL)
+            CallUtils.setIsCallStarted(CallType.AUDIO_CALL)
             callPermissionUtils = CallPermissionUtils(
                 requireActivity(), isBlocked, isAdminBlocked, jidList, groupId
                     ?: "", false
             )
-            if (CallManager.isAudioCallPermissionsGranted()) {
+            if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) {
                 callPermissionUtils.audioCall()
             } else {
                 MediaPermissions.requestAudioCallPermissions(
@@ -522,12 +561,12 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
                 )
             }
         } else if (callType == CallType.VIDEO_CALL) {
-            GroupCallUtils.setIsCallStarted(CallType.VIDEO_CALL)
+            CallUtils.setIsCallStarted(CallType.VIDEO_CALL)
             callPermissionUtils = CallPermissionUtils(
                 requireActivity(), isBlocked, isAdminBlocked, jidList, groupId
                     ?: "", false
             )
-            if (CallManager.isVideoCallPermissionsGranted()) {
+            if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) {
                 callPermissionUtils.videoCall()
             } else {
                 MediaPermissions.requestVideoCallPermissions(
@@ -540,7 +579,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         //if it is not a blocked contact , clear the value. so that we can avoid unknown calls
         //happening due to onBlockListCallBack() callback from CfBaseActivity.
         if (!isBlocked)
-            GroupCallUtils.setIsCallStarted(null)
+            CallUtils.setIsCallStarted(null)
     }
 
     /**

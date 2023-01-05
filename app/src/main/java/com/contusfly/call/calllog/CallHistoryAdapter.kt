@@ -2,7 +2,6 @@ package com.contusfly.call.calllog
 
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,44 +16,94 @@ import com.contus.webrtc.CallState
 import com.contus.webrtc.CallType
 import com.contus.call.database.model.CallLog
 import com.contus.call.utils.CallTimeFormatter
-import com.contus.call.utils.GroupCallUtils
-import com.contusfly.R
-import com.contusfly.gone
-import com.contusfly.isDeletedContact
-import com.contusfly.setOnClickListener
+import com.contusfly.*
+import com.contusfly.adapters.holders.ProgressViewHolder
+import com.contusfly.call.groupcall.utils.CallUtils
+import com.contusfly.databinding.RowProgressBarBinding
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.ChatMessageUtils
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CircularImageView
 import com.contusfly.views.CustomTextView
-import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import java.util.*
 
 class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayList<CallLog>, private val selectedCallLogs: ArrayList<String>, private var listener: OnItemClickListener)
-    : RecyclerView.Adapter<CallHistoryAdapter.CallHistoryViewHolder>() {
+    : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    override fun onViewRecycled(holder: CallHistoryViewHolder) {
-        super.onViewRecycled(holder)
-        Log.d("CallHistoryAdapter", holder.txtChatPersonName.text.toString())
-    }
+    private var isLoadingAdded = false
+    private var loaderPosition = -1
 
     interface OnItemClickListener {
         fun onItemClick(view: ImageView, position: Int)
     }
 
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CallHistoryViewHolder {
-        return CallHistoryViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.row_call_logs, parent, false))
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == AppConstants.ITEM) {
+            CallHistoryViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.row_call_logs, parent, false))
+        } else {
+                val progressViewHolder = RowProgressBarBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+                ProgressViewHolder(progressViewHolder)
+            }
+        }
 
     override fun getItemCount(): Int {
         return callLogsList.size
     }
 
-    override fun onBindViewHolder(holder: CallHistoryViewHolder, position: Int) {
-        holder.txtChatPersonName?.viewTreeObserver?.addOnGlobalLayoutListener { ChatMessageUtils.fixEmojiAfterEllipses(holder.txtChatPersonName) }
+    override fun getItemViewType(position: Int): Int {
+        return if (!callLogsList[position].isDisplay) AppConstants.LOADING else AppConstants.ITEM
+    }
 
-        val callLog = callLogsList[position]
+    fun clearCallLogs() {
+        callLogsList.clear()
+        notifyDataSetChanged()
+    }
+
+    fun addLoadingFooter() {
+        if (!isLoadingAdded) {
+            isLoadingAdded = true
+            callLogsList.add(CallLog())
+            loaderPosition = callLogsList.size - 1
+            notifyItemInserted(loaderPosition)
+        }
+    }
+
+    fun removeLoadingFooter() {
+        if (isLoadingAdded) {
+            isLoadingAdded = false
+            if (loaderPosition.isValidIndex() && callLogsList.size > loaderPosition) {
+                callLogsList.removeAt(loaderPosition)
+                notifyItemRemoved(loaderPosition)
+                loaderPosition = -1
+            }
+        }
+    }
+
+    fun addCallLogList(callList : List<CallLog>) {
+        val startIndex = callLogsList.size
+        callLogsList.addAll(callList)
+        notifyItemRangeInserted(startIndex, callList.size)
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when(holder) {
+            is CallHistoryViewHolder -> {
+                bindCallData(holder, callLogsList[position], position)
+            }
+            is ProgressViewHolder -> {
+                holder.progressViewBinding.loadMoreProgress.show()
+            }
+        }
+    }
+
+    private fun bindCallData(
+        holder: CallHistoryViewHolder,
+        callLog: CallLog,
+        position: Int
+    ) {
+        holder.txtChatPersonName?.viewTreeObserver?.addOnGlobalLayoutListener { ChatMessageUtils.fixEmojiAfterEllipses(holder.txtChatPersonName) }
 
         if (callLog.callTime != null)
             holder.txtCallTime.text = CallTimeFormatter.getCallTime(context, callLog.callTime!! / 1000)
@@ -64,15 +113,15 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
         setCallStatusIcon(holder, callLog)
         updateSelectedItem(holder.itemView, selectedCallLogs.contains(callLog.roomId))
         holder.imageViewCallIcon.setOnClickListener(1000) {
-            if (GroupCallUtils.getConferenceUserList(callLog.fromUser, callLog.userList).isNotEmpty())
+            if (CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList, false).isNotEmpty())
                 listener.onItemClick(holder.imageViewCallIcon, callLogsList.indexOf(callLog))
         }
     }
 
-    override fun onBindViewHolder(holder: CallHistoryViewHolder, position: Int, payloads: MutableList<Any>) {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.isEmpty())
             onBindViewHolder(holder, position)
-        else {
+        else if (holder is CallHistoryViewHolder){
             val bundle = payloads[0] as Bundle
             handlePayloads(bundle, holder, position)
         }
@@ -135,13 +184,13 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
     private fun setUserView(holder: CallHistoryViewHolder, position: Int) {
 
         if (callLogsList[position].callMode == CallMode.ONE_TO_ONE && (callLogsList[position].userList == null || callLogsList[position].userList!!.size < 2)) {
-            val profileDetails = ContactManager.getProfileDetails(if (callLogsList[position].callState == CallState.OUTGOING_CALL) callLogsList[position].toUser!! else callLogsList[position].fromUser!!)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(if (callLogsList[position].callState == CallState.OUTGOING_CALL) callLogsList[position].toUser!! else callLogsList[position].fromUser!!)
             if (profileDetails != null) {
                 profileIcon(holder, profileDetails)
                 holder.emailContactIcon.gone()
             } else {
                 holder.imgRoster.addImage(arrayListOf(callLogsList[position].fromUser!!))
-                holder.txtChatPersonName.text = ContactManager.getDisplayName(callLogsList[position].fromUser!!)
+                holder.txtChatPersonName.text = ProfileDetailsUtils.getDisplayName(callLogsList[position].fromUser!!)
             }
         } else {
             profileIconForManyUsers(holder, position)
@@ -156,17 +205,17 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
     private fun profileIconForManyUsers(holder: CallHistoryViewHolder, position: Int) {
         val callLog = callLogsList[position]
         if (!callLog.groupId.isNullOrEmpty()) {
-            val profileDetails = ContactManager.getProfileDetails(callLog.groupId!!)
+            val profileDetails = ProfileDetailsUtils.getProfileDetails(callLog.groupId!!)
             if (profileDetails != null) {
                 profileIcon(holder, profileDetails)
                 holder.emailContactIcon.gone()
             } else {
                 holder.imgRoster.addImage(arrayListOf(callLog.groupId!!))
-                holder.txtChatPersonName.text = ContactManager.getDisplayName(callLog.groupId!!)
+                holder.txtChatPersonName.text = ProfileDetailsUtils.getDisplayName(callLog.groupId!!)
             }
         } else {
-            holder.txtChatPersonName.text = GroupCallUtils.getConferenceUsers(callLog.fromUser, callLog.userList)
-            holder.imgRoster.addImage(GroupCallUtils.getCallLogUsersList(callLog.fromUser, callLog.userList) as ArrayList<String>)
+            holder.txtChatPersonName.text = CallUtils.getCallLogUserNames(callLog.fromUser, callLog.userList)
+            holder.imgRoster.addImage(CallUtils.getCallLogUserJidList(callLog.fromUser, callLog.userList) as ArrayList<String>)
         }
         holder.emailContactIcon.gone()
     }
@@ -190,9 +239,9 @@ class CallHistoryAdapter(val context: Context, private val callLogsList: ArrayLi
     private fun setIconAlpha(holder: CallHistoryViewHolder, callLogs: CallLog) {
         try {
             val profile = if (callLogs.callMode == CallMode.ONE_TO_ONE && (callLogs.userList == null || callLogs.userList!!.size < 2)) {
-                ContactManager.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
+                ProfileDetailsUtils.getProfileDetails(if (callLogs.callState == CallState.OUTGOING_CALL) callLogs.toUser!! else callLogs.fromUser!!)
             } else if (!callLogs.groupId.isNullOrBlank()) {
-                ContactManager.getProfileDetails(callLogs.groupId!!)
+                ProfileDetailsUtils.getProfileDetails(callLogs.groupId!!)
             } else null
 
             val adminBlockedStatus = profile?.isAdminBlocked ?: false

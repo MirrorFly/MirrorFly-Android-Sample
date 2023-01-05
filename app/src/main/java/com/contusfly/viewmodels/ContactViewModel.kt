@@ -31,13 +31,13 @@ class ContactViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             if (fromGroupInfo && !groupId.isNullOrEmpty()) {
                 val profileDetails = GroupManager.getUsersListToAddMembersInOldGroup(groupId)
-                contactDetailsList.value = updateProfiles(profileDetails)
+                contactDetailsList.value = ProfileDetailsUtils.removeAdminBlockedProfiles(profileDetails, true)
                 getContactDiffResult()
             } else {
-                FlyCore.getFriendsList(false) { isSuccess, throwable, data ->
+                FlyCore.getRegisteredUsers(false) { isSuccess, throwable, data ->
                     if (isSuccess) {
                         val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
-                        contactDetailsList.value = updateProfiles(profileDetails)
+                        contactDetailsList.value = ProfileDetailsUtils.removeAdminBlockedProfiles(profileDetails, true)
                         getContactDiffResult()
                     }
                 }
@@ -45,29 +45,22 @@ class ContactViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    private fun updateProfiles(profileDetails: List<ProfileDetails>): List<ProfileDetails> {
-        val filteredProfiles = mutableListOf<ProfileDetails>()
-        val profiles = ProfileDetailsUtils.sortProfileList(profileDetails)
-        profiles.forEach { profileDetail ->
-            if (!profileDetail.isAdminBlocked) filteredProfiles.add(profileDetail)
-        }
-        return filteredProfiles
-    }
+
 
     fun getUpdatedContactList(fromGroupInfo: Boolean, groupId: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             if (fromGroupInfo && !groupId.isNullOrEmpty()) {
                 val profileDetails = GroupManager.getUsersListToAddMembersInOldGroup(groupId)
                 viewModelScope.launch(Dispatchers.Main) {
-                    contactDetailsList.value = updateProfiles(profileDetails)
+                    contactDetailsList.value = ProfileDetailsUtils.removeAdminBlockedProfiles(profileDetails, true)
                     getContactDiffResult()
                 }
             } else {
-                FlyCore.getFriendsList(true) { isSuccess, throwable, data ->
+                FlyCore.getRegisteredUsers(true) { isSuccess, throwable, data ->
                     if (isSuccess) {
                         val profileDetails = data[SDK_DATA] as MutableList<ProfileDetails>
                         viewModelScope.launch(Dispatchers.Main) {
-                            contactDetailsList.value = updateProfiles(profileDetails)
+                            contactDetailsList.value = ProfileDetailsUtils.removeAdminBlockedProfiles(profileDetails, true)
                             getContactDiffResult()
                         }
                     }

@@ -16,7 +16,6 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.flycommons.ChatType
 import com.contus.flycommons.FlyCallback
-import com.contus.xmpp.chat.models.Profile
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
 import com.contusfly.adapters.RecentChatListAdapter
@@ -27,6 +26,7 @@ import com.contusfly.fragments.ProfileDialogFragment
 import com.contusfly.interfaces.RecentChatEvent
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
+import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
@@ -78,7 +78,7 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
 
     private lateinit var searchKey: String
 
-    private val mArchiveSearchList = ArrayList<RecentSearch>()
+    private val mArchiveSearchList = ArrayList<com.contusfly.models.RecentSearch>()
 
     private val mSearchAdapter by lazy { RecentChatSearchAdapter(this, mArchiveSearchList) }
 
@@ -134,7 +134,7 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
                 return@onProfileClickedCallback
             }
             if (item.isSingleChat()) {
-                val profileDetails = ContactManager.getProfileDetails(item.jid)
+                val profileDetails = ProfileDetailsUtils.getProfileDetails(item.jid)
                 if (profileDetails != null)
                     showProfileDialog(profileDetails)
             } else {
@@ -269,9 +269,9 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
     /**
      * Called when get updated user profile.
      */
-    override fun profileCallback(profile: Profile) {
-        super.profileCallback(profile)
-        viewModel.profileUpdatedLiveData.value = profile.jid
+    override fun userProfileFetched(jid: String, profileDetails: ProfileDetails) {
+        super.userProfileFetched(jid, profileDetails)
+        viewModel.profileUpdatedLiveData.value = jid
     }
 
     /**
@@ -499,7 +499,7 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
         mSearchAdapter.setRecentChatCount(list.size)
 
         for (recent in list) {
-            val searchItem = RecentSearch(recent.jid, recent.lastMessageId, Constants.TYPE_SEARCH_RECENT, recent.getChatTypeEnum().toString(), true)
+            val searchItem = com.contusfly.models.RecentSearch(recent.jid, recent.lastMessageId, Constants.TYPE_SEARCH_RECENT, recent.getChatTypeEnum().toString(), true,ProfileDetails())
             mArchiveSearchList.add(searchItem)
         }
         mSearchAdapter.setRecentSearch(mArchiveSearchList, searchKey)
@@ -657,7 +657,7 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
         val selectedMessages = viewModel.selectedChats
         // Delete the one chat
         val deleteAlertMessage = if (selectedMessages.size == 1) {
-            val userNickName = ContactManager.getDisplayName(selectedMessages[0].jid)
+            val userNickName = ProfileDetailsUtils.getDisplayName(selectedMessages[0].jid)
             String.format(getString(R.string.msg_delete_chat_single_conversation), userNickName)
         } else String.format(getString(R.string.msg_delete_chat_multiple_conversation), selectedMessages.size)// Delete the multiple chats
         commonAlertDialog.showAlertDialog(deleteAlertMessage, getString(R.string.action_yes), getString(R.string.action_no),

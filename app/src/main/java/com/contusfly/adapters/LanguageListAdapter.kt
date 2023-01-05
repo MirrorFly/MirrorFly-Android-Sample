@@ -1,6 +1,7 @@
 package com.contusfly.adapters
 
 import android.app.Activity
+import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,11 +17,16 @@ import com.location.googletranslation.pojo.Languages
  * @author ContusTeam <developers@contus.in>
  * @version 1.0
  */
-class LanguageListAdapter(activity: Activity, list: List<Languages>) : RecyclerView.Adapter<LanguageListAdapter.LanguageViewHolder>() {
+class LanguageListAdapter(activity: Activity, list: MutableList<Languages>) : RecyclerView.Adapter<LanguageListAdapter.LanguageViewHolder>() {
 
     private var mActivity: Activity? = null
 
-    private var mLanguageList: List<Languages>? = null
+    private var mLanguageList: MutableList<Languages>? = mutableListOf()
+
+    /**
+     * The countries list temporary for the search view.
+     */
+    private var languageTempData: MutableList<Languages>? = mutableListOf()
 
     /**
      * Instantiates
@@ -29,7 +35,9 @@ class LanguageListAdapter(activity: Activity, list: List<Languages>) : RecyclerV
      */
     init {
         this.mActivity = activity
-        this.mLanguageList = list
+        languageTempData?.clear()
+        this.languageTempData = list
+        this.mLanguageList?.addAll(languageTempData!!)
     }
 
     class LanguageViewHolder(var viewBinding: RowLanguageListBinding) : RecyclerView.ViewHolder(viewBinding.root)
@@ -40,7 +48,7 @@ class LanguageListAdapter(activity: Activity, list: List<Languages>) : RecyclerV
     }
 
     override fun onBindViewHolder(holder: LanguageViewHolder, position: Int) {
-        val item = mLanguageList!![position]
+        val item = languageTempData!![position]
         holder.viewBinding.languageText.text = item.name
         holder.viewBinding.languageSelected.visibility = if (SharedPreferenceManager.getString(
                 Constants.GOOGLE_TRANSLATION_LANGUAGE_CODE) == item.language) View.VISIBLE else View.INVISIBLE
@@ -52,6 +60,24 @@ class LanguageListAdapter(activity: Activity, list: List<Languages>) : RecyclerV
     }
 
     override fun getItemCount(): Int {
-        return mLanguageList!!.size
+        return languageTempData!!.size
+    }
+
+    /**
+     * Filter the language view after the search in the country list.
+     *
+     * @param filterKey Search key
+     */
+    fun filter(filterKey: String) {
+        languageTempData?.clear()
+        // Validate whether the search key is empty while searching
+        if (TextUtils.isEmpty(filterKey)) {
+            languageTempData?.addAll(mLanguageList!!)
+        } else {
+            for (mKey in mLanguageList!!) {
+                if (mKey.language.toLowerCase().contains(filterKey.toLowerCase()) || mKey.name.toLowerCase().contains(filterKey.toLowerCase()))
+                    languageTempData?.add(mKey)
+            }
+        }
     }
 }

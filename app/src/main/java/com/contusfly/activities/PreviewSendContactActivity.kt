@@ -11,6 +11,8 @@ import com.contusfly.applySrcInColorFilter
 import com.contusfly.databinding.ActivityPreviewSendContactBinding
 import com.contusfly.models.DeviceContactModel
 import com.contusfly.utils.UserInterfaceUtils
+import com.contusfly.views.CustomAlertDialog
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.views.CustomToast
 import java.util.ArrayList
 
@@ -48,6 +50,10 @@ class PreviewSendContactActivity : BaseActivity() {
         previewSendContactBinding.buttonSendContact.setOnClickListener {
             if (contactsList.any { !it.mobileNumbers.any {  number -> number.isSelected } }) {
                 CustomToast.show(this, getString(R.string.error_select_atleast_one_number))
+                return@setOnClickListener
+            }
+            if (!ChatManager.getAvailableFeatures().isContactAttachmentEnabled) {
+                CustomAlertDialog().showFeatureRestrictionAlert(this)
                 return@setOnClickListener
             }
             val selectedList = mutableListOf<DeviceContactModel>()

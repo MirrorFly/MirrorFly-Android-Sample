@@ -1,18 +1,18 @@
 package com.contusfly.call.groupcall
 
+import android.app.Activity
 import android.content.Context
 import android.os.Bundle
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.BlendModeColorFilterCompat
 import androidx.core.graphics.BlendModeCompat
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.viewpager.widget.ViewPager
 import com.contus.flycommons.Constants
 import com.contus.flycommons.LogMessage
 import com.contusfly.*
@@ -25,9 +25,9 @@ import dagger.android.support.AndroidSupportInjection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import java.util.ArrayList
 import kotlin.coroutines.CoroutineContext
-import android.app.Activity
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayoutMediator
 
 
 class ParticipantsListFragment : Fragment(), CoroutineScope {
@@ -36,7 +36,7 @@ class ParticipantsListFragment : Fragment(), CoroutineScope {
 
     private lateinit var tabLayout: TabLayout
 
-    private lateinit var mViewPager: ViewPager
+    private lateinit var mViewPager: ViewPager2
 
     private lateinit var mAdapter: ViewPagerAdapter
 
@@ -96,7 +96,7 @@ class ParticipantsListFragment : Fragment(), CoroutineScope {
         toolbar.navigationIcon?.colorFilter = BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
             ContextCompat.getColor(requireContext(), R.color.color_blue), BlendModeCompat.SRC_ATOP)
         toolbar.setNavigationOnClickListener { requireActivity().supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE) }
-        mAdapter = ViewPagerAdapter(childFragmentManager, addFragmentsToViewPagerAdapter(),
+        mAdapter = ViewPagerAdapter(requireActivity(), addFragmentsToViewPagerAdapter(),
             arrayOf(getString(R.string.label_participants), getString(R.string.label_add_participants)))
         tabLayout = participantsListBinding.tabs
         mViewPager = participantsListBinding.viewPager
@@ -108,39 +108,19 @@ class ParticipantsListFragment : Fragment(), CoroutineScope {
 
     private fun setUpTabLayout() {
         tabLayout.show()
-        tabLayout.setupWithViewPager(mViewPager)
-
-        val viewChats = layoutInflater.inflate(R.layout.custom_tabs, null)
-        val viewCalls = layoutInflater.inflate(R.layout.custom_tabs, null)
-
-        tabLayout.getTabAt(0)?.customView = viewChats
-        tabLayout.getTabAt(1)?.customView = viewCalls
-
-        participantsTextView = viewChats.findViewById(R.id.text)
-        addParticipantsTextView = viewCalls.findViewById(R.id.text)
-
-        participantsTextView.text = getString(R.string.label_participants)
-        addParticipantsTextView.text = getString(R.string.label_add_participants)
-
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener{
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                tabPosition = tab!!.position
-                setUpTabColors(tabPosition)
-                if (tabPosition == 0) {
-                    hideKeyboard(requireContext())
-                    addParticipantsListFragment.filterResult(Constants.EMPTY_STRING)
-                }
+        TabLayoutMediator(tabLayout, mViewPager) { tab, position ->
+            if (position == 0) {
+                val viewChats = layoutInflater.inflate(R.layout.custom_tabs, null)
+                tab.customView = viewChats
+                participantsTextView = viewChats.findViewById(R.id.text)
+                participantsTextView.text = getString(R.string.label_participants)
+            } else {
+                val viewCalls = layoutInflater.inflate(R.layout.custom_tabs, null)
+                tab.customView = viewCalls
+                addParticipantsTextView = viewCalls.findViewById(R.id.text)
+                addParticipantsTextView.text = getString(R.string.label_add_participants)
             }
-
-            override fun onTabUnselected(tab: TabLayout.Tab?) {
-                LogMessage.d(TAG, "${com.contus.call.CallConstants.CALL_UI} tab position == ${tab!!.position}")
-            }
-
-            override fun onTabReselected(tab: TabLayout.Tab?) {
-                LogMessage.d(TAG, "${com.contus.call.CallConstants.CALL_UI} tab position == ${tab!!.position}")
-            }
-
-        })
+        }.attach()
     }
 
     fun hideKeyboard(context: Context) {
@@ -157,7 +137,16 @@ class ParticipantsListFragment : Fragment(), CoroutineScope {
     private fun setUpViewPager() {
         mViewPager.offscreenPageLimit = 2
         mViewPager.adapter = mAdapter
-        mViewPager.addOnPageChangeListener(TabLayout.TabLayoutOnPageChangeListener(tabLayout))
+        mViewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                tabPosition = position
+                setUpTabColors(tabPosition)
+                if (tabPosition == 0) {
+                    hideKeyboard(requireContext())
+                    addParticipantsListFragment.filterResult(Constants.EMPTY_STRING)
+                }
+            }
+        })
     }
 
     private fun addFragmentsToViewPagerAdapter(): ArrayList<Fragment> {
@@ -218,13 +207,13 @@ class ParticipantsListFragment : Fragment(), CoroutineScope {
         })
 
         menuItem?.setOnActionExpandListener(object : MenuItem.OnActionExpandListener {
-            override fun onMenuItemActionExpand(item: MenuItem?): Boolean {
+            override fun onMenuItemActionExpand(item: MenuItem): Boolean {
                 tabLayout.gone()
                 searchKey!!.maxWidth = Integer.MAX_VALUE
                 return true
             }
 
-            override fun onMenuItemActionCollapse(item: MenuItem?): Boolean {
+            override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
                 tabLayout.show()
                 return true
             }

@@ -53,6 +53,7 @@ import com.contusfly.utils.*
 import com.contusfly.utils.ChatUtils.getUserFromJid
 import com.contusfly.utils.ChatUtils.setSelectedChatItem
 import com.contusfly.utils.Constants
+import com.contusfly.utils.ImageUtils.loadMapWithGlide
 import com.contusfly.utils.LogMessage
 import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
 import com.contusfly.utils.SharedPreferenceManager
@@ -60,11 +61,8 @@ import com.contusfly.views.SetDrawable
 import com.contusflysdk.api.ChatManager.getUserProfileName
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
 import com.contusflysdk.api.MessageStatus
-import com.contusflysdk.api.contacts.ContactManager.getProfileDetails
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.api.models.ContactChatMessage
-import com.contusflysdk.api.utils.ImageUtils.loadMapWithGlide
 import com.contusflysdk.utils.Utils
 import io.github.rockerhieu.emojicon.EmojiconTextView
 import java.text.ParseException
@@ -622,15 +620,13 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
     private fun getStarredAudioViewSender(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
         try {
             val time: String = getChatMsgTime(item)!!
-            val filePath = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaLocalStoragePath())
             setHeader(holder, SENDER_HEADER, item)
             val starredAudioSenderViewHolder = holder as AudioSentViewHolder
             starredAudioItemView!!.disableSenderAudioViews(starredAudioSenderViewHolder, true)
             starredAudioItemView!!.audioSenderItemView(starredAudioSenderViewHolder, time, item)
-            starredAudioPlayClick(filePath, item.getMediaChatMessage().getMediaDuration(),
-                    position, starredAudioSenderViewHolder.imgAudioPlay,
-                    starredAudioSenderViewHolder.audioMirrorFlySeekBar,
-                    starredAudioSenderViewHolder.txtAudioDuration, true)
+            starredAudioPlayClick(item,holder,position, starredAudioSenderViewHolder.imgAudioPlay,
+                starredAudioSenderViewHolder.audioMirrorFlySeekBar,
+                starredAudioSenderViewHolder.txtAudioDuration, true)
             replyViewUtils!!.showSenderReplyWindow(starredAudioSenderViewHolder, item, context!!)
             mMediaController!!.checkStateOfPlayer(starredAudioSenderViewHolder.imgAudioPlay,
                     starredAudioSenderViewHolder.audioMirrorFlySeekBar,
@@ -664,15 +660,13 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
     private fun getStarredAudioViewReceiver(holder: RecyclerView.ViewHolder, item: ChatMessage, position: Int) {
         try {
             val time: String = getChatMsgTime(item)!!
-            val filePath = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaLocalStoragePath())
             setHeader(holder, RECEIVER_HEADER, item)
             val starredAudioReceiverViewHolder = holder as AudioReceivedViewHolder
             starredAudioItemView!!.disableReceiverAudioViews(starredAudioReceiverViewHolder, true)
             starredAudioItemView!!.audioReceiverItemView(starredAudioReceiverViewHolder, time, item)
-            starredAudioPlayClick(filePath, item.getMediaChatMessage().getMediaDuration(),
-                    position, starredAudioReceiverViewHolder.imgAudioPlay,
-                    starredAudioReceiverViewHolder.audioMirrorFlySeekBar,
-                    starredAudioReceiverViewHolder.txtAudioDuration, false)
+            starredAudioPlayClick(item,holder,position, starredAudioReceiverViewHolder.imgAudioPlay,
+                starredAudioReceiverViewHolder.audioMirrorFlySeekBar,
+                starredAudioReceiverViewHolder.txtAudioDuration, false)
             mMediaController!!.checkStateOfPlayer(starredAudioReceiverViewHolder.imgAudioPlay,
                     starredAudioReceiverViewHolder.audioMirrorFlySeekBar,
                     starredAudioReceiverViewHolder.txtAudioDuration, position)
@@ -860,7 +854,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
      * @param item   message item
      */
     private fun setHeader(holder: RecyclerView.ViewHolder, type: Int, item: ChatMessage) {
-        val profileDetails = getProfileDetails(item.getChatUserJid())
+        val profileDetails = ProfileDetailsUtils.getProfileDetails(item.getChatUserJid())
         if (type == SENDER_HEADER) {
             val userName = getUserProfileName()
             val setDrawable = SetDrawable(context!!, profileDetails)
@@ -896,7 +890,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
         var groupUser = Constants.EMPTY_STRING
         val setDrawable: SetDrawable
         if (item.getMessageChatType() == ChatTypeEnum.groupchat) {
-            val profileGroupUser = getProfileDetails(item.senderUserJid)
+            val profileGroupUser = ProfileDetailsUtils.getProfileDetails(item.senderUserJid)
             groupUser = if (profileGroupUser != null && profileGroupUser.name != null && profileGroupUser.name.isNotEmpty()) profileGroupUser.name
             else Utils.getFormattedPhoneNumber(getUserFromJid(profileGroupUser!!.jid))
             profileNickName = profileGroupUser.name
@@ -942,7 +936,7 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
      * @return time
      */
     private fun getChatMsgTime(item: ChatMessage): String? {
-        return ChatMsgTime().getDaySentMsg(context, item.getMessageSentTime())
+        return ChatMsgTime(Calendar.getInstance()).getDaySentMsg(context, item.getMessageSentTime())
     }
 
     /**
@@ -1062,17 +1056,57 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
      * @param durationView    Duration text view
      * @param doesSentMessage Boolean to identify whether the audio message is posted in the chat activity.
      */
-    private fun starredAudioPlayClick(filePath: String, duration: Long, position: Int, playImage: ImageView,
+    private fun starredAudioPlayClick(item: ChatMessage,holder: RecyclerView.ViewHolder, position: Int, playImage: ImageView,
                                       seekBar: SeekBar, durationView: TextView, doesSentMessage: Boolean) {
         playImage.setOnClickListener { v: View? ->
-            if (mMediaController!!.currentAudioPosition != -1 && position != mMediaController!!.currentAudioPosition) mMediaController!!.resetAudioPlayer()
-            mMediaController!!.setMediaResource(filePath, duration, playImage, doesSentMessage)
+            val filePath = Utils.returnEmptyStringIfNull(item.getMediaChatMessage().getMediaLocalStoragePath())
+            if (mMediaController!!.currentAudioPosition != -1 && position != mMediaController!!.currentAudioPosition) mMediaController!!.resetAudioPlayer(false)
+            mMediaController!!.setMediaResource(filePath, item.getMediaChatMessage().getMediaDuration(), playImage, doesSentMessage)
             mMediaController!!.setMediaSeekBar(seekBar)
             mMediaController!!.setMediaTimer(durationView)
             mMediaController!!.currentAudioPosition = position
             mMediaController!!.handlePlayer(doesSentMessage)
         }
+        setAudioSeekBarListener(item, holder, playImage, seekBar, durationView)
     }
+
+    /**
+     * Handle the audio seekbar click
+     *
+     * @param item            Message Item data
+     * @param holder          View holder of current view in adapter
+     * @param playImage       Play button of the audio view
+     * @param SeekBar         Seek bar of the audio
+     * @param doesSentMessage Boolean to identify whether the audio message is posted in the
+     * @param durationView to set  duration in the audio
+     */
+    private fun setAudioSeekBarListener(item: ChatMessage, holder: RecyclerView.ViewHolder, playImage: ImageView, starredMsgSeekBar: SeekBar,
+                                         durationView: TextView) {
+        with(holder) {
+            val media = item.getMediaChatMessage()
+            starredMsgSeekBar.setOnSeekBarChangeListener((object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(
+                    seekBar: SeekBar?,
+                    progress: Int,
+                    fromUser: Boolean
+                ) {
+                        mMediaController?.updateSeekbarChangesForStarredMsg(progress,layoutPosition,
+                            media.getMediaLocalStoragePath(),fromUser,durationView,
+                            starredMsgSeekBar, playImage)
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    /*No Implementation Needed*/
+                }
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    mMediaController?.onStopTrackingTouch(seekBar,media.getMediaLocalStoragePath())
+                }
+            }))
+
+        }
+    }
+
 
     override fun setChatStatus(item: ChatMessage?, viewHolder: ImageView?) {
         chatStarredMessageUtils!!.setChatStatus(viewHolder, item!!.getMessageStatus())
