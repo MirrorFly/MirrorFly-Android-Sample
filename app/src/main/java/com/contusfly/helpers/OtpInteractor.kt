@@ -184,7 +184,7 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
     private fun signInWithPhoneAuthCredential(credential: PhoneAuthCredential) {
         mAuth.signInWithCredential(credential).addOnCompleteListener(otpActivity) { task: Task<AuthResult?> ->
             if (task.isSuccessful) {
-                sendTokenToServer()
+                userRegister()
             } else {
                 iOtpView.dismissProgress()
                 LogMessage.e(TAG, Objects.requireNonNull(task.exception!!.message))
@@ -199,47 +199,6 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
                 }
             }
         }
-    }
-
-    /**
-     * Sending device token to server for verification
-     */
-    private fun sendTokenToServer() {
-        val mUser = FirebaseAuth.getInstance().currentUser
-        mUser!!.getIdToken(true).addOnCompleteListener { task: Task<GetTokenResult> ->
-            if (task.isSuccessful) {
-                val idToken = task.result!!.token
-                verifyTokenWithServer(idToken)
-            } else {
-                iOtpView.dismissProgress()
-                LogMessage.d(TAG, task.exception!!.message)
-            }
-        }
-    }
-
-    private fun verifyTokenWithServer(token: String?) {
-        /*
-         * Check whether user sign-in by using google or mobile number
-         */
-        /* Check whether the user signed-in using Google or with phone number. */
-        val userName: String = if (!SharedPreferenceManager.getBoolean(Constants.LOGIN_MODE))
-            iOtpView.getDialNumber().replace("+", "") + iOtpView.getMobileNumber()
-        else
-            SharedPreferenceManager.getString(Constants.USERNAME).toString()
-
-        FlyCore.verifyToken(userName, token!!, object:FlyCallback{
-            override fun flyResponse(isSuccess: Boolean, error: Throwable?, hashMap: HashMap<String, Any>) {
-                if (isSuccess) {
-                    var response=hashMap.getData() as VerifyFcmResponse
-                    var devicetoken=response.data!!.deviceToken
-                    validateDeviceToken(devicetoken)
-                } else {
-                    CustomToast.show(iOtpView.activityContext, otpActivity.getString(R.string.error_otp_authorization))
-                    iOtpView.dismissProgress()
-                }
-            }
-
-        })
     }
 
     /**
@@ -269,6 +228,11 @@ internal class OtpInteractor(activity: Activity, private var otpBinding: Activit
             iOtpView.dismissProgress()
             iOtpView.showUserAccountDeviceStatus()
         }
+    }
+
+    private fun userRegister(){
+        if (!iOtpView.getOtpProgress()!!.isShowing) iOtpView.showProgress()
+        iOtpView.registerAccount()
     }
 
     /**

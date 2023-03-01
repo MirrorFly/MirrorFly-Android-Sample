@@ -1,9 +1,6 @@
 package com.contusfly.adapters
 
 import android.content.Context
-import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.text.Html
@@ -27,7 +24,6 @@ import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.utils.Utils
 import com.jakewharton.rxbinding3.view.clicks
 import io.reactivex.disposables.CompositeDisposable
-import java.io.IOException
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -41,8 +37,6 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
     : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private var userBlockedMe = false
-
-    private val chatTimeOperations = ChatTimeOperations(Calendar.getInstance())
 
     private var messageContent: String? = null
 
@@ -271,7 +265,8 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
     private fun setMessageData(holder: RowRecentChatItemBinding, chatMessage: ChatMessage?, recent: RecentChat, position: Int) {
         val isFromSender = chatMessage!!.isMessageSentByMe
         val isRecall = chatMessage.isMessageRecalled
-        val time = chatTimeOperations.getRecentChatTime(context, recent.lastMessageTime)
+        val chatTimeOperations = ChatTimeOperations(Calendar.getInstance())
+        val time = chatTimeOperations.getRecentChatTime(context, chatMessage.getMessageSentTime())
         holder.textChatTime.text = time
         setUnreadIcon(recent, holder)
         try {
@@ -421,39 +416,7 @@ class RecentChatListAdapter(val context: Context, val mainlist: LinkedList<Recen
     private fun setRecentChatImage(holder: RowRecentChatItemBinding, recent: RecentChat) {
         if (!recent.isGroup)
             userBlockedMe = recent.isBlockedMe
-        if(recent.isGroup) {
-            val isNewlyCreated = SharedPreferenceManager.getBoolean(Constants.NEWLY_CREATED_GROUP)
-            val newlyCreatedJid = SharedPreferenceManager.getString(Constants.NEW_GROUP_JID)
-            val imageBitmap = SharedPreferenceManager.getString(Constants.NEW_GROUP_IMAGE)
-            if (!recent.isAdminBlocked && recent.profileImage.isNotEmpty() && newlyCreatedJid.isNotEmpty() && imageBitmap.isNotEmpty() && isNewlyCreated && recent.jid.equals(newlyCreatedJid)) {
-                holder.imageChatPicture.setImageDrawable(
-                    ContextCompat.getDrawable(
-                        context,
-                        R.drawable.ic_grp_bg
-                    )!!
-                )
-                try {
-                    val imageAsBytes: ByteArray =
-                        android.util.Base64.decode(imageBitmap, android.util.Base64.DEFAULT)
-                    val image =
-                        BitmapFactory.decodeByteArray(imageAsBytes, 0, imageAsBytes.size)
-                    holder.imageChatPicture.setImageBitmap(image)
-                    val drawable: Drawable = BitmapDrawable(context.resources, image)
-                    holder.imageChatPicture.setImageDrawable(drawable)
-                    MediaUtils.loadImage(
-                        context,
-                        recent.profileImage,
-                        holder.imageChatPicture,
-                        drawable
-                    )
-                } catch (e: IOException) {
-                    LogMessage.e("ProfileDialogFragment", e)
-                }
-            } else
-                holder.imageChatPicture.loadUserProfileImage(context, recent)
-        } else{
-            holder.imageChatPicture.loadUserProfileImage(context, recent)
-        }
+        holder.imageChatPicture.loadUserProfileImage(context, recent)
         holder.textChatName.text = recent.profileName
     }
 

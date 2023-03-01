@@ -16,10 +16,12 @@ import com.contusfly.R
 import com.contusfly.adapters.MediaSliderAdapter
 import com.contusfly.utils.Constants
 import com.contusfly.utils.UserInterfaceUtils.Companion.setUpToolBar
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.ChatManager.getMediaMessages
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.models.ChatMessage
 import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * Which used to display the media files between users or group in slider
@@ -29,7 +31,7 @@ import java.util.*
  */
 class MediaSlideActivity : BaseActivity() {
 
-    private lateinit var messageData: List<ChatMessage>
+    private var messageData=ArrayList<ChatMessage>()
     private lateinit var msgType: MessageType
     private var mediaMessages: MutableList<ChatMessage> = ArrayList()
     private var pos = 0
@@ -44,10 +46,18 @@ class MediaSlideActivity : BaseActivity() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         setUpToolBar(this, toolbar, supportActionBar, Constants.EMPTY_STRING)
+        hideSoftKeyboard(this)
         viewPager = findViewById(R.id.media_scroll)
         rosterId = intent.getStringExtra(Constants.USER_JID)
         messageId = intent.getStringExtra(Constants.MESSAGE_ID)
-        messageData = rosterId?.let { getMediaMessages(it).reversed() }!!
+        var feature=ChatManager.getAvailableFeatures()
+        if(feature.isViewAllMediaEnabled){
+            messageData = (rosterId?.let { getMediaMessages(it).reversed() } as ArrayList<ChatMessage>?)!!
+        } else {
+            var chatmessage=messageId?.let { FlyMessenger.getMessageOfId(it) }
+            messageData=ArrayList()
+            chatmessage?.let { messageData.add(it) }
+        }
 
         /**
          * Assign the position of selected media

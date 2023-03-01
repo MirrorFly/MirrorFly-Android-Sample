@@ -51,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlin.coroutines.CoroutineContext
 import com.contusfly.R
+import com.contusfly.helpers.RecentChatPaginationScrollListener
 
 /**
  * @author ContusTeam <developers@contus.in>
@@ -58,6 +59,7 @@ import com.contusfly.R
  */
 class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener {
 
+    private var recentChatClickedPos: RecentChat= RecentChat()
     private lateinit var mContext: Context
 
     private lateinit var recentChatBinding: FragmentRecentChatBinding
@@ -244,7 +246,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
 
         viewModel.refreshTheRecentChatList.observe(
             viewLifecycleOwner,
-            { viewModel.getRecentChats() })
+            { viewModel.refreshFetchedRecentChat() })
 
         viewModel.profileUpdatedLiveData.observe(viewLifecycleOwner, Observer {
             LogMessage.i(TAG, "profileUpdatedLiveData observed")
@@ -252,7 +254,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
             updateProfileDialog(it)
         })
 
-        viewModel.isContactSyncSuccess.observe(viewLifecycleOwner, { viewModel.getRecentChats() })
+        viewModel.isContactSyncSuccess.observe(viewLifecycleOwner, { viewModel.refreshFetchedRecentChat() })
 
         viewModel.isUserBlockedUnblockedMe.observe(viewLifecycleOwner, Observer {
             val index =
@@ -380,7 +382,13 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
             chatTagselectedposition=0
         }
         chatTagList = it
-        if(chatTagList.size==0)chatTagselectedposition=0
+        if(chatTagList.size==0) {
+            chatTagselectedposition = 0
+            recentChatBinding.chatTagRecyclerview.visibility=View.GONE
+        }
+        else{
+            recentChatBinding.chatTagRecyclerview.visibility=View.VISIBLE
+        }
         chatTagAdapter.updatelist(chatTagList,chatTagselectedposition)
         if(isRestartActivity){
             isRestartActivity=false
@@ -413,7 +421,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
 
     private fun getRecentChatListBasedOnTagData() {
         if (chatTagselectedposition == 0) {
-            viewModel.getRecentChats()
+            viewModel.refreshFetchedRecentChat()
         } else {
             viewModel.getRecentChatListBasedOnTagData(chatTagList.get(chatTagselectedposition).memberIdlist)
         }
@@ -517,6 +525,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
      * @param position Position of the list view
      */
     private fun handleOnItemClicked(position: Int) {
+        recentChatClickedPos= mAdapter.mainlist[position]
         if (viewModel.selectedRecentChats.isEmpty())
             openChatView(position)
         else {
@@ -666,12 +675,12 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
                 recentChatBinding.noMessageView.root.visibility = View.GONE
             }
         }
-        val listPositions =
-            findAndReplaceNewItem(viewModel.recentChatAdapter, viewModel.selectedRecentChats)
+        val listPositions = findAndReplaceNewItem(viewModel.recentChatAdapter, viewModel.selectedRecentChats)
         if (listPositions.first.isValidIndex() && listPositions.second.isValidIndex())
             viewModel.selectedRecentChats[listPositions.second] =
                 viewModel.recentChatAdapter[listPositions.first]
-        else mAdapter.notifyDataSetChanged()
+        else mAdapter.notifyItemChanged(mAdapter.mainlist.indexOf(recentChatClickedPos))
+
     }
 
     private fun emptyViewVisibleOrGone() {
@@ -714,13 +723,13 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
         layoutManager: LinearLayoutManager
     ) {
         recyclerView.addOnScrollListener(object :
-            PaginationScrollListener(layoutManager, handler = mHandler) {
+            RecentChatPaginationScrollListener(layoutManager) {
             override fun loadMoreItems() {
                 if (searchKey.isNotBlank()) {
                     viewModel.filterContactsList(searchKey, chatJidList)
                 } else {
-                    if(chatTagselectedposition==0)
-                    viewModel.nextSetOfRecentChatList()
+                    if(chatTagselectedposition == 0)
+                        viewModel.nextSetOfRecentChatList()
                 }
             }
 
@@ -828,7 +837,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
 
         mRecentSearchList.addAll(messageList)
         mHandler.removeCallbacks(filterContactRunnable)
-        mHandler.postDelayed(filterContactRunnable, 500)
+        mHandler.postDelayed(filterContactRunnable, 1000)
         mSearchAdapter.setRecentMessageCount(messageCount)
         // update search adapter
         mSearchAdapter.setRecentSearch(mRecentSearchList, searchKey)

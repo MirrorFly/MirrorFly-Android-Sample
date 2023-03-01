@@ -41,12 +41,44 @@ class BaseCallViewHelper(
     private val activityOnClickListener: ActivityOnClickListener
 ) : BaseViewOnClickListener {
 
-    private val callNotConnectedViewHelper by lazy { CallNotConnectedViewHelper(activity, binding.layoutCallNotConnected) }
-    private val callConnectedViewHelper by lazy { CallConnectedViewHelper(binding.layoutCallConnected, activity, callUsersListAdapter, callUserGridAdapter, activityOnClickListener, this) }
+    private val callNotConnectedViewHelper by lazy {
+        CallNotConnectedViewHelper(
+            activity,
+            binding.layoutCallNotConnected
+        )
+    }
+    private val callConnectedViewHelper by lazy {
+        CallConnectedViewHelper(
+            binding.layoutCallConnected,
+            activity,
+            callUsersListAdapter,
+            callUserGridAdapter,
+            activityOnClickListener,
+            this
+        )
+    }
     private val pipViewHelper by lazy { PIPViewHelper(activity, binding.layoutPipMode) }
-    private val callOptionsViewHelper by lazy { CallOptionsViewHelper(activity, binding.layoutCallOptions, activityOnClickListener, this) }
-    private val incomingCallViewHelper by lazy { IncomingCallViewHelper(activity, binding.layoutIncomingCall, activityOnClickListener) }
-    private val retryCallViewHelper by lazy { RetryCallViewHelper(binding.layoutCallRetry, activityOnClickListener) }
+    private val callOptionsViewHelper by lazy {
+        CallOptionsViewHelper(
+            activity,
+            binding.layoutCallOptions,
+            activityOnClickListener,
+            this
+        )
+    }
+    private val incomingCallViewHelper by lazy {
+        IncomingCallViewHelper(
+            activity,
+            binding.layoutIncomingCall,
+            activityOnClickListener
+        )
+    }
+    private val retryCallViewHelper by lazy {
+        RetryCallViewHelper(
+            binding.layoutCallRetry,
+            activityOnClickListener
+        )
+    }
 
     /**
      * Actual screen height in dp
@@ -61,7 +93,7 @@ class BaseCallViewHelper(
     /**
      * The arguments to be used for Picture-in-Picture mode.
      */
-    private val mPictureInPictureParamsBuilder : PictureInPictureParams.Builder? by lazy {
+    private val mPictureInPictureParamsBuilder: PictureInPictureParams.Builder? by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             PictureInPictureParams.Builder()
         } else {
@@ -144,7 +176,8 @@ class BaseCallViewHelper(
     override fun ownVideoMuteStatusUpdated() {
         LogMessage.d(TAG, "$CALL_UI ownVideoMuteStatusUpdated")
         if (CallUtils.getIsGridViewEnabled()) {
-            val gridIndex = callUserGridAdapter.gridCallUserList.indexOf(CallManager.getCurrentUserId())
+            val gridIndex =
+                callUserGridAdapter.gridCallUserList.indexOf(CallManager.getCurrentUserId())
             if (gridIndex.isValidIndex()) { // if local user available in grid view then refresh grid view
                 val bundle = Bundle()
                 bundle.putInt(CallActions.NOTIFY_VIEW_VIDEO_MUTE_UPDATED, 1)
@@ -206,13 +239,24 @@ class BaseCallViewHelper(
             binding.viewOverlay.background = null
         else if (CallManager.isCallNotConnected()) {
             if (CallManager.isVideoCall()) {
-                binding.viewOverlay.setBackgroundColor(ContextCompat.getColor(activity, R.color.color_black_transparent))
+                binding.viewOverlay.setBackgroundColor(
+                    ContextCompat.getColor(
+                        activity,
+                        R.color.color_black_transparent
+                    )
+                )
             } else {
-                binding.viewOverlay.background = ContextCompat.getDrawable(activity, R.drawable.ic_audio_call_bg)
+                binding.viewOverlay.background =
+                    ContextCompat.getDrawable(activity, R.drawable.ic_audio_call_bg)
             }
         } else {
             if (!CallManager.isOneToOneVideoCall())
-                binding.viewOverlay.setBackgroundColor(ContextCompat.getColor(activity, R.color.audio_caller_background))
+                binding.viewOverlay.setBackgroundColor(
+                    ContextCompat.getColor(
+                        activity,
+                        R.color.audio_caller_background
+                    )
+                )
             else
                 binding.viewOverlay.background = null
         }
@@ -244,7 +288,11 @@ class BaseCallViewHelper(
      * @param callOptionsVisibility visibility to be changed for callOptions view
      * @param arrowVisibility       visibility to be changed for arrow view
      */
-    override fun animateCallOptions(animation: Int, callOptionsVisibility: Int, arrowVisibility: Int) {
+    override fun animateCallOptions(
+        animation: Int,
+        callOptionsVisibility: Int,
+        arrowVisibility: Int
+    ) {
         callOptionsViewHelper.animateCallOptions(animation, callOptionsVisibility, arrowVisibility)
     }
 
@@ -289,7 +337,8 @@ class BaseCallViewHelper(
                 // Calculate the aspect ratio of the PiP screen.
                 val aspectRatio = Rational(binding.rootLayout.width, binding.rootLayout.height)
                 mPictureInPictureParamsBuilder!!.setAspectRatio(aspectRatio).build()
-                val isSuccess = activity.enterPictureInPictureMode(mPictureInPictureParamsBuilder!!.build())
+                val isSuccess =
+                    activity.enterPictureInPictureMode(mPictureInPictureParamsBuilder!!.build())
                 if (isSuccess) {
                     showPIPLayout()
                 }
@@ -316,11 +365,17 @@ class BaseCallViewHelper(
     override fun enableCallOptionAnimation() {
         when {
             CallUtils.getIsGridViewEnabled() -> {
-                durationHandler.removeCallbacks(hideOptionsRunnable)
+                durationHandler.postDelayed(
+                    hideOptionsRunnable,
+                    3000
+                )
                 showGridTitle()
             }
-            CallManager.isOneToOneVideoCall() -> durationHandler.postDelayed(hideOptionsRunnable, 3000)
-            else -> durationHandler.removeCallbacks(hideOptionsRunnable)
+            CallManager.isOneToOneAudioCall() -> durationHandler.removeCallbacks(hideOptionsRunnable)
+            else -> durationHandler.postDelayed(
+                hideOptionsRunnable,
+                3000
+            )
         }
     }
 
@@ -375,7 +430,8 @@ class BaseCallViewHelper(
      */
     override fun onCallOptionsVisible() {
         LogMessage.d(TAG, "$CALL_UI onCallOptionsVisible()")
-        val bottomMarginTo = binding.layoutCallOptions.layoutCallOptions.height // where to animate to
+        val bottomMarginTo =
+            binding.layoutCallOptions.layoutCallOptions.height // where to animate to
         if (CallManager.isOneToOneCall()) {
             val bottomMarginStart = CommonUtils.convertDpToPixel(activity, 20) // margin start value
             val params =
@@ -413,8 +469,10 @@ class BaseCallViewHelper(
         LogMessage.d(TAG, "$CALL_UI showListViewAtBottom()")
         val bottomMarginEnd = CommonUtils.convertDpToPixel(activity, 20) // margin start value
         val layoutMargin = CommonUtils.convertDpToPixel(activity, 10) // margin value
-        val bottomMarginStart = binding.layoutCallOptions.layoutCallOptions.height // margin start value
-        val params = binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
+        val bottomMarginStart =
+            binding.layoutCallOptions.layoutCallOptions.height // margin start value
+        val params =
+            binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
         params.width = RelativeLayout.LayoutParams.MATCH_PARENT
         params.height = RelativeLayout.LayoutParams.WRAP_CONTENT
         AnimationsHelper.animateViewWithValues(
@@ -433,9 +491,11 @@ class BaseCallViewHelper(
 
     private fun showListViewAboveCallOptions() {
         LogMessage.d(TAG, "$CALL_UI showListViewAboveCallOptions()")
-        val bottomMarginTo = binding.layoutCallOptions.layoutCallOptions.height // where to animate to
+        val bottomMarginTo =
+            binding.layoutCallOptions.layoutCallOptions.height // where to animate to
         val layoutMargin = CommonUtils.convertDpToPixel(activity, 10) // margin value
-        val params = binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
+        val params =
+            binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
         params.width = RelativeLayout.LayoutParams.MATCH_PARENT
         params.height = RelativeLayout.LayoutParams.WRAP_CONTENT
         AnimationsHelper.animateViewWithValues(
@@ -593,6 +653,7 @@ class BaseCallViewHelper(
             durationHandler.removeCallbacks(hideOptionsRunnable)
         } else {
             animateCallOptions(R.anim.slide_up, View.VISIBLE, View.GONE)
+            durationHandler.postDelayed(hideOptionsRunnable, 3000)
         }
         if (binding.layoutCallConnected.layoutTitle.visibility != View.VISIBLE)
             animateCallDetails(R.anim.slide_out_down, View.VISIBLE)
@@ -734,7 +795,8 @@ class BaseCallViewHelper(
     private fun resizeLocalTile() {
         if (CallManager.isLocalTileCanResize()) {
             LogMessage.d(TAG, "$CALL_UI resizeLocalTile isLocalTileCanResize")
-            val params = binding.layoutCallConnected.layoutOneToOneAudioCall.layoutParams as RelativeLayout.LayoutParams
+            val params =
+                binding.layoutCallConnected.layoutOneToOneAudioCall.layoutParams as RelativeLayout.LayoutParams
             val rightMargin = CommonUtils.convertDpToPixel(activity, 20)
             /* align video view bottom in right-center of call options layout */
             if (binding.layoutCallOptions.layoutCallOptions.visibility == View.VISIBLE) {
@@ -789,9 +851,11 @@ class BaseCallViewHelper(
         if (binding.layoutCallOptions.layoutCallOptions.visibility == View.VISIBLE) {
             val layoutMargin = CommonUtils.convertDpToPixel(activity, 20)
             if (layoutMargin >= binding.layoutCallConnected.callUsersRecyclerview.marginBottom) {
-                val bottomMarginTo = binding.layoutCallOptions.layoutCallOptions.height // where to animate to
+                val bottomMarginTo =
+                    binding.layoutCallOptions.layoutCallOptions.height // where to animate to
                 val margin = CommonUtils.convertDpToPixel(activity, 10) // margin value
-                val params = binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
+                val params =
+                    binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
                 params.width = RelativeLayout.LayoutParams.MATCH_PARENT
                 params.height = RelativeLayout.LayoutParams.WRAP_CONTENT
                 params.setMargins(margin, margin, margin, bottomMarginTo)
@@ -800,7 +864,8 @@ class BaseCallViewHelper(
         } else {
             val bottomMarginEnd = CommonUtils.convertDpToPixel(activity, 20) // margin start value
             val layoutMargin = CommonUtils.convertDpToPixel(activity, 10) // margin value
-            val params = binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
+            val params =
+                binding.layoutCallConnected.callUsersRecyclerview.layoutParams as RelativeLayout.LayoutParams
             params.width = RelativeLayout.LayoutParams.MATCH_PARENT
             params.height = RelativeLayout.LayoutParams.WRAP_CONTENT
             params.setMargins(layoutMargin, layoutMargin, layoutMargin, bottomMarginEnd)

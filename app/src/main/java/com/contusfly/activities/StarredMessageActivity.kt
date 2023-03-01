@@ -15,17 +15,24 @@ import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.BlendModeColorFilterCompat
 import androidx.core.graphics.BlendModeCompat
 import androidx.core.view.MenuItemCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.contus.flycommons.Features
 import com.contus.flycommons.models.MessageType
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
+import com.contusfly.call.calllog.CallLogViewModel
 import com.contusfly.databinding.ActivityStarredMessageBinding
+import com.contusfly.di.factory.AppViewModelFactory
+import com.contusfly.fragments.SettingsFragment
 import com.contusfly.interfaces.OnChatItemClickListener
 import com.contusfly.starredMessages.StarredMessagesUtils
 import com.contusfly.starredMessages.adapter.StarredMessagesAdapter
@@ -36,12 +43,14 @@ import com.contusfly.starredMessages.view.IStarredMessagesInteractor
 import com.contusfly.starredMessages.view.IStarredMessagesView
 import com.contusfly.utils.*
 import com.contusfly.utils.FirebaseUtils.Companion.setAnalytics
+import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CommonAlertDialog.CommonDialogClosedListener
 import com.contusfly.views.CustomRecyclerView
 import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatActionListener
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.ChatManager.updateFavouriteStatus
 import com.contusflysdk.api.FlyCore.isBusyStatusEnabled
 import com.contusflysdk.api.FlyMessenger.cancelMediaUploadOrDownload
@@ -50,15 +59,18 @@ import com.contusflysdk.api.FlyMessenger.getFavouriteMessages
 import com.contusflysdk.api.FlyMessenger.uploadMedia
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.ContactChatMessage
+import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.utils.*
 import com.contusflysdk.utils.ItemClickSupport
 import com.contusflysdk.utils.Utils
 import com.contusflysdk.views.CustomToast
 import com.google.firebase.analytics.FirebaseAnalytics
+import dagger.android.AndroidInjection
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
+import javax.inject.Inject
 
 class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
         CommonDialogClosedListener, ActionMode.Callback, IStarredMessagesView, IStarredMessagesInteractor {
@@ -161,6 +173,9 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
     private var searchedText = emptyString()
     private var searchEnabled = false
 
+    @Inject
+    open lateinit var dashboardViewModelFactory: AppViewModelFactory
+    val viewModel: DashboardViewModel by viewModels { dashboardViewModelFactory }
     /**
      * Layout manager
      */
@@ -172,6 +187,7 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
         ActivityResultContracts.RequestMultiplePermissions()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AndroidInjection.inject(this)
         super.onCreate(savedInstanceState)
         starredMessageBinding = ActivityStarredMessageBinding.inflate(layoutInflater)
         setContentView(starredMessageBinding.root)
@@ -198,6 +214,7 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
         viewStarredMessages!!.visibility = View.GONE
         txtNoStarredMsg!!.visibility = View.GONE
         initObservers()
+        updateFeatureRestriction(ChatManager.getAvailableFeatures())
     }
 
     override fun onGroupProfileUpdated(groupJid: String) {
@@ -633,9 +650,31 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
                 selectedStarredMessagesList.add(clickedMessage)
                 starredMessagesViewPresenter!!.refreshSelectedMessages()
                 starredMessagesViewPresenter!!.prepareActionMode()
+                updateActionMenuIcons(ChatManager.getAvailableFeatures())
             }
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
+        }
+    }
+
+    private fun updateActionMenuIcons(features: Features) {
+        try {
+            menu?.let {
+                if (features.isDeleteMessageEnabled)
+                    showMenu(it.getItem(R.id.action_delete))
+                else hideMenu(it.get(R.id.action_delete))
+
+                if(features.isStarMessageEnabled){
+                    showMenu(it.getItem(R.id.action_favourite))
+                    showMenu(it.getItem(R.id.action_unfavourite))
+
+                } else {
+                    hideMenu(it.get(R.id.action_favourite))
+                    hideMenu(it.get(R.id.action_unfavourite))
+            }
+            }
+        } catch(e:Exception) {
+            LogMessage.e(TAG,e.toString())
         }
     }
 
@@ -842,5 +881,17 @@ class StarredMessageActivity : BaseActivity(), OnChatItemClickListener,
     override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {
         super.onAdminBlockedOtherUser(jid, type, status)
         updateAdapter()
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        updateActionMenuIcons(features)
+        updateFeatureRestriction(features)
+    }
+
+    private fun updateFeatureRestriction(availableFeatures: Features) {
+        if(!availableFeatures.isStarMessageEnabled){
+            finish()
+            viewModel.updateFeatureRestriction(ChatManager.getAvailableFeatures())
+        }
     }
 }

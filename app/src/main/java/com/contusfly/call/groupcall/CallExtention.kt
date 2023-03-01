@@ -95,9 +95,15 @@ fun isCallTimeOut(callStatus: String) =
 
 fun CallManager.getInComingCallStatus(context: Context): String {
     return if (isAudioCall())
-        context.getString(R.string.incoming_audio_call)
+        if (isOneToOneCall())
+            context.getString(R.string.incoming_audio_call)
+        else
+            context.getString(R.string.incoming_audio_group_call)
     else
-        context.getString(R.string.incoming_video_call)
+        if (isOneToOneCall())
+            context.getString(R.string.incoming_video_call)
+        else
+            context.getString(R.string.incoming_video_group_call)
 }
 
 fun CallManager.getEndCallerJid() : String {

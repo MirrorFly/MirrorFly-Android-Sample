@@ -41,10 +41,12 @@
     <string name="reconnecting">Reconnecting…</string>
     <string name="calling_after_10s">User Seems to be Offline, Trying to Connect</string>
     <string name="incoming_audio_call">Incoming audio call</string>
+    <string name="incoming_audio_group_call">Incoming audio group call</string>
     <string name="fly_action_cancel">Cancel</string>
     <string name="action_call_again">Call Again</string>
     <string name="video_call">Video Call</string>
     <string name="incoming_video_call">Incoming video call</string>
+    <string name="incoming_video_group_call">Incoming video group call</string>
     <string name="call_permission_denied">Please enable permission to attend the call</string>
     <string name="audio_call">Audio Call</string>
     <!--Call Screen END-->

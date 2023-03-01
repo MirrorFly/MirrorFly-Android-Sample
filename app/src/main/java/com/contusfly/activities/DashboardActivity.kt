@@ -134,7 +134,7 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         if((message.messageTextContent.contains("removed you") || message.messageTextContent.contains("added you")) &&
             viewModel.selectedRecentChats.isNotEmpty())
             recentClick(viewModel.selectedRecentChats, false)
-        //viewModel.getRecentChatOfUser(message.getChatUserJid(), RecentChatEvent.GROUP_EVENT)
+        viewModel.getRecentChatOfUser(message.getChatUserJid(), RecentChatEvent.GROUP_EVENT)
         viewModel.unreadChatCountLiveData.value = FlyMessenger.getUnreadMessagesCount()
     }
 
@@ -355,7 +355,6 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         viewModel.getArchivedChatStatus()
         viewModel.updateUnReadChatCount()
         validateMissedCallsCount()
-        callLogviewModel.uploadUnSyncedCallLogs()
     }
 
     override fun onResume() {
@@ -378,6 +377,8 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
                 finishAffinity()
             }
         }
+        callLogviewModel.uploadUnSyncedCallLogs()
+        ChatManager.setOnGoingChatUser("")
     }
 
     fun recentClick(recentList: List<RecentChat>, startActionMode: Boolean) {
@@ -390,9 +391,9 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
                 actionModeMenu.findItem(R.id.action_info).isVisible = false
                 actionModeMenu.findItem(R.id.action_add_chat_shortcuts).isVisible = false
                 menuValidationForPinIcon(recentList)
-                menuValidationForDeleteIcon(recentList)
                 menuValidationForMuteUnMuteIcon(recentList)
                 menuValidationForMarkReadUnReadIcon(recentList)
+                updateActionMenuIcons(ChatManager.getAvailableFeatures(), recentList)
             }
             actionModeMenu.findItem(R.id.action_archive_chat).isVisible = true
             actionMode?.title = recentList.size.toString()
@@ -434,13 +435,10 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         actionModeMenu.findItem(R.id.action_mark_as_read).isVisible = recentList[0].isConversationUnRead
         actionModeMenu.findItem(R.id.action_mark_as_unread).isVisible = !recentList[0].isConversationUnRead
 
+        updateActionMenuIcons(ChatManager.getAvailableFeatures(),recentList)
 
-        var value = ChatType.TYPE_GROUP_CHAT != recentList[0].getChatType()
-        if(ChatType.TYPE_GROUP_CHAT == recentList[0].getChatType()){
-            value = ChatManager.getAvailableFeatures().isGroupChatEnabled && !GroupManager.isMemberOfGroup(recentList[0].jid,SharedPreferenceManager.getCurrentUserJid())
-        }
-        actionModeMenu.findItem(R.id.action_delete).isVisible = value
     }
+
 
     private fun menuValidationForPinIcon(recentList: List<RecentChat>) {
         val checkListForPinIcon = ArrayList<Boolean>()
@@ -470,7 +468,8 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         }
     }
 
-    private fun menuValidationForDeleteIcon(recentList: List<RecentChat>) {
+    private fun menuValidationForDeleteIcon(
+        recentList: List<RecentChat>) {
         actionModeMenu.findItem(R.id.action_delete).isVisible = showDeleteOption(recentList)
     }
 
@@ -529,6 +528,8 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
             viewModel.updateRecentMessage(messageIds)
         else if (jid.isNotEmpty())
             viewModel.setClearedMessagesView(jid)
+        else
+            viewModel.refreshFetchedRecentChat()
     }
 
     override fun onStop() {
@@ -615,13 +616,13 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
     }
 
     override fun restoreCompleted() {
-        viewModel.getRecentChats()
+        viewModel.refreshFetchedRecentChat()
         viewModel.getArchivedChatStatus()
     }
 
     override fun userDetailsUpdated() {
         super.userDetailsUpdated()
-        viewModel.getRecentChats()
+        viewModel.refreshFetchedRecentChat()
         viewModel.getArchivedChatStatus()
     }
 
@@ -631,8 +632,8 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
     }
 
     override fun updateFeatureActions(features: Features) {
-        super.updateFeatureActions(features)
         updateMenuIcons(features)
+        updateActionMenuIcons(features, viewModel.selectedRecentChats)
         updateAdapterItems(features)
         callLogviewModel.updateFeatureActions(features)
     }
@@ -664,6 +665,18 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
                 menuItem.collapseActionView()
                 hideMenu(it.get(R.id.action_search))
             }
+        }
+    }
+
+    private fun updateActionMenuIcons(features: Features, recentList: List<RecentChat>) {
+        try {
+            actionModeMenu?.let {
+                if (features.isDeleteChatEnabled)
+                    menuValidationForDeleteIcon(recentList)
+                else hideMenu(it.get(R.id.action_delete))
+            }
+        } catch(e:Exception) {
+            LogMessage.e(TAG,e.toString())
         }
     }
 

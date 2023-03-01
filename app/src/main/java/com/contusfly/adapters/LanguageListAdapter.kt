@@ -6,9 +6,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import com.contusfly.R
 import com.contusfly.databinding.RowLanguageListBinding
+import com.contusfly.showToast
 import com.contusfly.utils.Constants
 import com.contusfly.utils.SharedPreferenceManager
+import com.contusflysdk.api.ChatManager
 import com.location.googletranslation.pojo.Languages
 
 
@@ -53,6 +56,11 @@ class LanguageListAdapter(activity: Activity, list: MutableList<Languages>) : Re
         holder.viewBinding.languageSelected.visibility = if (SharedPreferenceManager.getString(
                 Constants.GOOGLE_TRANSLATION_LANGUAGE_CODE) == item.language) View.VISIBLE else View.INVISIBLE
         holder.viewBinding.languageText.setOnClickListener {
+            if(!ChatManager.getAvailableFeatures().isTranslationEnabled){
+                SharedPreferenceManager.setString(Constants.GOOGLE_LANGUAGE_NAME, "English")
+                SharedPreferenceManager.setString(Constants.GOOGLE_TRANSLATION_LANGUAGE_CODE, "en")
+                mActivity!!.showToast(mActivity!!.resources.getString(R.string.fly_error_forbidden_exception))
+            }
             SharedPreferenceManager.setString(Constants.GOOGLE_LANGUAGE_NAME, item.name)
             SharedPreferenceManager.setString(Constants.GOOGLE_TRANSLATION_LANGUAGE_CODE, item.language)
             mActivity!!.onBackPressed()

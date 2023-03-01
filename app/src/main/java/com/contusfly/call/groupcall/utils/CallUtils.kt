@@ -263,7 +263,10 @@ object CallUtils {
             Pair(stringBuilder, true)
     }
 
-    fun getGroupMembersName(callUsers: ArrayList<String>): String {
+    fun getGroupMembersName(callUsers: ArrayList<String>, groupID: String): String {
+        if (groupID.isNotBlank()) {
+            return ProfileDetailsUtils.getDisplayName(groupID)
+        }
         var membersName = StringBuilder(if (callUsers.size <= 1) "You and " else "You, ")
         var isMaxMemberNameNotReached = true
         for (i in callUsers.indices) {

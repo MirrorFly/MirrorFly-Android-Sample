@@ -20,14 +20,16 @@
         android:background="?android:selectableItemBackground"
         android:padding="@dimen/padding_10">
 
-        <com.contusfly.views.CircularImageView
+        <com.contusfly.views.CustomShapeableImageView
             android:id="@+id/image_chat_picture"
             android:layout_width="@dimen/margin_50"
             android:layout_height="@dimen/margin_50"
             android:layout_marginStart="@dimen/margin_5"
             android:contentDescription="@null"
             android:onClick="onClick"
+            android:scaleType="centerCrop"
             app:srcCompat="@drawable/ic_profile"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Image.PILL"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintStart_toStartOf="parent"

@@ -86,7 +86,7 @@ class CallConnectedViewHelper(
     override fun onClick(view: View) {
         when (view.id) {
             R.id.image_add_users -> activityOnClickListener.addUsersInCall()
-            R.id.view_video_local -> setSwappedFeeds(!isSwappedFeeds)
+            R.id.view_video_local -> if (CallManager.isCallConnected()) setSwappedFeeds(!isSwappedFeeds)
             R.id.image_menu_switch_call_view -> showMenuPopUp(view)
             R.id.image_unpin -> baseViewOnClickListener.pinnedUserRemoved()
         }
@@ -298,7 +298,7 @@ class CallConnectedViewHelper(
                 binding.callerProfileImage.loadUserProfileImage(activity, profileDetails)
                 val jidList = ArrayList<String>()
                 jidList.add(profileDetails.jid)
-                name = CallUtils.getGroupMembersName(jidList)
+                name = CallUtils.getGroupMembersName(jidList, CallManager.getGroupID())
             }
 
             if (!CallManager.isVideoCallUICanShow()) {
@@ -311,7 +311,7 @@ class CallConnectedViewHelper(
                 )
             }
         } else {
-            name = CallUtils.getGroupMembersName(callUsers)
+            name = CallUtils.getGroupMembersName(callUsers, CallManager.getGroupID())
             updatePinnedUserProfile()
         }
         LogMessage.d(TAG, "$CALL_UI getProfile name: $name")

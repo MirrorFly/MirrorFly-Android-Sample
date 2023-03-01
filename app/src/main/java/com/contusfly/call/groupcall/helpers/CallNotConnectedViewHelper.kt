@@ -2,6 +2,7 @@ package com.contusfly.call.groupcall.helpers
 
 import android.content.Context
 import com.contus.call.CallConstants.CALL_UI
+import com.contus.call.utils.GroupCallUtils
 import com.contus.flycommons.LogMessage
 import com.contus.webrtc.api.CallManager
 import com.contusfly.*
@@ -12,6 +13,7 @@ import com.contusfly.call.groupcall.isOutgoingCall
 import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.LayoutCallNotConnectedBinding
 import com.contusfly.utils.ProfileDetailsUtils
+import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.utils.Utils
 
 class CallNotConnectedViewHelper(
@@ -43,7 +45,7 @@ class CallNotConnectedViewHelper(
     }
 
     private fun showCallerImage() {
-        if (CallManager.isOneToOneCall()) {
+        if (CallManager.isOneToOneCall() || CallManager.getGroupID().isNotBlank()) {
             binding.layoutGroupCallMembersImage.layoutMembersImage.gone()
             if (CallManager.isOutgoingCall()) {
                 binding.layoutOutgoingProfile.show()
@@ -53,7 +55,12 @@ class CallNotConnectedViewHelper(
                 binding.layoutOutgoingProfile.gone()
                 binding.callerProfileImage.show()
             }
+            if (CallManager.getGroupID().isNotBlank())
+                binding.textParticipantsName.show()
+            else
+                binding.textParticipantsName.gone()
         } else {
+            binding.textParticipantsName.gone()
             binding.layoutOutgoingProfile.gone()
             binding.callerProfileImage.gone()
             binding.layoutGroupCallMembersImage.layoutMembersImage.show()
@@ -84,16 +91,22 @@ class CallNotConnectedViewHelper(
             val profileDetails = if (CallManager.getEndCallerJid().contains("@"))
                 ProfileDetailsUtils.getProfileDetails(CallManager.getEndCallerJid())
             else null
-
-            profileDetails?.let {
-                binding.callerProfileImage.loadUserProfileImage(context, profileDetails)
-                binding.receiverProfileImage.loadUserProfileImage(context, profileDetails)
-                val name = Utils.returnEmptyStringIfNull(profileDetails.name)
-                LogMessage.d(TAG, "$CALL_UI getProfile name: $name")
-                binding.textCallerName.text = name
-            }
+            updateUserDetails(profileDetails)
+        } else if (CallManager.getGroupID().isNotBlank()) {
+            updateGroupMemberDetails(callUsers)
+            updateUserDetails(ProfileDetailsUtils.getProfileDetails(GroupCallUtils.getGroupId()))
         } else {
             updateGroupMemberDetails(callUsers)
+        }
+    }
+
+    private fun updateUserDetails(profileDetails: ProfileDetails?) {
+        profileDetails?.let {
+            binding.callerProfileImage.loadUserProfileImage(context, profileDetails)
+            binding.receiverProfileImage.loadUserProfileImage(context, profileDetails)
+            val name = Utils.returnEmptyStringIfNull(profileDetails.name)
+            LogMessage.d(TAG, "$CALL_UI getProfile name: $name")
+            binding.textCallerName.text = name
         }
     }
 
@@ -107,5 +120,6 @@ class CallNotConnectedViewHelper(
             binding.layoutGroupCallMembersImage.imageCallMember4
         )
         binding.textCallerName.text = membersName.toString()
+        binding.textParticipantsName.text = membersName.toString()
     }
 }

@@ -10,17 +10,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.contus.flycommons.*
-import com.contusfly.R
+import com.contusfly.*
 import com.contusfly.TAG
 import com.contusfly.activities.BackUpActivity
 import com.contusfly.activities.SettingsActivity
 import com.contusfly.databinding.FragmentChatsBinding
-import com.contusfly.launchActivity
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.MediaPermissions
 import com.contusfly.viewmodels.DashboardViewModel
@@ -32,9 +29,10 @@ import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.utils.SettingsUtil
 import com.contusflysdk.views.CustomToast
-import kotlinx.android.synthetic.main.activity_settings.*
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
+import com.contusfly.R
+import com.contusfly.views.DoProgressDialog
 
 
 /**
@@ -122,8 +120,8 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
         displayLastSeenPreference()
         displayUserBusyStatusPreference()
         displayAutoDownloadPreference()
-        displayTranslateLanguagePreference()
         saveMediaToGallery()
+        featureActionValidation(ChatManager.getAvailableFeatures())
     }
 
     /**
@@ -140,6 +138,10 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
     private fun setObservers() {
         viewModel.archivedSettingsStatus.observe(viewLifecycleOwner, Observer {
             setArchivedSettingsData(it)
+        })
+
+        viewModel.availableFeatureLiveData.observe(viewLifecycleOwner, androidx.lifecycle.Observer {
+            featureActionValidation(it)
         })
     }
 
@@ -223,6 +225,27 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
      * Displays translated language
      */
     private fun displayTranslateLanguagePreference() {
+
+        if(!ChatManager.getAvailableFeatures().isTranslationEnabled){
+            com.contusfly.utils.SharedPreferenceManager.setString(com.contusfly.utils.Constants.GOOGLE_LANGUAGE_NAME, "English")
+            fragmentChatsBinding.tvSelectedLanguage.text = "English"
+            com.contusfly.utils.SharedPreferenceManager.setString(com.contusfly.utils.Constants.GOOGLE_TRANSLATION_LANGUAGE_CODE, "en")
+            com.contusfly.utils.SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.GOOGLE_TRANSLATION_CHECKED_IN_FIRST_TIME, true)
+            fragmentChatsBinding.imageTranslation.setImageResource(R.drawable.ic_unselected_tick)
+            fragmentChatsBinding.layoutTranslateLanguage.visibility = View.GONE
+            return
+        }
+
+        if(!ChatManager.getAvailableFeatures().isTranslationEnabled){
+            com.contusfly.utils.SharedPreferenceManager.setString(com.contusfly.utils.Constants.GOOGLE_LANGUAGE_NAME, "English")
+            fragmentChatsBinding.tvSelectedLanguage.text = "English"
+            com.contusfly.utils.SharedPreferenceManager.setString(com.contusfly.utils.Constants.GOOGLE_TRANSLATION_LANGUAGE_CODE, "en")
+            com.contusfly.utils.SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.GOOGLE_TRANSLATION_CHECKED_IN_FIRST_TIME, true)
+            fragmentChatsBinding.imageTranslation.setImageResource(R.drawable.ic_unselected_tick)
+            fragmentChatsBinding.layoutTranslateLanguage.visibility = View.GONE
+            return
+        }
+
         if (com.contusfly.utils.SharedPreferenceManager.getString(com.contusfly.utils.Constants.GOOGLE_LANGUAGE_NAME).trim { it <= ' ' }.isNotEmpty())
             fragmentChatsBinding.tvSelectedLanguage.text = com.contusfly.utils.SharedPreferenceManager.getString(com.contusfly.utils.Constants.GOOGLE_LANGUAGE_NAME)
         else {
@@ -307,7 +330,6 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
 
             R.id.layout_chat_backup ->
                 requireActivity().launchActivity<BackUpActivity> { }
-
         }
     }
     /**
@@ -321,15 +343,7 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
             when (chatSettingsAction) {
                 ChatSettingsAction.CLEAR_CONVERSATION -> {
                     if (AppUtils.isNetConnected(settingsActivity!!.applicationContext)) {
-                        ChatManager.clearAllConversation(object : ChatActionListener {
-                            override fun onResponse(isSuccess: Boolean, message: String) {
-                                if (isSuccess) {
-                                    runOnUiThread { CustomToast.show(settingsActivity!!.applicationContext, resources.getString(R.string.clear_conversation_message)) }
-                                } else {
-                                    runOnUiThread { CustomToast.show(settingsActivity!!.applicationContext, Constants.ERROR_SERVER) }
-                                }
-                            }
-                        })
+                        clearAllConversation()
                     } else {
                         CustomToast.show(settingsActivity!!.applicationContext,
                             resources.getString(R.string.msg_no_internet))
@@ -337,6 +351,22 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
                 }
             }
         }
+    }
+
+    private fun clearAllConversation(){
+        if(!ChatManager.getAvailableFeatures().isClearChatEnabled){
+            CustomToast.show(settingsActivity!!.applicationContext, resources.getString(R.string.fly_error_forbidden_exception))
+            return
+        }
+        ChatManager.clearAllConversation(object : ChatActionListener {
+            override fun onResponse(isSuccess: Boolean, message: String) {
+                if (isSuccess) {
+                    runOnUiThread { CustomToast.show(settingsActivity!!.applicationContext, resources.getString(R.string.clear_conversation_message)) }
+                } else {
+                    runOnUiThread { CustomToast.show(settingsActivity!!.applicationContext, Constants.ERROR_SERVER) }
+                }
+            }
+        })
     }
 
     /**
@@ -363,6 +393,27 @@ class ChatsFragment : Fragment(), CoroutineScope, View.OnClickListener,
     override fun onDetach() {
         coroutineContext.cancel(CancellationException("$TAG Destroyed"))
         super.onDetach()
+    }
+
+    private fun featureActionValidation(availableFeatures: Features) {
+
+        if(availableFeatures.isTranslationEnabled) {
+            showViews(fragmentChatsBinding.layoutTranslation)
+            showViews(fragmentChatsBinding.translateMessageView)
+            displayTranslateLanguagePreference()
+        } else {
+            makeViewsGone(fragmentChatsBinding.layoutTranslation)
+            makeViewsGone(fragmentChatsBinding.translateMessageView)
+            makeViewsGone(fragmentChatsBinding.layoutTranslateLanguage)
+        }
+
+        if(availableFeatures.isClearChatEnabled) {
+            showViews(fragmentChatsBinding.textClearConversation)
+            showViews(fragmentChatsBinding.clearAllMessageView)
+        } else {
+            makeViewsGone(fragmentChatsBinding.textClearConversation)
+            makeViewsGone(fragmentChatsBinding.clearAllMessageView)
+        }
     }
 
     companion object {

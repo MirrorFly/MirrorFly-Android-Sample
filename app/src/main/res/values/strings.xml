@@ -950,5 +950,4 @@
     <string name="delete_lable">DELETE</string>
     <string name="edit_tag_info">Tap \'Edit\' to change the order or delete tags.</string>
     <string name="remove_chat_tag_title">This will remove chat tag, your chats will not be deleted.</string>
-
 </resources>

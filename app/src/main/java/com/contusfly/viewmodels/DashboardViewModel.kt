@@ -7,11 +7,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DiffUtil
-import com.contus.flycommons.Constants
-import com.contus.flycommons.FlyCallback
-import com.contus.flycommons.LogMessage
 import com.contus.call.database.model.CallLog
-import com.contus.flycommons.getData
+import com.contus.flycommons.*
 import com.contusfly.TAG
 import com.contusfly.diffCallBacks.ProfileDiffCallback
 import com.contusfly.diffCallBacks.RecentChatDiffCallback
@@ -93,6 +90,7 @@ constructor() : ViewModel() {
     val removeSearchLoader = MutableLiveData<Boolean>()
     val fetchingError = MutableLiveData<Boolean>()
     val onTypingStatusGoneUpdate = MutableLiveData<String>()
+    val availableFeatureLiveData=MutableLiveData<Features>()
 
 
     //Define the Recent Chat List Builder class
@@ -197,21 +195,21 @@ constructor() : ViewModel() {
         restartactivityRecentChatListlivedata.value=true
     }
 
-    /*
-    * Get Recent Chats list */
-    fun getRecentChats() {
-        LogMessage.d(TAG, "getRecentChats() called to update the UI")
+    fun getInitialChatList(recentChatLimit: Int = 50) {
+        LogMessage.d(TAG, "getInitialChatList() called to update the UI")
         viewModelScope.launch(Main.immediate) {
-            if (recentChatList.value == null && !SharedPreferenceManager.getBoolean(com.contusfly.utils.Constants.PIN_SCREEN)) {
-                recentChatList.value = LinkedList(FlyCore.getRecentChatList())
-                recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
-                recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer
-                recentChatAdapter.clear()
-                recentChatAdapter.addAll(recentChatList.value!!)
-                recentChatDiffResult.value = null
-            } else {
-                FlyCore.getRecentChatList { isSuccess, _, data ->
-                    if (isSuccess) {
+            recentChatListParams = RecentChatListParams().apply { limit = recentChatLimit }
+            recentChatListBuilder = RecentChatListBuilder(recentChatListParams)
+            recentChatListBuilder.loadRecentChatList { isSuccess, _, data ->
+                if (isSuccess) {
+                    if (recentChatList.value == null && !SharedPreferenceManager.getBoolean(com.contusfly.utils.Constants.PIN_SCREEN)) {
+                        recentChatList.value = LinkedList(data[SDK_DATA] as MutableList<RecentChat>)
+                        recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
+                        recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer
+                        recentChatAdapter.clear()
+                        recentChatAdapter.addAll(recentChatList.value!!)
+                        recentChatDiffResult.value = null
+                    } else {
                         recentChatList.value = LinkedList(data[SDK_DATA] as MutableList<RecentChat>)
                         recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
                         recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer
@@ -221,22 +219,15 @@ constructor() : ViewModel() {
             }
         }
     }
-    fun getInitialChatList() {
-        LogMessage.d(TAG, "getRecentChats() called to update the UI")
-        viewModelScope.launch(Main.immediate) {
-            recentChatListParams = RecentChatListParams().apply { limit = 50 }
-            recentChatListBuilder = RecentChatListBuilder(recentChatListParams)
-            recentChatListBuilder.loadRecentChatList { isSuccess, _, data ->
-                if (isSuccess && recentChatList.value == null && !SharedPreferenceManager.getBoolean(com.contusfly.utils.Constants.PIN_SCREEN)) {
-                    recentChatList.value = LinkedList(data[SDK_DATA] as MutableList<RecentChat>)
-                    recentChatList.value!!.add(0, RecentChat()) // Recent Chat Header
-                    recentChatList.value!!.add(recentChatList.value!!.size, RecentChat()) // Recent Chat Footer
-                    recentChatAdapter.clear()
-                    recentChatAdapter.addAll(recentChatList.value!!)
-                    recentChatDiffResult.value = null
-                }
-            }
-        }
+
+    fun refreshFetchedRecentChat() {
+        LogMessage.d(TAG, "refreshFetchedRecentChat() called to update the UI")
+        var prefetchedRecentChats = recentChatAdapter.size - 2 // calculate recent chat has prefetched data by skipping header and footer
+        if (prefetchedRecentChats <= 0)
+            return
+        if (prefetchedRecentChats < 50)
+            prefetchedRecentChats = 50
+        getInitialChatList(prefetchedRecentChats)
     }
 
     fun getChatTagData(){
@@ -333,7 +324,7 @@ constructor() : ViewModel() {
         }
     }
 
-    fun getRecentChatDiffResult() {
+    private fun getRecentChatDiffResult() {
         viewModelScope.launch {
             val diffResult = DiffUtil.calculateDiff(RecentChatDiffCallback(recentChatAdapter, recentChatList.value!!))
             recentChatAdapter.clear()
@@ -520,7 +511,7 @@ constructor() : ViewModel() {
         else if (currentPinnedCount in 2..3) _showMessage.value = "Chats pinned"
         //Reset the recent items
         recentChatList.value = null
-        getRecentChats()
+        refreshFetchedRecentChat()
         pinnedListPosition.clear()
         return true
     }
@@ -553,7 +544,7 @@ constructor() : ViewModel() {
         else if (pinnedListPosition.size <= 3) _showMessage.value = "Chats unpinned"
         //Reset the recent items
         recentChatList.value = null
-        getRecentChats()
+        refreshFetchedRecentChat()
         pinnedListPosition.clear()
     }
 
@@ -782,6 +773,7 @@ constructor() : ViewModel() {
                 item.unreadMessageCount = 0
                 item.isConversationUnRead = false
                 recentChatList.value!![itemPos] = item
+
                 android.os.Handler(Looper.getMainLooper()).postDelayed({
                     getRecentChatDiffResult() }, 100)
             }
@@ -830,5 +822,9 @@ constructor() : ViewModel() {
 
     fun updateSearchLanguage(searchKey: String) {
         updateLanguageSearch.postValue(searchKey)
+    }
+
+    fun updateFeatureRestriction(feature:Features){
+        availableFeatureLiveData.postValue(feature)
     }
 }

@@ -55,7 +55,8 @@ object MediaUtils {
             }
             val imgURL = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT).buildUpon()
                     .appendPath(Uri.parse(imageUrl).lastPathSegment).build().toString()
-            Glide.with(context).load(imgURL).thumbnail(0.1f).apply(options)
+            val requestBuilder = Glide.with(context).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imgURL).thumbnail(requestBuilder).apply(options)
                     .listener(object : RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?,
                                                   isFirstResource: Boolean): Boolean {
@@ -88,7 +89,8 @@ object MediaUtils {
         if (imgUrl != null && imgUrl.isNotEmpty()) {
             val options = RequestOptions().placeholder(imgView.drawable ?: errorImg)
                     .error(errorImg).diskCacheStrategy(DiskCacheStrategy.ALL).priority(Priority.HIGH)
-            Glide.with(context).load(imgUrl).thumbnail(0.1f).apply(options).into(imgView)
+            val requestBuilder = Glide.with(context).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imgUrl).thumbnail(requestBuilder).apply(options).into(imgView)
         } else imgView.setImageDrawable(errorImg)
     }
 
@@ -108,7 +110,8 @@ object MediaUtils {
                 .centerCrop()
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .priority(Priority.HIGH)
-        Glide.with(context!!).load(imgFile).thumbnail(0.1f).apply(options).into(imgView!!)
+        val requestBuilder = Glide.with(context!!).asDrawable().sizeMultiplier(0.1f)
+        Glide.with(context).load(imgFile).thumbnail(requestBuilder).apply(options).into(imgView!!)
     }
 
     /**
@@ -129,7 +132,8 @@ object MediaUtils {
                     .dontTransform()
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .priority(Priority.HIGH)
-            Glide.with(context!!).load(imgUrl).thumbnail(0.1f).apply(options).into(imgView)
+            val requestBuilder = Glide.with(context!!).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imgUrl).thumbnail(requestBuilder).apply(options).into(imgView)
         } else imgView.setImageResource(errorImg)
     }
 
@@ -149,7 +153,8 @@ object MediaUtils {
                 .error(errorImg)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .priority(Priority.HIGH)
-            Glide.with(context!!).load(imgUrl).thumbnail(0.1f).apply(options).into(imgView)
+            val requestBuilder = Glide.with(context!!).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imgUrl).thumbnail(requestBuilder).apply(options).into(imgView)
         } else imgView.setImageResource(errorImg)
     }
 
@@ -197,7 +202,8 @@ object MediaUtils {
             }
             val imgURL = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT).buildUpon()
                     .appendPath(Uri.parse(imageUrl).lastPathSegment).build().toString()
-            Glide.with(context).load(imgURL).thumbnail(0.1f).apply(options)
+            val requestBuilder = Glide.with(context).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imgURL).thumbnail(requestBuilder).apply(options)
                     .listener(object : RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?,
                                                   isFirstResource: Boolean): Boolean {
@@ -243,7 +249,8 @@ object MediaUtils {
                     .buildUpon().appendPath(Uri.parse(imgUrl).lastPathSegment).build().toString()
             val options = RequestOptions().placeholder(errorImg).error(errorImg)
                     .priority(Priority.HIGH).diskCacheStrategy(DiskCacheStrategy.ALL)
-            Glide.with(context!!).load(imageUrl).thumbnail(0.1f).apply(options)
+            val requestBuilder = Glide.with(context!!).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imageUrl).thumbnail(requestBuilder).apply(options)
                     .addListener(object : RequestListener<Drawable?> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
                             return if (e != null && e.message!!.contains("FileNotFoundException")) {
@@ -291,7 +298,8 @@ object MediaUtils {
                 .diskCacheStrategy(DiskCacheStrategy.NONE)
                 .priority(Priority.HIGH)
                 .skipMemoryCache(true)
-            Glide.with(context!!).load(imgUrl).thumbnail(0.1f).apply(options).into(imgView)
+            val requestBuilder = Glide.with(context!!).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(imgUrl).thumbnail(requestBuilder).apply(options).into(imgView)
         } else imgView.setImageResource(errorImg)
     }
 
@@ -309,7 +317,8 @@ object MediaUtils {
                 .dontTransform()
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .priority(Priority.HIGH)
-            Glide.with(context!!).load(frame).thumbnail(0.1f).apply(options).into(imgView)
+            val requestBuilder = Glide.with(context!!).asDrawable().sizeMultiplier(0.1f)
+            Glide.with(context).load(frame).thumbnail(requestBuilder).apply(options).into(imgView)
         } else imgView.setImageResource(errorImg)
     }
 

@@ -124,7 +124,7 @@ interface IOtpView {
     /**
      * Request to register the user account
      */
-    fun registerAccount()
+    fun registerAccount(isForceRegister:Boolean=false)
 
     /**
      * Show alert dialog for multiple device login

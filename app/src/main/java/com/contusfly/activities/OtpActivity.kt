@@ -41,6 +41,7 @@ import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.utils.Utils.clearOldData
 import com.contusfly.viewmodels.RegisterViewModel
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.*
 import com.contusflysdk.api.notification.PushNotificationManager
@@ -50,7 +51,6 @@ import com.contusflysdk.views.CustomToast
 import dagger.android.AndroidInjection
 import io.michaelrocks.libphonenumber.android.NumberParseException
 import io.michaelrocks.libphonenumber.android.PhoneNumberUtil
-import kotlinx.android.synthetic.main.chat_toolbar.*
 import io.michaelrocks.libphonenumber.android.Phonenumber
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -151,7 +151,10 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
      */
     private var progressTimeoutRunnable: Runnable? = null
 
-    private lateinit var telephonyManager : TelephonyManager
+    private lateinit var telephonyManager: TelephonyManager
+
+    private var isExisting: Boolean = false
+
 
     @Inject
     lateinit var registerViewModelFactory: AppViewModelFactory
@@ -163,13 +166,23 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
         println("Coroutine Exception :  ${exception.printStackTrace()}")
     }
 
+    private val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
+    private val downloadPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        gotoRestorePage()
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
         AutoStartHelper.instance.getAutoStartPermission(this@OtpActivity)
         super.onCreate(savedInstanceState)
         otpBinding = ActivityOtpBinding.inflate(layoutInflater)
         setContentView(otpBinding.root)
-        telephonyManager = activityContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        telephonyManager =
+            activityContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         setupCountryCode()
         val dialCode = "+" + PhoneNumberUtil.createInstance(applicationContext)
             .getCountryCodeForRegion(countryCode)
@@ -252,17 +265,20 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
     private fun setupDefaultMobileNo() {
 
         val requestPhoneNumberRead = registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()) {permissions ->
-                if (!permissions.containsValue(false)) {
-                    otpBinding.edtMobileNo.setText(splitPhoneNumber())
-                }
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            if (!permissions.containsValue(false)) {
+                otpBinding.edtMobileNo.setText(splitPhoneNumber())
             }
+        }
 
         if (!isReadDefaultPhoneNumberPermissionAllowed(context)) {
-            requestPhoneNumberRead.launch(arrayOf(
+            requestPhoneNumberRead.launch(
+                arrayOf(
                     Manifest.permission.READ_PHONE_STATE,
                     Manifest.permission.READ_PHONE_NUMBERS
-                ))
+                )
+            )
         } else {
             otpBinding.edtMobileNo.setText(splitPhoneNumber())
         }
@@ -510,7 +526,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
      * Manage register/blocked user options
      */
     private enum class ManageAccount {
-        REGISTER, ON_REGISTER, BLOCK_ACCOUNT, LOGIN
+        REGISTER, ON_REGISTER, BLOCK_ACCOUNT, LOGIN, SESSION_EXPIRED
     }
 
     companion object {
@@ -674,8 +690,8 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
      * Split country code and phone number
      */
 
-    private fun splitPhoneNumber():String{
-        var nationalNumber=""
+    private fun splitPhoneNumber(): String {
+        var nationalNumber = ""
         try {
             val phoneUtil: PhoneNumberUtil = PhoneNumberUtil.createInstance(activity)
             val numberProto: Phonenumber.PhoneNumber = phoneUtil.parse(
@@ -683,8 +699,8 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
                 telephonyManager.simCountryIso.toUpperCase(Locale.getDefault())
             )
             nationalNumber = numberProto.nationalNumber.toString()
-        }catch (e: NumberParseException){
-            LogMessage.e(Constants.TAG,e)
+        } catch (e: NumberParseException) {
+            LogMessage.e(Constants.TAG, e)
         }
         return nationalNumber
     }
@@ -692,7 +708,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
     /**
      * Request to register the user account
      */
-    override fun registerAccount() {
+    override fun registerAccount(isForceRegister:Boolean) {
         LogMessage.d(TAG, "registering account")
         if (AppUtils.isNetConnected(this)) {
             ChatManager.setUserCountryISOCode(countryCode)
@@ -709,7 +725,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
 
             manageAccount = ManageAccount.ON_REGISTER
 
-            FlyCore.registerUser(mobile!!, regId) { isSuccess, _, data ->
+            FlyCore.registerUser(mobile!!, regId, isForceRegister) { isSuccess, _, data ->
                 if (isSuccess) {
                     val isNewUser = data["is_new_user"] as Boolean
                     if (isNewUser)
@@ -732,14 +748,29 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
             startActivity(
                 Intent(
                     this,
-                    AdminBlockedActivity::class.java
-                ).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            )
+                    AdminBlockedActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
             finish()
-        } else {
+
+        } else if(data.getHttpStatusCode() == 405){
+
+            sessionExpiredDialogShow(data.getMessage())
+        }
+        else {
             otpBinding.viewVerify.visibility = View.VISIBLE
             showToast(data.getMessage())
         }
+    }
+
+    private fun sessionExpiredDialogShow(message: String) {
+        manageAccount = ManageAccount.SESSION_EXPIRED
+        FlyCore.logoutOfChatSDK(FlyCallback { _, _, _ -> })
+        mDialog!!.showAlertDialog(
+            message,
+            activityContext.getString(R.string.continue_label),
+            activityContext.getString(R.string.action_cancel),
+            CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL,
+            false
+        )
     }
 
     /*
@@ -748,6 +779,7 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
         try {
             LogMessage.d(TAG, decodedResponseObject.toString())
             val username: String = decodedResponseObject.getString(Constants.USERNAME)
+            isExisting = decodedResponseObject.getBoolean(Constants.IS_EXISTING)
 
             SharedPreferenceManager.setString(Constants.USERNAME, username)
             SharedPreferenceManager.setBoolean(Constants.IS_LOGGED_IN, true)
@@ -780,6 +812,9 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
             if (manageAccount == ManageAccount.REGISTER) {
                 progress.show()
                 registerAccount()
+            } else if (manageAccount == ManageAccount.SESSION_EXPIRED) {
+                progress.show()
+                registerAccount(true)
             }
         } else deleteUserAccount()
         /*
@@ -811,18 +846,23 @@ class OtpActivity : BaseActivity(), IOtpView, View.OnClickListener,
     override fun onConnected() {
         if (SharedPreferenceManager.getString(Constants.SENDER_USER_JID).isNotEmpty()) {
             ChatManager.setUserCountryISOCode(countryCode)
-            goToProfile()
+            dismissProgress()
+            if (ChatUtils.checkWritePermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                gotoRestorePage()
+            } else {
+                MediaPermissions.requestContactStorageAccess(
+                    this,
+                    permissionAlertDialog,
+                    downloadPermissionLauncher
+                )
+            }
         }
     }
 
-    private fun goToProfile() {
-        dismissProgress()
-        startActivity(
-            Intent(this, ProfileStartActivity::class.java).putExtra(Constants.IS_FIRST_LOGIN, true)
-                .putExtra(Constants.FROM_SPLASH, true)
-                .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-        GroupManager.getAllGroups(true) { _, _, _ -> }
+    private fun gotoRestorePage() {
+        val intent = Intent(this@OtpActivity, RestoreActivity::class.java)
+        intent.putExtra("isExisting", isExisting)
+        startActivity(intent)
         finish()
     }
 

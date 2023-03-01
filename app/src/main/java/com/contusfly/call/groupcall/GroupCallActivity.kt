@@ -943,7 +943,6 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
     }
 
     override fun updateFeatureActions(features: Features) {
-        super.updateFeatureActions(features)
         callViewHelper.updateFeatureActions()
     }
 }

@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.contus.flycommons.ChatType
+import com.contus.flycommons.Features
 import com.contus.flycommons.FlyCallback
 import com.contus.xmpp.chat.utils.LibConstants
 import com.contusfly.*
@@ -24,10 +25,7 @@ import com.contusfly.databinding.ActivityArchivedChatsBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.fragments.ProfileDialogFragment
 import com.contusfly.interfaces.RecentChatEvent
-import com.contusfly.utils.Constants
-import com.contusfly.utils.LogMessage
-import com.contusfly.utils.ProfileDetailsUtils
-import com.contusfly.utils.UserInterfaceUtils
+import com.contusfly.utils.*
 import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomRecyclerView
@@ -401,7 +399,7 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
             if (recentList.size == 1 && startActionMode) setActionMode()
             menuValidationForMuteUnMuteIcon(recentList)
             actionModeMenu.findItem(R.id.action_unarchive).isVisible = true
-            menuValidationForDelete(recentList)
+            updateActionMenuIcons(ChatManager.getAvailableFeatures(),recentList)
             menuValidationForReadUnRead(recentList)
             actionMode?.title = recentList.size.toString()
         }
@@ -438,8 +436,17 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
         for (i in recentList.indices)
             if (recentList[i].isGroup)
                 groupCheck.add(true)
-        actionModeMenu.findItem(R.id.action_delete).isVisible = groupCheck.isEmpty()
+        actionModeMenu.findItem(R.id.action_delete).isVisible = showDeleteOption(recentList)
         if (FlyCore.isArchivedSettingsEnabled()) actionModeMenu.findItem(R.id.action_unmute).isVisible = false
+    }
+
+    private fun showDeleteOption(recentList: List<RecentChat>):Boolean{
+        for(item in recentList){
+            if((item.getChatType() == ChatType.TYPE_GROUP_CHAT) && ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(item.jid,
+                    SharedPreferenceManager.getCurrentUserJid()))
+                return false
+        }
+        return true
     }
 
     private fun setAdapterBasedOnSearchType() {
@@ -833,5 +840,21 @@ class ArchivedChatsActivity : BaseActivity(), ActionMode.Callback,
     override fun onResume() {
         super.onResume()
         viewModel.getArchivedChats()
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        updateActionMenuIcons(features, viewModel.selectedChats)
+    }
+
+    private fun updateActionMenuIcons(features: Features, recentList: List<RecentChat>) {
+        try {
+            actionModeMenu?.let {
+                if (features.isDeleteChatEnabled)
+                    menuValidationForDelete(recentList)
+                else hideMenu(it.get(R.id.action_delete))
+            }
+        } catch(e:Exception) {
+            LogMessage.e(TAG,e.toString())
+        }
     }
 }

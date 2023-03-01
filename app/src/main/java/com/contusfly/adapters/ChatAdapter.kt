@@ -47,6 +47,7 @@ import com.contusfly.utils.Constants
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.CustomTextView
 import com.contusfly.views.MirrorFlySeekBar
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.MessageStatus
 import com.contusflysdk.api.models.ChatMessage
@@ -903,7 +904,7 @@ class ChatAdapter(
                 txtChatReceiver.setTextColor(ContextCompat.getColor(context, R.color.color_black))
                 receiverTextTranslated?.maxWidth = SharedPreferenceManager.getInt(Constants.DEVICE_WIDTH)
                 if (isTranslationChecked &&  mainlist[position].messageCustomField != null && mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED] != null
-                    && mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED].equals("true")) {
+                    && mainlist[position].messageCustomField[Constants.IS_MESSAGE_TRANSLATED].equals("true") && ChatManager.getAvailableFeatures().isTranslationEnabled) {
                     translatedlinearlayout?.show()
                     receiverTextTranslated?.show()
                     receiverTextTranslated?.text = mainlist[position].messageCustomField[Constants.TRANSLATED_MESSAGE_CONTENT]
@@ -1198,15 +1199,17 @@ class ChatAdapter(
           if (!mainlist[layoutPosition].isMessageRecalled)
               if (selectedMessages.isNotEmpty()) {
                   listener?.onSenderItemClicked(mainlist[layoutPosition], layoutPosition)
+              } else if(!ChatManager.getAvailableFeatures().isTranslationEnabled){
+                  return
               } else if (isTranslationChecked && (mainlist[layoutPosition].messageCustomField == null
                           || mainlist[layoutPosition].messageCustomField[Constants.IS_MESSAGE_TRANSLATED] == null
                           || mainlist[layoutPosition].messageCustomField[Constants.IS_MESSAGE_TRANSLATED].equals(
-                      "false"
-                  )
+                      "false")
                           || !mainlist[layoutPosition].messageCustomField[Constants.TRANSLATED_LANGUAGE].equals(
                       selectedLanguage
                   ))
               ) {
+
                   val pressTime = System.currentTimeMillis()
                   if (pressTime - lastPressTime <= doublePRESSINTERVAL) {
                       activity.checkInternetAndExecute(true) {
@@ -2161,7 +2164,12 @@ class ChatAdapter(
     }
 
     fun refreshMessageAtPosition(position: Int, message: ChatMessage) {
-        notifyItemChanged(validateMessagePosition(position, message, true))
+        if(message.isMessageDeleted() && mainlist.size > position) {
+            mainlist.removeAt(position)
+            notifyItemRemoved(position)
+        } else {
+            notifyItemChanged(validateMessagePosition(position, message, true))
+        }
     }
 
     private fun validateMessagePosition(position: Int, message: ChatMessage, findAgain: Boolean): Int {

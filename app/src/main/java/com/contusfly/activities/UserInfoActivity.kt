@@ -11,11 +11,14 @@ import androidx.core.view.ViewCompat
 import com.contus.flycommons.*
 import com.contusfly.*
 import com.contusfly.R
+import com.contusfly.R.string.fly_error_forbidden_exception
 import com.contusfly.databinding.ActivityUserInfoBinding
 import com.contusfly.network.NetworkConnection
 import com.contusfly.utils.AppConstants
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.CustomToast
 import com.contusfly.views.DoProgressDialog
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
@@ -67,8 +70,13 @@ class UserInfoActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedLis
             FlyCore.updateChatMuteStatus(userProfileDetails.jid, isChecked)
         }
         binding.textMedia.setOnClickListener {
-            launchActivity<ViewAllMediaActivity> {
-                putExtra(Constants.ROSTER_JID, userProfileDetails.jid)
+            var feature=ChatManager.getAvailableFeatures()
+            if(feature.isViewAllMediaEnabled){
+                launchActivity<ViewAllMediaActivity> {
+                    putExtra(Constants.ROSTER_JID, userProfileDetails.jid)
+                }
+            } else {
+                showToast(resources.getString(fly_error_forbidden_exception))
             }
         }
         binding.reportUser.setOnClickListener {
@@ -89,6 +97,7 @@ class UserInfoActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedLis
         }
         observeNetworkListener()
         mediaValidation()
+        userFeatureValidation(ChatManager.getAvailableFeatures())
     }
 
     private fun observeNetworkListener() {
@@ -340,5 +349,23 @@ class UserInfoActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedLis
 
     override fun listOptionSelected(position: Int) {
         //"Not yet implemented"
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        userFeatureValidation(features)
+    }
+
+    private fun userFeatureValidation(availableFeatures: Features) {
+        if(availableFeatures.isReportEnabled) {
+            showViews(binding.reportUser)
+        } else {
+            makeViewsGone(binding.reportUser)
+        }
+
+        if(availableFeatures.isViewAllMediaEnabled) {
+            showViews(binding.textMedia)
+        } else {
+            makeViewsGone(binding.textMedia)
+        }
     }
 }
