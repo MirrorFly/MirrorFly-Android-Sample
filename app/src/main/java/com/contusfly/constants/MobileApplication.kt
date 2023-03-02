@@ -235,6 +235,8 @@ class MobileApplication : Application(), HasAndroidInjector {
             }
         })
 
+        CallManager.keepConnectionInForeground(true)
+
 
     }
 

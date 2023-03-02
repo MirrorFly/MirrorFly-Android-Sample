@@ -57,6 +57,7 @@ import net.opacapp.multilinecollapsingtoolbar.CollapsingToolbarLayout
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlin.collections.ArrayList
 
 class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedListener ,DialogInterface.OnClickListener{
 
@@ -219,8 +220,8 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         setUserData()
         initViews()
         initListeners()
-        loadGroupExistence()
         loadAdapterData()
+        groupFeatureValidation(ChatManager.getAvailableFeatures())
         GroupManager.getGroupMembersList(ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.doesFetchingMembersListFromServedRequired(groupProfileDetails.jid), groupProfileDetails.jid) { isSuccess, throwable, data ->
             if (isSuccess) {
                 var groupMembers: MutableList<ProfileDetails> =
@@ -261,8 +262,13 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         binding.profileImage.setOnClickListener { openImageView() }
         binding.leaveGroup.setOnClickListener{ exitOrDeleteGroup() }
         binding.textMedia.setOnClickListener {
-            launchActivity<ViewAllMediaActivity> {
-                putExtra(Constants.ROSTER_JID, groupProfileDetails.jid)
+            var feature=ChatManager.getAvailableFeatures()
+            if(feature.isViewAllMediaEnabled){
+                launchActivity<ViewAllMediaActivity> {
+                    putExtra(Constants.ROSTER_JID, groupProfileDetails.jid)
+                }
+            } else {
+                showToast(resources.getString(R.string.fly_error_forbidden_exception))
             }
         }
         groupMembersAdapter.onProfileClickedCallback{position,profile->
@@ -321,10 +327,16 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
         if (groupProfileDetails != null) {
             when {
                 ChatManager.getAvailableFeatures().isGroupChatEnabled && GroupManager.isMemberOfGroup(groupProfileDetails.jid,SharedPreferenceManager.getCurrentUserJid()) -> {
+                    binding.leaveGroup.visibility=View.VISIBLE
                     binding.leaveGroup.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_leave_group, 0, 0, 0)
                     binding.leaveGroup.text = getString(R.string.label_leave_group)
                 }
                 ChatType.TYPE_GROUP_CHAT == groupProfileDetails.getChatType() -> {
+                    if(!ChatManager.getAvailableFeatures().isDeleteChatEnabled){
+                        binding.leaveGroup.visibility=View.GONE
+                        return
+                    }
+                    binding.leaveGroup.visibility=View.VISIBLE
                     binding.leaveGroup.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_delete_group, 0, 0, 0)
                     binding.leaveGroup.text = getString(R.string.label_delete_group)
                 }
@@ -781,6 +793,11 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
      * Callback for delete group button click
      */
     private fun onDeleteGroup() {
+        if(!ChatManager.getAvailableFeatures().isDeleteChatEnabled){
+            loadGroupExistence()
+            showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            return
+        }
         progressDialog = DoProgressDialog(this)
         progressDialog.showProgress()
         if (groupProfileDetails.isGroupProfile) {
@@ -1093,6 +1110,10 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
                     DIALOGMODE.EXIT_GROUP
                 }
                  groupProfileDetails.isGroupProfile -> {
+                     if(!ChatManager.getAvailableFeatures().isDeleteChatEnabled) {
+                         binding.leaveGroup.visibility=View.GONE
+                         return
+                     }
                     mDialog!!.showAlertDialog(
                         getString(R.string.msg_are_you_sure_delete),
                         getString(R.string.action_delete),
@@ -1370,5 +1391,25 @@ class GroupInfoActivity : BaseActivity(),CommonAlertDialog.CommonDialogClosedLis
     private fun navigateToDashboard() {
         showToast(getString(R.string.group_block_message_label))
         startDashboardActivity()
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        groupFeatureValidation(features)
+    }
+
+    private fun groupFeatureValidation(availableFeatures: Features) {
+        if(availableFeatures.isReportEnabled) {
+            showViews(binding.reportGroup)
+        } else {
+            makeViewsGone(binding.reportGroup)
+        }
+
+        if(availableFeatures.isViewAllMediaEnabled) {
+            showViews(binding.textMedia)
+        } else {
+            makeViewsGone(binding.textMedia)
+        }
+
+        loadGroupExistence()
     }
 }

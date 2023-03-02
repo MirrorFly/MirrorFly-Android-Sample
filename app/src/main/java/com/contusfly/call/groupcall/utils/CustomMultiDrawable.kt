@@ -226,13 +226,16 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
      */
     private fun addImage(profileDetails: ProfileDetails?, context: Context?, errorImg: Bitmap, index: Int) {
         var imgUrl = profileDetails?.image ?: ""
-        imgUrl = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT)
-                .buildUpon().appendPath(Uri.parse(imgUrl).lastPathSegment).build().toString()
-        val options = RequestOptions().priority(Priority.HIGH)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
         if(profileDetails?.isBlockedMe!! || profileDetails?.isAdminBlocked!!)
             imgUrl=""
-        Glide.with(context!!)
+        if (imgUrl.isBlank())
+            items[index].bitmap = getCroppedBitmap(scaleCenterCrop(errorImg, bounds.width(), bounds.height()))
+        else {
+            imgUrl = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT)
+            .buildUpon().appendPath(Uri.parse(imgUrl).lastPathSegment).build().toString()
+            val options = RequestOptions().priority(Priority.HIGH)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+            Glide.with(context!!)
                 .asBitmap()
                 .load(imgUrl).apply(options)
                 .into(object : CustomTarget<Bitmap>() {
@@ -249,6 +252,7 @@ class CustomMultiDrawable internal constructor(private val userList: ArrayList<S
                         items[index].bitmap = getCroppedBitmap(scaleCenterCrop(errorImg, bounds.width(), bounds.height()))
                     }
                 })
+        }
     }
 
     /**

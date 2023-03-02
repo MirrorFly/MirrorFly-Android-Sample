@@ -16,6 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/margin_11"
+        android:visibility="gone"
         android:layoutAnimation="@anim/layout_animation_from_bottom"/>
 
     <com.contusfly.views.CustomRecyclerView

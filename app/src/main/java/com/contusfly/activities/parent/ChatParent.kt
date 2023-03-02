@@ -42,6 +42,7 @@ import androidx.emoji.widget.EmojiAppCompatTextView
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.*
 import com.contus.flycommons.ChatType
+import com.contus.flycommons.Features
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.TAG
 import com.contus.flycommons.models.MessageType
@@ -51,7 +52,6 @@ import com.contusfly.*
 import com.contusfly.activities.*
 import com.contusfly.adapters.ChatAdapter
 import com.contusfly.adapters.ReplySuggestionsAdapter
-import com.contusfly.call.CallConfiguration
 import com.contusfly.chat.AndroidUtils
 import com.contusfly.chat.MessagingClient
 import com.contusfly.chat.ReplyHashMap
@@ -239,11 +239,17 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
 
     var optionMenu: Menu? = null
 
+    var menuReference: Menu? = null
+
+    var actionMenuReference: Menu? = null
+
     var actionPrev: MenuItem? = null
 
     lateinit var toUser: String
 
     lateinit var messageId: String
+
+    var isLoadNextAvailable = false
 
     lateinit var mobileApplication: MobileApplication
 
@@ -631,8 +637,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             goneDisposable,
             infoClickDisposable,
             unSentDisposable,
-            searchDisposable
-        )
+            searchDisposable)
 
         observeMessageRefreshListener()
     }
@@ -1185,6 +1190,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         menu.get(R.id.action_archive_chat).hide()
         menu.get(R.id.action_pin).action(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.get(R.id.action_un_pin).action(MenuItem.SHOW_AS_ACTION_NEVER)
+        actionMenuReference=menu
         return menu
     }
 
@@ -1192,6 +1198,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         actionMode?.let {
             it.title = "${clickedMessages.size}"
             actionModeMenu?.let { menu ->
+                var features=ChatManager.getAvailableFeatures()
                 val menuHashMap = parentViewModel.handleActionMenuVisibility(clickedMessages)
                 val isSingleMessage = clickedMessages.size == 1
                 if (menuHashMap[Constants.RECALL]!!) {
@@ -1206,7 +1213,10 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                         menu.get(R.id.action_pin),
                         menu.get(R.id.action_un_pin)
                     )
+                    updateMenuIcons(menu,true,features,isSingleMessage,menuHashMap)
+
                 } else {
+
                     menu.get(R.id.action_delete).isVisible = menuHashMap[Constants.DELETE]!!
                     menu.get(R.id.action_reply).isVisible = menuHashMap[Constants.REPLY]!!
                     menu.get(R.id.action_favourite).isVisible = menuHashMap[Constants.STAR]!!
@@ -1223,7 +1233,50 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                         menu.get(R.id.action_copy).isVisible = false
                         menu.get(R.id.action_report).isVisible = false
                     }
+
+                    updateMenuIcons(menu,false,features,isSingleMessage,menuHashMap)
                 }
+
+            }
+
+        }
+    }
+
+    private fun updateMenuIcons(
+        actionModeMenu: Menu,
+        isRecall: Boolean,
+        features: Features,
+        isSingleMessage: Boolean,
+        menuHashMap: HashMap<String, Boolean>
+    ) {
+
+        actionModeMenu?.let { menu ->
+
+            if (features.isReportEnabled){
+                if (isSingleMessage) {
+                    menu.get(R.id.action_report).isVisible = menuHashMap[Constants.REPORT]!!
+                } else {
+                    menu.get(R.id.action_report).isVisible = false
+                }
+            } else {
+                hideMenu(menu.get(R.id.action_report))
+            }
+
+            if (features.isDeleteMessageEnabled){
+                menu.get(R.id.action_delete).isVisible = menuHashMap[Constants.DELETE]!!
+            } else {
+                hideMenu(menu.get(R.id.action_delete))
+            }
+
+            if(isRecall)
+                return
+
+            if (features.isStarMessageEnabled){
+                menu.get(R.id.action_favourite).isVisible = menuHashMap[Constants.STAR]!!
+                menu.get(R.id.action_unfavourite).isVisible = menuHashMap[Constants.UNSTAR]!!
+            } else {
+                hideMenu(menu.get(R.id.action_favourite))
+                hideMenu(menu.get(R.id.action_unfavourite))
             }
 
         }
@@ -1348,6 +1401,11 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     }
 
     protected fun showBlockUserDialog(isBlock: Boolean) {
+        if(!ChatManager.getAvailableFeatures().isBlockEnabled){
+            context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            isBlockUnblockCalled=false
+            return
+        }
         if (isBlock) commonAlertDialog.dialogAction = CommonAlertDialog.DialogAction.BLOCK
         else commonAlertDialog.dialogAction = CommonAlertDialog.DialogAction.UNBLOCK
         netConditionalCall({
@@ -1532,13 +1590,17 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
     }
 
     override fun onSendMessageSuccess(message: ChatMessage) {
-        parentViewModel.loadNextData()
+        if(isLoadNextAvailable) {
+            messageId = Constants.EMPTY_STRING
+            parentViewModel.loadInitialData(messageId)
+        } else {
+            parentViewModel.loadNextData()
+        }
         handleUnreadMessageSeparator(true)
         Handler(Looper.getMainLooper()).postDelayed({
             resetReplyMessageView()
             addMessagesforSmartReply()
             listChats.scrollToPosition(mainList.size - 1) }, 100)
-
     }
 
     /**
@@ -2545,12 +2607,13 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         val replyMessage = parentViewModel.getMessageForReply(messageId)
         if ((replyMessage?.isMessageRecalled() == null || !replyMessage.isMessageRecalled()) && (replyMessage?.isMessageDeleted() == null || !replyMessage.isMessageDeleted())) {
             val position = getMessagePosition(messageId)
-            listChats.scrollToPosition(position)
+             mManager.scrollToPositionWithOffset(position, 1000)
             val highlightTimerDisposable = Observable.timer(100, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread()).subscribe {
-                val bundle = Bundle()
-                bundle.putInt(Constants.NOTIFY_MESSAGE_HIGHLIGHT, 1)
-                chatAdapter.notifyItemChanged(position, bundle)
+                    val newPosition = getMessagePosition(messageId)
+                    val bundle = Bundle()
+                    bundle.putInt(Constants.NOTIFY_MESSAGE_HIGHLIGHT, 1)
+                    chatAdapter.notifyItemChanged(newPosition, bundle)
             }
             val timerDisposable =
                 Observable.timer(2, TimeUnit.SECONDS).observeOn(AndroidSchedulers.mainThread())

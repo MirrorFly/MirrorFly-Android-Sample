@@ -21,6 +21,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.AppCompatImageView
 import com.contus.flycommons.LogMessage
 import com.contusfly.R
+import com.contusfly.TAG
 import com.contusfly.call.groupcall.utils.CustomMultiDrawable
 import java.util.*
 
@@ -168,18 +169,22 @@ class CircularImageView : AppCompatImageView {
      * @param canvas the canvas on which the background will be drawn
      */
     override fun onDraw(canvas: Canvas) {
-        if (shape == Shape.RECTANGLE) {
-            if (drawable != null) {
-                super.onDraw(canvas)
+        try {
+            if (shape == Shape.RECTANGLE) {
+                if (drawable != null) {
+                   super.onDraw(canvas)
+                }
+            } else {
+                if (mBitmap == null) {
+                    return
+                }
+                canvas.drawCircle(mDrawableRect.centerX(), mDrawableRect.centerY(), mDrawableRadius, mBitmapPaint)
+                if (mBorderWidth > 0) {
+                    canvas.drawCircle(mBorderRect.centerX(), mBorderRect.centerY(), mBorderRadius, mBorderPaint)
+                }
             }
-        } else {
-            if (mBitmap == null) {
-                return
-            }
-            canvas.drawCircle(mDrawableRect.centerX(), mDrawableRect.centerY(), mDrawableRadius, mBitmapPaint)
-            if (mBorderWidth > 0) {
-                canvas.drawCircle(mBorderRect.centerX(), mBorderRect.centerY(), mBorderRadius, mBorderPaint)
-            }
+        } catch (e: Exception) {
+            LogMessage.i(TAG, "Catch Canvas: trying to use a recycled bitmap")
         }
     }
 

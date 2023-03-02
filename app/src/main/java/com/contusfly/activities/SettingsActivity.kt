@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.ViewModelProvider
+import com.contus.flycommons.Features
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.applySrcInColorFilter
@@ -172,5 +173,9 @@ class SettingsActivity : BaseActivity(), CoroutineScope {
         })
         mMenu = menu
         return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun updateFeatureActions(features: Features) {
+        viewModel.updateFeatureRestriction(features)
     }
 }

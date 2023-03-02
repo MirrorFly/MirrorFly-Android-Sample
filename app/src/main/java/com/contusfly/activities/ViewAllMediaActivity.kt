@@ -16,6 +16,8 @@ import com.contusfly.utils.Constants
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.utils.UserInterfaceUtils
 import com.contusfly.viewmodels.ViewAllMediaViewModel
+import com.contusfly.views.CustomToast
+import com.contusflysdk.api.ChatManager
 
 class ViewAllMediaActivity : BaseActivity() {
 
@@ -50,15 +52,20 @@ class ViewAllMediaActivity : BaseActivity() {
         UserInterfaceUtils.setUpToolBar(this, mToolbar, supportActionBar, Constants.EMPTY_STRING)
 
         profileId = intent.getStringExtra(Constants.ROSTER_JID)
-        profileId?.let {
-            val profileInfo = ProfileDetailsUtils.getProfileDetails(it)
-            if (profileInfo != null) {
-                mToolbar.title = profileInfo.name
-            }
-            viewModel.getMediaList(it)
-            viewModel.getDocsList(it)
-            viewModel.getLinksList(it)
+        val profileInfo = profileId?.let { ProfileDetailsUtils.getProfileDetails(it) }
+        if (profileInfo != null) {
+            mToolbar.title = profileInfo.name
         }
+        if(ChatManager.getAvailableFeatures().isViewAllMediaEnabled){
+            profileId?.let {
+                viewModel.getMediaList(it)
+                viewModel.getDocsList(it)
+                viewModel.getLinksList(it)
+            }
+        } else {
+            CustomToast.show(this,resources.getString(R.string.fly_error_forbidden_exception))
+        }
+
     }
 
     override fun onAdminBlockedOtherUser(jid: String, type: String, status: Boolean) {

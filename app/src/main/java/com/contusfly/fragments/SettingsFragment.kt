@@ -17,16 +17,18 @@ import android.view.WindowManager
 import android.widget.CompoundButton
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import com.contusfly.AppLifecycleListener
-import com.contusfly.BuildConfig
-import com.contusfly.R
+import androidx.lifecycle.ViewModelProvider
+import com.contus.flycommons.Features
+import com.contusfly.*
 import com.contusfly.activities.*
 import com.contusfly.chatTag.activities.ChatTagActivity
 import com.contusfly.databinding.FragmentSettingsBinding
 import com.contusfly.notification.AppNotificationManager
 import com.contusfly.utils.*
+import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusflysdk.AppUtils
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.views.CustomToast
 import java.text.SimpleDateFormat
@@ -62,6 +64,10 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
      */
     private lateinit var progressDialog: ProgressDialog
 
+    private val viewModel by lazy {
+        ViewModelProvider(requireActivity()).get(DashboardViewModel::class.java)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
@@ -86,6 +92,8 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
     }
 
     private fun initViews() {
+        featureActionValidation(ChatManager.getAvailableFeatures())
+        setObserver()
         settingsActivity!!.showSearchMenu(false)
         mDialog = CommonAlertDialog(context)
         mDialog.setOnDialogCloseListener(this)
@@ -116,7 +124,11 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
         }
 
         settingsBinding.layoutBlockedContacts.setOnClickListener{
-            settingsActivity!!.performFragmentTransaction(BlockedContactsFragment.newInstance())
+            var feature=ChatManager.getAvailableFeatures()
+            if(feature.isBlockEnabled)
+                settingsActivity!!.performFragmentTransaction(BlockedContactsFragment.newInstance())
+            else
+                context.showToast(resources.getString(R.string.fly_error_forbidden_exception))
         }
 
         settingsBinding.layoutNotifications.setOnClickListener{
@@ -128,7 +140,11 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
         }
 
         settingsBinding.layoutStarredMessages.setOnClickListener{
+            var feature=ChatManager.getAvailableFeatures()
+            if(feature.isStarMessageEnabled)
             startActivity(Intent(settingsActivity, StarredMessageActivity::class.java))
+            else
+                context.showToast(resources.getString(R.string.fly_error_forbidden_exception))
         }
 
         settingsBinding.btnSwitchConnection.setOnCheckedChangeListener(onCheckedChanged())
@@ -228,8 +244,35 @@ class SettingsFragment(val navigateToSafeChat: Boolean?=false) : Fragment(), Com
         }
     }
 
-
     override fun listOptionSelected(position: Int) {
         /* Called when list options has been selected */
     }
+
+    private fun setObserver(){
+
+        viewModel.availableFeatureLiveData.observe(viewLifecycleOwner, androidx.lifecycle.Observer {
+            featureActionValidation(it)
+        })
+
+    }
+
+    private fun featureActionValidation(availableFeatures: Features) {
+
+        if(availableFeatures.isStarMessageEnabled){
+            showViews(settingsBinding.layoutStarredMessages)
+            showViews(settingsBinding.starMessageLayoutView)
+        } else {
+            makeViewsGone(settingsBinding.layoutStarredMessages)
+            makeViewsGone(settingsBinding.starMessageLayoutView)
+        }
+
+        if(availableFeatures.isBlockEnabled) {
+            showViews(settingsBinding.layoutBlockedContacts)
+            showViews(settingsBinding.blockLayoutView)
+        } else {
+            makeViewsGone(settingsBinding.layoutBlockedContacts)
+            makeViewsGone(settingsBinding.blockLayoutView)
+        }
+    }
+
 }

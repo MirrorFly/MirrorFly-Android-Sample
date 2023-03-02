@@ -31,6 +31,7 @@ import com.contus.webrtc.api.CallManager
 import com.contus.call.database.model.CallLog
 import com.contus.call.utils.CallConstants
 import com.contus.xmpp.chat.utils.LibConstants
+import com.contusfly.*
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.activities.ChatActivity
@@ -42,8 +43,6 @@ import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.FragmentCallHistoryBinding
 import com.contusfly.di.factory.AppViewModelFactory
 import com.contusfly.helpers.PaginationScrollListener
-import com.contusfly.setOnClickListener
-import com.contusfly.setVisible
 import com.contusfly.utils.AppConstants
 import com.contusfly.utils.MediaPermissions
 import com.contusfly.utils.ProfileDetailsUtils
@@ -130,14 +129,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
         }
 
     // General activity result contract
-    private val openContactsActivity =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val selectedCallUsersList =
-                    result.data?.getStringArrayListExtra(com.contusfly.utils.Constants.USERS_JID)!!
-                makeCall(lastCallAction, "", false, false, selectedCallUsersList)
-            }
-        }
+    private lateinit var openContactsActivity: ActivityResultLauncher<Intent>
 
     override fun onAttach(context: Context) {
         AndroidSupportInjection.inject(this)
@@ -160,6 +152,14 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     }
 
     private fun initView() {
+        openContactsActivity =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == Activity.RESULT_OK) {
+                    val selectedCallUsersList =
+                        result.data?.getStringArrayListExtra(com.contusfly.utils.Constants.USERS_JID)!!
+                    makeCall(lastCallAction, "", false, false, selectedCallUsersList)
+                }
+            }
         CallLogManager.setCallLogsListener(object : CallLogManager.CallLogsListener {
             override fun onCallLogsUpdated() {
                 mAdapter.clearCallLogs()
@@ -186,7 +186,6 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
             setEmptyView(callHistoryBinding.viewNoCallHistory.root)
             setScrollListener(layoutManager as LinearLayoutManager)
         }
-        callHistoryBinding.fabAddCall.setVisible(ChatManager.getAvailableFeatures().isGroupCallEnabled && CallConfiguration.isGroupCallEnabled())
         callHistoryBinding.fabAddCall.setOnClickListener {
             if (callHistoryBinding.fabMakeVoiceCall.isVisible) {
                 callHistoryBinding.fabMakeVoiceCall.hide()
@@ -225,7 +224,7 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
     }
 
     private fun setScrollListener(layoutManager: LinearLayoutManager) {
-        callHistoryBinding.listCallHistory.addOnScrollListener(object : PaginationScrollListener(layoutManager, handler = mHandler){
+        callHistoryBinding.listCallHistory.addOnScrollListener(object : PaginationScrollListener(layoutManager, handler = mHandler) {
             override fun loadMoreItems() {
                 viewModel.getCallLogsList(false)
             }
@@ -300,25 +299,30 @@ class CallHistoryFragment : Fragment(), CoroutineScope, CommonAlertDialog.Common
 
     private fun profileUpdateObserver() {
         dashBoardViewModel.profileUpdatedLiveData.observe(viewLifecycleOwner) { userJid ->
-            val bundle = Bundle()
-            bundle.putInt(AppConstants.NOTIFY_PROFILE_ICON, 3)
-            getIndicesOfUserInCallLog(userJid, true).forEachIndexed { _, _ ->
-                if (mCallLogsType == CallLogsType.NORMAL && (callHistoryBinding.listCallHistory.adapter is CallHistoryAdapter)) {
-                    mAdapter.notifyDataSetChanged()
-                } else if (mCallLogsType == CallLogsType.SEARCH && (callHistoryBinding.listCallHistory.adapter is CallHistorySearchAdapter)) {
-                    mSearchAdapter.notifyDataSetChanged()
-                }
-            }
+            notifyProfileUpdate(userJid)
         }
         dashBoardViewModel.callsSearchKey.observe(viewLifecycleOwner, Observer { doSearch(it) })
         viewModel.filteredCallLogsList.observe(viewLifecycleOwner, Observer { observeFilteredCallLogs(it) })
         viewModel.updatedFeaturesLiveData.observe(viewLifecycleOwner) {
-            callHistoryBinding.fabAddCall.setVisible(it.isGroupCallEnabled)
-            if (it.isGroupCallEnabled) {
+            if (it.isGroupCallEnabled || it.isOneToOneCallEnabled) {
                 if (callHistoryBinding.listCallHistory.adapter == null)
                     callHistoryBinding.listCallHistory.adapter = mAdapter
                 else
                     setAdapterBasedOnSearchType()
+            }
+        }
+    }
+
+    private fun notifyProfileUpdate(userJid: String) {
+        val bundle = Bundle()
+        bundle.putInt(AppConstants.NOTIFY_PROFILE_ICON, 3)
+        getIndicesOfUserInCallLog(userJid, true).forEachIndexed { _, callLog ->
+            if (mCallLogsType == CallLogsType.NORMAL && (callHistoryBinding.listCallHistory.adapter is CallHistoryAdapter)) {
+                val finalIndex = viewModel.callLogAdapterList.indexOfFirst { cl -> cl.roomId == callLog.roomId }
+                if (finalIndex.isValidIndex())
+                    mAdapter.notifyItemChanged(finalIndex, bundle)
+            } else if (mCallLogsType == CallLogsType.SEARCH && (callHistoryBinding.listCallHistory.adapter is CallHistorySearchAdapter)) {
+                mSearchAdapter.notifyDataSetChanged()
             }
         }
     }

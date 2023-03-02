@@ -39,11 +39,30 @@
         android:textColor="@color/color_white"
         android:textSize="@dimen/text_size_18" />
 
+
+    <TextView
+        android:id="@+id/text_participants_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/text_caller_name"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="@dimen/margin_16"
+        android:ellipsize="end"
+        android:fontFamily="@font/sf_ui_display_light"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:paddingStart="@dimen/padding_20"
+        android:paddingEnd="@dimen/padding_20"
+        android:textAlignment="center"
+        android:textColor="@color/color_white"
+        android:textSize="@dimen/text_size_16" />
+
     <com.contusfly.views.CircularImageView
         android:id="@+id/caller_profile_image"
         android:layout_width="@dimen/margin_120"
         android:layout_height="@dimen/margin_120"
-        android:layout_below="@+id/text_caller_name"
+        android:layout_below="@+id/text_participants_name"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="@dimen/margin_15"
         android:gravity="center"
@@ -62,7 +81,7 @@
         android:id="@+id/layout_outgoing_profile"
         android:layout_width="@dimen/margin_180"
         android:layout_height="@dimen/margin_180"
-        android:layout_below="@+id/text_caller_name"
+        android:layout_below="@+id/text_participants_name"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="@dimen/margin_10"
         android:gravity="center">

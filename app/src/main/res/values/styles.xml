@@ -1048,4 +1048,9 @@
         <item name="android:windowAnimationStyle">@style/SlideDialogAnimation</item>
     </style>
 
+    <style name="ShapeAppearance.Image.PILL" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
 </resources>

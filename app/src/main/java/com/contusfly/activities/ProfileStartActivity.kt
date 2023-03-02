@@ -655,7 +655,7 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
                     if (AppUtils.isNetConnected(this)) {
                         progressDialog = DoProgressDialog(this)
                         if (progressDialog != null) progressDialog!!.showProgress()
-                        updateprofilecompress()
+                        updateProfilePic(mFileTemp!!)
                     } else CustomToast.show(this, getString(R.string.msg_no_internet))
                 }else{
                     userImgUrl = mFileTemp!!.path
@@ -666,29 +666,6 @@ open class ProfileStartActivity : BaseActivity(), View.OnClickListener, DialogIn
         } catch (e: java.lang.Exception) {
             LogMessage.e(TAG, e)
         }
-    }
-
-    private fun updateprofilecompress(){
-
-        try{
-
-            var file=ImageCompressor.sampleAndResize(mFileTemp!!,this)
-            if(file!=null){
-                mFileTemp=file
-            }
-
-            updateProfilePic(mFileTemp!!)
-
-        }catch(e:NullPointerException){
-
-            LogMessage.e(TAG,e.toString())
-
-        }catch(e:Exception){
-
-            LogMessage.e(TAG,e.toString())
-        }
-
-
     }
 
     private fun updateProfilePic(mFileTemp: File) {

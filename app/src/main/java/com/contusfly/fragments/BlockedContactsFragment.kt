@@ -8,12 +8,12 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.contus.flycommons.Features
 import com.contus.flycommons.getData
 import com.contus.flycommons.runOnUiThread
-import com.contusfly.R
+import com.contusfly.*
 import com.contusfly.activities.SettingsActivity
 import com.contusfly.adapters.BlockedContactsAdapter
-import com.contusfly.checkInternetAndExecute
 import com.contusfly.databinding.FragmentBlockedContactsBinding
 import com.contusfly.utils.Constants
 import com.contusfly.utils.ProfileDetailsUtils.sortProfileList
@@ -21,6 +21,7 @@ import com.contusfly.viewmodels.DashboardViewModel
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusflysdk.AppUtils
+import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyCore
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.views.CustomToast
@@ -67,6 +68,8 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
         ViewModelProvider(requireActivity()).get(DashboardViewModel::class.java)
     }
 
+    private var isBlockClicked:Boolean=false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settingsActivity = activity as SettingsActivity?
@@ -86,10 +89,15 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
         viewModel.blockedProfilesLiveData.observe(viewLifecycleOwner, Observer {
             refreshAdapter(false)
         })
+
+        viewModel.availableFeatureLiveData.observe(viewLifecycleOwner, androidx.lifecycle.Observer {
+            featureActionValidation(it)
+        })
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        featureActionValidation(ChatManager.getAvailableFeatures())
         initViews()
     }
 
@@ -105,6 +113,7 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
             }
             selectedUserJid = profile.jid
             selectedUserName = profile.name
+            isBlockClicked=true
             mDialog.showAlertDialog(String.format(getString(R.string.unblock_message_label), selectedUserName), getString(R.string.yes_label),
                     getString(R.string.no_label), CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL, true)
 
@@ -141,6 +150,12 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
     }
 
     override fun onDialogClosed(dialogType: CommonAlertDialog.DIALOGTYPE?, isSuccess: Boolean) {
+        isBlockClicked=false
+        if(!ChatManager.getAvailableFeatures().isBlockEnabled){
+            context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            settingsActivity!!.onBackPressed()
+            return
+        }
         if (isSuccess)
             if (AppUtils.isNetConnected(settingsActivity?.applicationContext)) {
                 progressDialog = DoProgressDialog(settingsActivity!!)
@@ -172,6 +187,16 @@ class BlockedContactsFragment : Fragment(), CoroutineScope, CommonAlertDialog.Co
 
     override fun listOptionSelected(position: Int) {
         /* Called when list options has been selected */
+    }
+
+    private fun featureActionValidation(availableFeatures: Features) {
+        if(isBlockClicked)
+            return
+
+        if(!availableFeatures.isBlockEnabled){
+            settingsActivity!!.onBackPressed()
+        }
+
     }
 
     override val coroutineContext: CoroutineContext

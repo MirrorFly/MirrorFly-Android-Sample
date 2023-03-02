@@ -1,5 +1,6 @@
 package com.contusfly.starredMessages.presenter
 
+import com.contus.flycommons.FlyCallback
 import com.contusfly.R
 import com.contusfly.TAG
 import com.contusfly.starredMessages.view.IStarredMessagesView

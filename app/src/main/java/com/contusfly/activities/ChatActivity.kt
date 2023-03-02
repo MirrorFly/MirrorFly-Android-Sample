@@ -400,8 +400,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             mainList.clear() //since these are intial messages, the list must be cleared
             mainList.addAll(messagesList)
             chatAdapter.notifyDataSetChanged()
-            if (mainList.isNotEmpty() && messageId.isNotEmpty() && messageId != unreadMessageTypeMessageId)
-                highlightGivenMessageId(messageId)
+            if (mainList.isNotEmpty()) {
+                if (messageId.isNotEmpty() && messageId != unreadMessageTypeMessageId)
+                    highlightGivenMessageId(messageId)
+                else
+                    listChats.scrollToPosition(mainList.size - 1)
+            }
             initSuggestion(mainList)
         }
 
@@ -563,16 +567,41 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             actionPrev = menu.get(R.id.action_prev)
         } else {
             menuInflater.inflate(R.menu.menu_chat_items, menu)
+            menuReference=menu
             if (chat.isSingleChat()) {
                 menu.get(R.id.action_block).isVisible = !profileDetails.isBlocked
                 menu.get(R.id.action_unblock).isVisible = profileDetails.isBlocked
             }
             menu.get(R.id.action_email).isVisible = !BuildConfig.HIPAA_COMPLIANCE_ENABLED
             menu.get(R.id.action_chat_search).isVisible = true
+            updateMenuIcons(ChatManager.getAvailableFeatures())
             updateMenuItemsClicks(menu)
             setCallButtonVisibility()
         }
         return true
+    }
+
+
+    private fun updateMenuIcons(features: Features) {
+        menuReference?.let {
+            if (features.isClearChatEnabled)
+                showMenu(it.get(R.id.action_clear_chat))
+            else hideMenu(it.get(R.id.action_clear_chat))
+
+            if (features.isReportEnabled)
+                showMenu(it.get(R.id.action_report))
+            else hideMenu(it.get(R.id.action_report))
+
+            if (features.isBlockEnabled){
+                if (chat.isSingleChat()) {
+                    it.get(R.id.action_block).isVisible = !profileDetails.isBlocked
+                    it.get(R.id.action_unblock).isVisible = profileDetails.isBlocked
+                }
+            } else {
+                hideMenu(it.get(R.id.action_block))
+                hideMenu(it.get(R.id.action_unblock))
+            }
+        }
     }
 
     @SuppressLint("RestrictedApi")
@@ -896,6 +925,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun sendMessage(messageObject: MessageObject) {
         sendTypingGone()
+        isLoadNextAvailable = parentViewModel.isLoadNextAvailable()
         messagingClient.sendMessage(messageObject, this@ChatActivity)
         chatMessageEditText.setText(Constants.EMPTY_STRING)
     }
@@ -1198,16 +1228,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 }
             }
             CommonAlertDialog.DialogAction.DELETE_CHAT -> {
-                var isRecalled = false
-                if (dialogType == CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL || position == 1) {
-                    sendDeleteMessageIQRequest()
-                    handleCommonDeleteOperation(isRecalled)
-                    smartReplyForPreviousMessage()
-                } else if (position == 2) {
-                    isRecalled = true
-                    recallSelectedMessages()
-                    handleCommonDeleteOperation(isRecalled)
-                }
+                deleteChat(dialogType,position)
             }
             CommonAlertDialog.DialogAction.SMART_REPLY_BUSY -> {
                 FlyCore.enableDisableBusyStatus(false)
@@ -1249,6 +1270,23 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         }
     }
 
+    private fun deleteChat(dialogType: CommonAlertDialog.DIALOGTYPE, position: Int) {
+        if(!ChatManager.getAvailableFeatures().isDeleteMessageEnabled){
+            context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            return
+        }
+        var isRecalled = false
+        if (dialogType == CommonAlertDialog.DIALOGTYPE.DIALOG_DUAL || position == 1) {
+            sendDeleteMessageIQRequest()
+            handleCommonDeleteOperation(isRecalled)
+            smartReplyForPreviousMessage()
+        } else if (position == 2) {
+            isRecalled = true
+            recallSelectedMessages()
+            handleCommonDeleteOperation(isRecalled)
+        }
+    }
+
     /**
      * Called when the connection has been failed from the server
      *
@@ -1269,6 +1307,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
      * Block the Current user
      */
     private fun blockContact() {
+        var feature=ChatManager.getAvailableFeatures()
+        if(!feature.isBlockEnabled){
+            context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            isBlockUnblockCalled=false
+            return
+        }
         checkInternetAndExecute {
             doProgressDialog = DoProgressDialog(this)
             doProgressDialog!!.showProgress()
@@ -1289,6 +1333,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
      * Block the Current user
      */
     private fun unblockContact() {
+        var feature=ChatManager.getAvailableFeatures()
+        if(!feature.isBlockEnabled){
+            context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            isBlockUnblockCalled=false
+            return
+        }
         checkInternetAndExecute {
             doProgressDialog = DoProgressDialog(this)
             doProgressDialog!!.showProgress()
@@ -1314,6 +1364,9 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
 
     private fun onBlockUserResponse(isError: Boolean, isBlockedStatus: Boolean) {
         dismissProgress()
+        if(!ChatManager.getAvailableFeatures().isBlockEnabled){
+            return
+        }
         if (isError) {
             showToast(Constants.ERROR_SERVER)
             return
@@ -1444,9 +1497,11 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         try {
             val clickedMessage = mainList[clickedPos]
             if (clickedMessage.getMessageType() == MessageType.IMAGE || clickedMessage.getMessageType() == MessageType.LOCATION) {
+                 hideKeyboard()
                 chatClickUtils.handleOnListClick(clickedMessage, activity)
             } else {
                 if (ChatUtils.checkWritePermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                    hideKeyboard()
                     chatClickUtils.handleOnListClick(clickedMessage, activity)
                 } else
                     MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
@@ -1521,6 +1576,11 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
      */
     private fun handleClearConversation(clearChatExceptStarredMessages: Boolean) {
         try {
+            var feature=ChatManager.getAvailableFeatures()
+            if(!feature.isClearChatEnabled){
+                context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+                return
+            }
             ChatManager.clearChat(chat.toUser, chat.getChatType(), clearChatExceptStarredMessages, object : ChatActionListener {
                 override fun onResponse(isSuccess: Boolean, message: String) {
                     /*No Implementation needed*/
@@ -2224,7 +2284,8 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     override fun updateFeatureActions(features: Features) {
-        super.updateFeatureActions(features)
+        updateMenuIcons(features)
+        invalidateActionMode()
         handleAttachmentRestriction()
         setCallButtonVisibility()
         if (ChatType.TYPE_GROUP_CHAT == chat.chatType) {

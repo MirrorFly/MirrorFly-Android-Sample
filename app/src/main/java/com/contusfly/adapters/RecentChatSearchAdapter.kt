@@ -326,7 +326,6 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
     fun addLoadingFooter() {
         if (!isLoadingAdded) {
             isLoadingAdded = true
-            Log.d("XYZ","Loader added")
             recentSearchList.add(com.contusfly.models.RecentSearch("","","","",false,ProfileDetails()))
             notifyItemInserted(recentSearchList.size - 1)
         }
@@ -334,7 +333,6 @@ class RecentChatSearchAdapter(val context: Context, private var recentSearchList
 
     fun removeLoadingFooter() {
         if (isLoadingAdded) {
-            Log.d("XYZ","Loader removed")
             isLoadingAdded = false
             val loaderPosition = recentSearchList.indexOfFirst { it.jid.isNullOrBlank()  }
             if (loaderPosition.isValidIndex()) {

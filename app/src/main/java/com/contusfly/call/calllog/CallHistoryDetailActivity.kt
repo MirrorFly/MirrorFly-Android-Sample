@@ -395,7 +395,6 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
     }
 
     override fun updateFeatureActions(features: Features) {
-        super.updateFeatureActions(features)
         callHistoryDetailBinding.imgCallType.setVisible(features.isGroupCallEnabled)
     }
 }

@@ -312,6 +312,11 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
      * @param selectedJids the recent chat jid list.
      */
     open fun deleteSelectedRecent(selectedJids: List<String>) {
+        var feature=ChatManager.getAvailableFeatures()
+        if(!feature.isDeleteChatEnabled){
+            context!!.showToast(resources.getString(R.string.fly_error_forbidden_exception))
+            return
+        }
         ChatManager.deleteRecentChats(selectedJids, object : ChatActionListener {
             override fun onResponse(isSuccess: Boolean, message: String) {
                 /*

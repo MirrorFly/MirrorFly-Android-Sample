@@ -83,11 +83,19 @@ open class BaseActivity : FlyBaseActivity() {
 
         registerBroadcast()
 
+    }
+
+    fun availableFeatureCallback(){
         ChatManager.setAvailableFeaturesCallback(object : AvailableFeaturesCallback{
             override fun onUpdateAvailableFeatures(features: Features) {
                 updateFeatureActions(features)
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        availableFeatureCallback()
     }
 
     override fun myProfileUpdated(isSuccess: Boolean) {
