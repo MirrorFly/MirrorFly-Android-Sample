@@ -3,6 +3,7 @@ package com.contusfly.viewmodels
 import androidx.lifecycle.*
 import com.contus.flycommons.getData
 import com.contusfly.isTextMessage
+import com.contusfly.isValidIndex
 import com.contusfly.repository.MessageRepository
 import com.contusfly.utils.Constants
 import com.contusfly.utils.LogMessage
@@ -290,6 +291,14 @@ constructor(private val messageRepository: MessageRepository) : ViewModel() {
         if (messageList.first().messageId == paginationMessageList.last().messageId) // for group sending message received from server again to handle that removing duplicate message
             messageList.removeAt(0)
         messageList.add(0, paginationMessageList.last())
+    }
+
+    fun getMessageAndPosition(messageId: String): Pair<Int, ChatMessage?> {
+        val messageIndex = paginationMessageList.indexOfFirst { it.messageId == messageId }
+        return if (messageIndex.isValidIndex()) {
+            val message = paginationMessageList[messageIndex]
+            Pair(messageIndex, message)
+        } else Pair(messageIndex, null)
     }
 
     fun isLoadPreviousAvailable() = messageListQuery.hasPreviousMessages()

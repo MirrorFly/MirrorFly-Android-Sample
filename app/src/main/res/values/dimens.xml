@@ -36,6 +36,8 @@
     <dimen name="padding_8">8dp</dimen>
     <dimen name="padding_10">10dp</dimen>
     <dimen name="padding_12">12dp</dimen>
+    <dimen name="padding_13">13dp</dimen>
+    <dimen name="padding_14">14dp</dimen>
     <dimen name="padding_15">15dp</dimen>
     <dimen name="padding_16">16dp</dimen>
     <dimen name="padding_17">17dp</dimen>

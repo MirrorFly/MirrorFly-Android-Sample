@@ -148,7 +148,7 @@ class IncomingCallViewHelper(
                 binding.imageCallAnswer.isEnabled = false
                 binding.imageCallReject.isEnabled = false
                 /* check permissions */
-                if (CallManager.getCallType() == CallType.AUDIO_CALL && CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false) || CallManager.getCallType() == CallType.VIDEO_CALL && CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false))
+                if (CallManager.getCallType() == CallType.AUDIO_CALL && CallManager.isNotificationPermissionsGranted() && CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false) || CallManager.getCallType() == CallType.VIDEO_CALL && CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false) && CallManager.isNotificationPermissionsGranted())
                     activityOnClickListener.answer()
                 else {
                     CallManager.declineCall()

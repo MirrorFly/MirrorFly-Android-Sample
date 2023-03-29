@@ -35,6 +35,7 @@ import com.contusfly.call.groupcall.utils.CallUtils
 import com.contusfly.databinding.ActivityGroupCallBinding
 import com.contusfly.utils.ChatUtils
 import com.contusfly.utils.ProfileDetailsUtils
+import com.contusfly.views.PermissionAlertDialog
 import kotlinx.android.synthetic.main.custom_toast.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -65,6 +66,8 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
                     this
                 )
             }
+
+    private val permissionAlertDialog : PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     private val dialogViewHelper by lazy { DialogViewHelper(this, durationHandler, this) }
 
@@ -129,6 +132,13 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
                 CallManager.startVideoCapture()
         }
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(!ChatUtils.checkMediaPermission(this, Manifest.permission.POST_NOTIFICATIONS)){
+            CallManager.sendCallPermissionDenied()
+        }
+    }
+
     private val gridResizeRunnable by lazy {
         Runnable {
             LogMessage.d(TAG, "$CALL_UI resizeRunnable")
@@ -148,6 +158,7 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
         CallManager.bindCallService()
         setUpCallUI()
         if (CallManager.isInComingCall()) {
+            notificationPermissionChecking()
             if (CallManager.getCallType() == CallType.AUDIO_CALL) {
                 /* check permissions */
                 if (!MediaPermissions.isPermissionAllowed(this, Manifest.permission.RECORD_AUDIO))
@@ -160,6 +171,13 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
             } else
                 CallManager.startVideoCapture()
         }
+    }
+
+    private fun notificationPermissionChecking(){
+        MediaPermissions.requestNotificationPermission(
+            this,
+            permissionAlertDialog,
+            notificationPermissionLauncher, true)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -765,9 +783,15 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
     private fun handleCallStatusReconnected(userJid: String?) {
         if (isInPIPMode()) {
             callViewHelper.showPIPLayout()
-        } else if ((CallManager.isOneToOneCall() || CallUtils.getPinnedUserJid() == userJid) && !CallUtils.getIsGridViewEnabled())
+        } else if ((CallManager.isOneToOneCall() || CallUtils.getPinnedUserJid() == userJid) && !CallUtils.getIsGridViewEnabled()){
             callViewHelper.updateCallStatus()
-        else callViewHelper.updateStatusAdapter(userJid)
+        } else {
+            if(!callUsersListAdapter.callUserList.contains(userJid)){
+                callUsersListAdapter.addUser(userJid!!)
+                setUpCallUI()
+            }
+            callViewHelper.updateStatusAdapter(userJid)
+        }
     }
 
     private fun handleCallStatusResume(userJid: String?) {
@@ -783,6 +807,7 @@ class GroupCallActivity : BaseActivity(), View.OnClickListener, ActivityOnClickL
     private fun handleCallStatusConnected(userJid: String?) {
         setUpCallUI()
         callViewHelper.updateStatusAdapter(userJid)
+        callViewHelper.updatedRejoinedUsers(userJid)
     }
 
     private fun checkAndUpdateTimeoutUsers() {

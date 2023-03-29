@@ -23,6 +23,7 @@ class AppLifecycleListener : LifecycleObserver {
         // app moved to background
         Log.d(TAG, "App moved to background")
         SharedPreferenceManager.setString(Constants.APP_SESSION, System.currentTimeMillis().toString())
+        SharedPreferenceManager.setString(Constants.KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID, SharedPreferenceManager.getString(Constants.KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID)+Constants.KEY_BACKGROUND)
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
@@ -37,9 +38,10 @@ class AppLifecycleListener : LifecycleObserver {
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
     fun onMoveToForeground() {
         isForeground = true
+        Log.d(TAG, "App moved to forground")
         // app moved to foreground
         deviceContactCount = 0
-
+        SharedPreferenceManager.setString(Constants.KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID, SharedPreferenceManager.getString(Constants.KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID)+Constants.KEY_FORGROUND)
         //To check the user blocked by admin status and navigate to show stopper screen
         if (SharedPreferenceManager.getBoolean(Constants.ADMIN_BLOCKED)) {
             val intent = Intent(ChatManager.applicationContext, AdminBlockedActivity::class.java)

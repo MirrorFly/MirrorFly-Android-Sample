@@ -181,7 +181,6 @@ class MobileApplication : Application(), HasAndroidInjector {
         remoteConfigDefaults[CallConfiguration.IS_GROUP_CALL_ENABLED] = true
 
         remoteConfig.setDefaultsAsync(remoteConfigDefaults)
-
         remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val updated = task.result
@@ -235,8 +234,7 @@ class MobileApplication : Application(), HasAndroidInjector {
             }
         })
 
-        CallManager.keepConnectionInForeground(true)
-
+        CallManager.keepConnectionInForeground(false)
 
     }
 

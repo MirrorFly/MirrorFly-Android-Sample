@@ -317,6 +317,11 @@
         <item name="android:textSize">@dimen/text_size_16</item>
     </style>
 
+    <style name="TrasparentAlertDialog" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
     <style name="CustomAlertDialog" parent="Theme.AppCompat.Light.Dialog.Alert">
         <item name="android:windowBackground">@drawable/popup_background</item>
         <item name="android:colorAccent">@color/color_blue</item>

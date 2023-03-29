@@ -47,6 +47,7 @@ import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.models.RecentChat
 import com.contusflysdk.api.models.ReplyParentChatMessage
 import com.contusflysdk.views.CustomToast
+import kotlinx.android.synthetic.main.profile_toolbar.view.*
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -54,6 +55,7 @@ import java.net.SocketAddress
 import java.text.DecimalFormat
 import kotlin.math.abs
 import kotlin.math.ceil
+import com.contusfly.utils.Constants
 
 
 /**
@@ -222,7 +224,9 @@ val Any.TAG: String
 
 fun AppCompatImageView.loadUserProfileImage(context: Context, recentChat: RecentChat) {
     val drawable: Drawable?
-    var imageUrl = recentChat.profileImage ?: Constants.EMPTY_STRING
+    var imageUrl = if (!recentChat.profileThumbImage.isNullOrEmpty()) {
+        recentChat.profileThumbImage
+    } else recentChat.profileImage ?: Constants.EMPTY_STRING
     if (recentChat.isBlockedMe || recentChat.isAdminBlocked) {
         imageUrl = Constants.EMPTY_STRING
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
@@ -233,13 +237,34 @@ fun AppCompatImageView.loadUserProfileImage(context: Context, recentChat: Recent
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
     else
         drawable = CustomDrawable(context).getDefaultDrawable(recentChat)
-    if (imageUrl.startsWith("/storage/emulated/"))
+    if (imageUrl.startsWith(Constants.STORAGE))
         MediaUtils.loadImageWithGlide(context, imageUrl, this, drawable)
     else
         MediaUtils.loadImage(context, imageUrl, this, drawable)
 }
 
-fun ImageView.loadUserProfileImage(context: Context, profileDetails: ProfileDetails) {
+fun ImageView.loadUserProfileImage(context: Context, userProfileDetails: ProfileDetails) {
+    val drawable: Drawable?
+    var imageUrl = if (!userProfileDetails.thumbImage.isNullOrEmpty()) {
+        userProfileDetails.thumbImage
+    } else userProfileDetails.image ?: Constants.EMPTY_STRING
+    if (userProfileDetails.isBlockedMe || userProfileDetails.isAdminBlocked) {
+        imageUrl = Constants.EMPTY_STRING
+        drawable = CustomDrawable(context).getDefaultDrawable(userProfileDetails)
+    } else if (userProfileDetails.isDeletedContact()) {
+        imageUrl = userProfileDetails.image ?: Constants.EMPTY_STRING
+        drawable = CustomDrawable(context).getDefaultDrawable(userProfileDetails)
+    } else if (TextUtils.isEmpty(imageUrl) || this.drawable == null)
+        drawable = CustomDrawable(context).getDefaultDrawable(userProfileDetails)
+    else
+        drawable = CustomDrawable(context).getDefaultDrawable(userProfileDetails)
+    if (imageUrl.startsWith(Constants.STORAGE))
+        MediaUtils.loadImageWithGlide(context, imageUrl, this, drawable)
+    else
+        MediaUtils.loadImage(context, imageUrl, this, drawable)
+}
+
+fun ImageView.loadUserInfoProfileImage(context: Context, profileDetails: ProfileDetails) {
     val drawable: Drawable?
     var imageUrl = profileDetails.image ?: Constants.EMPTY_STRING
     if (profileDetails.isBlockedMe || profileDetails.isAdminBlocked) {
@@ -252,10 +277,15 @@ fun ImageView.loadUserProfileImage(context: Context, profileDetails: ProfileDeta
         drawable = CustomDrawable(context).getDefaultDrawable(profileDetails)
     else
         drawable = CustomDrawable(context).getDefaultDrawable(profileDetails)
-    if (imageUrl.startsWith("/storage/emulated/"))
+    if (imageUrl.startsWith(Constants.STORAGE))
         MediaUtils.loadImageWithGlide(context, imageUrl, this, drawable)
-    else
-        MediaUtils.loadImage(context, imageUrl, this, drawable)
+    else {
+        if (!profileDetails.thumbImage.isNullOrEmpty()) {
+            MediaUtils.loadThumbImage(context, profileDetails.image, profileDetails.thumbImage, this, drawable)
+        } else {
+            MediaUtils.loadImage(context, imageUrl, this, drawable)
+        }
+    }
 }
 
 @SuppressLint("DefaultLocale")

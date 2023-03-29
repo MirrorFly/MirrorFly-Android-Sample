@@ -34,26 +34,26 @@ android {
     buildToolsVersion "30.0.2"
 
     defaultConfig {
-        applicationId "com.mirrorfly.uikit"
         minSdkVersion 21
         targetSdkVersion 33
-        versionCode 13
-        versionName "7.1.0"
+        versionCode 14
+        versionName "7.2.0"
         multiDexEnabled true
         buildConfigField "java.util.Date", "BUILD_TIME", "new java.util.Date(" + System.currentTimeMillis() + "L)"
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        applicationId "com.mirrorfly.uikit"
     }
 
     buildTypes {
         debug {
             buildConfigField 'Boolean', 'IS_QA_BUILD', 'true'
             buildConfigField 'String', 'SDK_BASE_URL', '"https://api-preprod-sandbox.mirrorfly.com/api/v1/"'
-            buildConfigField 'String', 'LICENSE', '"Please enter your License key"'
+            buildConfigField 'String', 'LICENSE', '"lu3Om85JYSghcsB6vgVoSgTlSQArL5"'
             buildConfigField 'String', 'WEB_CHAT_LOGIN', '"https://webchat-preprod-sandbox.mirrorfly.com/"'
             buildConfigField 'Boolean', 'IS_TRIAL_LICENSE', 'true'
             buildConfigField "String", "SUPPORT_MAIL", '"contussupport@gmail.com"'
-            resValue("string", "app_name", "Dev")
+            resValue("string", "app_name", "UI Kit")
             shrinkResources false
             debuggable true
             minifyEnabled false
@@ -173,6 +173,7 @@ dependencies {
     implementation 'org.igniterealtime.smack:smack-im:4.4.6'
     implementation 'org.igniterealtime.smack:smack-extensions:4.4.6'
     implementation 'org.igniterealtime.smack:smack-sasl-provided:4.4.6'
+    implementation 'org.igniterealtime.smack:smack-resolver-dnsjava:4.4.6'
 
 
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
@@ -225,6 +226,9 @@ dependencies {
     implementation files('libs/xmpp.aar')
     implementation files('libs/flywebrtc.aar')
 
+    //for webrtc
+    implementation 'org.webrtc:google-webrtc:1.0.32006'
+    
     implementation project(':sdk:mediapicker')
     implementation project(':sdk:cameraview')
     implementation project(':sdk:zoomimageview')
@@ -238,8 +242,6 @@ dependencies {
 
     //Socket - versions.gradle
     implementation 'com.github.nkzawa:socket.io-client:0.6.0'
-    //for webrtc
-    implementation 'org.webrtc:google-webrtc:1.0.32006'
     //okhttp interceptor
     implementation 'com.squareup.okhttp3:logging-interceptor:3.14.3'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
@@ -249,9 +251,9 @@ dependencies {
     implementation 'androidx.media:media:1.2.1'
 
     //room database
-    implementation 'androidx.room:room-runtime:2.2.5'
-    kapt 'androidx.room:room-compiler:2.2.5'
-    implementation "androidx.room:room-ktx:2.2.5"
+    implementation 'androidx.room:room-runtime:2.5.0'
+    kapt 'androidx.room:room-compiler:2.5.0'
+    implementation "androidx.room:room-ktx:2.5.0"
 
     // Lifecycle
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'

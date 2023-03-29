@@ -31,6 +31,7 @@ import com.contusfly.utils.MediaPermissions
 import com.contusfly.utils.ProfileDetailsUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.PermissionAlertDialog
+import com.contusflysdk.api.ChatActionListener
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.utils.ChatTimeFormatter
@@ -64,6 +65,7 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
     @Inject
     lateinit var dashboardViewModelFactory: AppViewModelFactory
     val viewModel: CallLogViewModel by viewModels { dashboardViewModelFactory }
+
     private lateinit var callHistoryDetailBinding: ActivityCallHistoryDetailBinding
 
     private lateinit var callPermissionUtils: CallPermissionUtils
@@ -97,12 +99,19 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
             onBackPressed()
         }
 
+        callLogListener()
         startObservingViewModel()
         handleMainIntent()
         initRecyclerView()
         initClickListeners()
 
         viewModel.getCallLog(roomId)
+
+    }
+
+    override fun onBackPressed() {
+        setResult(Activity.RESULT_OK)
+        super.onBackPressed()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -380,6 +389,18 @@ class CallHistoryDetailActivity : BaseActivity(), CoroutineScope, CommonAlertDia
                 CallLogManager.deleteCallLog(apiCalls, listOf(roomId), this@CallHistoryDetailActivity)
             }
         }
+    }
+
+    private fun callLogListener(){
+        CallLogManager.setCallLogsListener(object : CallLogManager.CallLogsListener {
+            override fun onCallLogsDeleted(isClearAll: Boolean) {
+                setResult(Activity.RESULT_OK)
+                finish()
+            }
+            override fun onCallLogsUpdated() {
+                //No Implementation needed
+            }
+        })
     }
 
     override fun onActionSuccess() {

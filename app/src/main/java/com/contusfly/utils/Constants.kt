@@ -197,6 +197,7 @@ class Constants {
         const val CHAT_MESSAGE = "chatmessage"
         const val PRESENCE_AVAILABLE = "presence_available"
         const val ONLINE = "Online"
+        const val ONLINE_STATUS = "0"
         const val IS_IMAGE = "is_image"
         const val FROM_CAMERA = "from_camera"
         const val FROM_FRONT_CAMERA = "from_front_camera"
@@ -234,6 +235,7 @@ class Constants {
         const val CONTACT_SAVE_PERMISSION_ASKED = "contact_save_permission_asked_before"
         const val CAMERA_PERMISSION_ASKED = "camera_permission_asked_before"
         const val STORAGE_PERMISSION_ASKED = "storage_permission_asked_before"
+        const val NOTIFICATION_PERMISSION_ASKED = "notification_permission_asked_before"
         const val AUDIO_RECORD_PERMISSION_ASKED = "audio_record_permission_asked_before"
 
         const val READ_PHONE_STATE_PERMISSION_ASKED = "read_phone_state_asked_before"
@@ -255,6 +257,11 @@ class Constants {
          * Key to store the created channel ID for push notification in Oreo based devices and above
          */
         const val KEY_CHANNEL_SINGLE_ID: String = PACKAGE_NAME + "channel.id"
+
+        const val KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID: String = PACKAGE_NAME + "summary_channel.id"
+
+        const val KEY_FORGROUND="_isForground"
+        const val KEY_BACKGROUND="_isBackground"
 
         /**
          * Send the status of file upload triggered from Quick Share
@@ -336,5 +343,9 @@ class Constants {
 
         const val IS_EXISTING = "isExisting"
 
+
+        const val CLEAR_CHAT="Clear Chat"
+
+        const val STORAGE="/storage/emulated/"
     }
 }

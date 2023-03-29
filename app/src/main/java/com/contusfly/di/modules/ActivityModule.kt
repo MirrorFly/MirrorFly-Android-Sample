@@ -81,4 +81,7 @@ abstract class ActivityModule {
 
     @ContributesAndroidInjector
     internal abstract fun contributeStarredMessageActivity(): StarredMessageActivity
+
+    @ContributesAndroidInjector
+    internal abstract fun contributeBaseActivity(): BaseActivity
 }

@@ -25,8 +25,8 @@ import com.contus.flycommons.LogMessage
 import com.contusfly.R
 import com.contusfly.views.DoProgressDialog
 import com.contusflysdk.api.ChatManager.fileProviderAuthority
-import com.contusflysdk.utils.FilePathUtils
 import com.contusflysdk.media.MediaUploadHelper
+import com.contusflysdk.utils.FilePathUtils
 import java.io.File
 
 /**
@@ -72,6 +72,50 @@ object MediaUtils {
                             return false
                         }
                     }).dontAnimate().dontTransform().into(imageView)
+        } else
+            Glide.with(context).load(defaultImage).apply(options).into(imageView)
+    }
+
+    /**
+     * Load Original image with thumbnail image as a placeholder.
+     *
+     * @param context  Instance of the context
+     * @param imageUrl   image url
+     * @param thumbImageUrl thumbImage url
+     * @param imageView  Image view to display the image
+     * @param defaultImage Display the drawable, if url return null
+     */
+
+    fun loadThumbImage(context: Context, imageUrl: String?,thumbImageUrl:String?, imageView: ImageView, defaultImage: Drawable?) {
+        var options = RequestOptions().placeholder(imageView.drawable ?: defaultImage).error(defaultImage).priority(Priority.HIGH)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
+        if (imageUrl != null && imageUrl.isNotEmpty()) {
+            if (imageView.drawable != null) {
+                options = RequestOptions().placeholder(imageView.drawable).error(imageView.drawable).priority(Priority.HIGH)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+            }
+            val imgURL = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT).buildUpon()
+                .appendPath(Uri.parse(imageUrl).lastPathSegment).build().toString()
+            val thumbUrl=Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT).buildUpon()
+                .appendPath(Uri.parse(thumbImageUrl).lastPathSegment).build().toString()
+
+            val requestBuilder = Glide.with(context).load(thumbUrl)
+            Glide.with(context).load(imgURL).thumbnail(requestBuilder)
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?,
+                                              isFirstResource: Boolean): Boolean {
+                        return if (e?.message != null && e.message!!.contains("FileNotFoundException")) {
+                            LogMessage.e("MediaUtils", tokenError)
+                            true
+                        } else
+                            false
+                    }
+
+                    override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?,
+                                                 dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                        return false
+                    }
+                }).into(imageView)
         } else
             Glide.with(context).load(defaultImage).apply(options).into(imageView)
     }

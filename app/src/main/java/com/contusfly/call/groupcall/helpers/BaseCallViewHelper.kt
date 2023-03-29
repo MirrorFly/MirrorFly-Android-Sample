@@ -233,6 +233,21 @@ class BaseCallViewHelper(
         }
     }
 
+    fun updatedRejoinedUsers(userJid: String?) {
+        LogMessage.d(TAG, "$CALL_UI updateStatusAdapter userJid: $userJid")
+        if (userJid != null) {
+            if (CallUtils.getIsGridViewEnabled()) {
+                if(!callUserGridAdapter.gridCallUserList.contains(userJid) && CallUtils.getPinnedUserJid() != userJid){
+                    callUserGridAdapter.addUser(userJid)
+                }
+            } else {
+                if(!callUsersListAdapter.callUserList.contains(userJid) && CallUtils.getPinnedUserJid() != userJid){
+                    callUsersListAdapter.addUser(userJid)
+                }
+            }
+        }
+    }
+
     private fun setOverlayBackground() {
         LogMessage.d(TAG, "$CALL_UI setOverlayBackground()")
         if (activity.isInPIPMode())

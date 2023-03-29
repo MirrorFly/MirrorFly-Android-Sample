@@ -88,6 +88,8 @@ constructor(val application: Application) : CoroutineScope {
                         messageListener.onSendMessageSuccess(chatMessage)
                 }
             })
+        } catch (e: NoSuchMethodError) {
+            e.printStackTrace()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -101,6 +103,8 @@ constructor(val application: Application) : CoroutineScope {
                         messageListener.onSendMessageSuccess(chatMessage)
                 }
             })
+        } catch (e: NoSuchMethodError) {
+            e.printStackTrace()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -116,6 +120,8 @@ constructor(val application: Application) : CoroutineScope {
                     }
                 })
             }
+        } catch (e: NoSuchMethodError) {
+            e.printStackTrace()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -132,6 +138,8 @@ constructor(val application: Application) : CoroutineScope {
                         }
                     })
             }
+        } catch (e: NoSuchMethodError) {
+            e.printStackTrace()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -148,6 +156,8 @@ constructor(val application: Application) : CoroutineScope {
                         }
                     })
             }
+        } catch (e: NoSuchMethodError) {
+            e.printStackTrace()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -164,6 +174,8 @@ constructor(val application: Application) : CoroutineScope {
                         }
                     })
             }
+        } catch (e: NoSuchMethodError) {
+            e.printStackTrace()
         } catch (e: Exception) {
             e.printStackTrace()
         }

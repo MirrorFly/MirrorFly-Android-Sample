@@ -37,7 +37,7 @@ object MediaPermissions {
         permissionAlertDialog: PermissionAlertDialog,
         permissionsLauncher: ActivityResultLauncher<Array<String>>
     ) {
-
+        val permissionsToRequest = mutableListOf<String>()
         val hasReadPermission = isPermissionAllowed(activity, Manifest.permission.READ_EXTERNAL_STORAGE)
         val hasWritePermission = isPermissionAllowed(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
@@ -45,13 +45,14 @@ object MediaPermissions {
 
         val writePermissionGranted = hasWritePermission || minSdk30
 
-        val permissionsToRequest = mutableListOf<String>()
+
         if (!writePermissionGranted) {
             permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
         if (!hasReadPermission) {
             permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+
         if (permissionsToRequest.isNotEmpty()) {
             when {
                 ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_EXTERNAL_STORAGE) -> {
@@ -76,6 +77,112 @@ object MediaPermissions {
         }
     }
 
+    fun requestMediaFiles(
+        activity: Activity,
+        permissionAlertDialog: PermissionAlertDialog,
+        permissionsLauncher: ActivityResultLauncher<Array<String>>
+    ) {
+        val permissionsToRequest = mutableListOf<String>()
+        val hasReadMediaImage = isPermissionAllowed(activity, Manifest.permission.READ_MEDIA_IMAGES)
+        val hasReadMediaVideos = isPermissionAllowed(activity, Manifest.permission.READ_MEDIA_VIDEO)
+        if (!hasReadMediaImage) {
+            permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+        }
+        if (!hasReadMediaVideos) {
+            permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO)
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            when {
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_MEDIA_IMAGES)
+                        || ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_MEDIA_VIDEO) -> {
+                    showPermissionPopUpForStorage(permissionsLauncher, permissionsToRequest, permissionAlertDialog)
+                }
+                SharedPreferenceManager.getBoolean(Constants.STORAGE_PERMISSION_ASKED) -> {
+                    permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.MEDIA_PERMISSION_DENIED,
+                        object : PermissionDialogListener{
+                            override fun onPositiveButtonClicked() {
+                                openSettingsForPermissionWithoutSmackBar(activity)
+                            }
+
+                            override fun onNegativeButtonClicked() {
+                                //Not Needed
+                            }
+                        })
+                }
+                else -> {
+                    showPermissionPopUpForStorage(permissionsLauncher, permissionsToRequest, permissionAlertDialog)
+                }
+            }
+        }
+    }
+
+    //Android 13 Notification permission checking
+    fun runtimeNotificationPermissionEnabledStatus( activity: Activity):Boolean{
+        var isPermissionEnabled:Boolean=true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!ChatUtils.checkNotificationPermission(activity, Manifest.permission.POST_NOTIFICATIONS)) {
+                isPermissionEnabled=false
+            }
+        }
+
+        return isPermissionEnabled
+    }
+
+    fun requestNotificationPermission(
+        activity: Activity,
+        permissionAlertDialog: PermissionAlertDialog,
+        permissionsLauncher: ActivityResultLauncher<Array<String>>,
+        isCall: Boolean = false,
+        permissionDialogListener: PermissionDialogListener? = null) {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!ChatUtils.checkNotificationPermission(activity, Manifest.permission.POST_NOTIFICATIONS)) {
+                val permissionsToRequest = mutableListOf<String>()
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+                if (permissionsToRequest.isNotEmpty()) {
+                    when {
+                        ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS) -> {
+                            if(isCall){
+                                Snackbar.make(
+                                    activity.findViewById(android.R.id.content),
+                                    R.string.notification_permission_label,
+                                    Snackbar.LENGTH_INDEFINITE)
+                                    .setAction(R.string.ok_label) {
+                                        showPermissionPopUpForNotification(permissionsLauncher, permissionsToRequest, permissionAlertDialog, isCall,permissionDialogListener)
+                                    }.show()
+                            } else {
+                                showPermissionPopUpForNotification(permissionsLauncher, permissionsToRequest, permissionAlertDialog, isCall, permissionDialogListener)
+                            }
+                        }
+                        SharedPreferenceManager.getBoolean(Constants.NOTIFICATION_PERMISSION_ASKED) -> {
+                            if(isCall) {
+                                openSettingsForPermission(
+                                    activity,
+                                    activity.getString(R.string.notification_permission_label))
+                            } else {
+                                permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.NOTIFCATION_PERMISSION_DENIED,
+                                    object : PermissionDialogListener{
+                                        override fun onPositiveButtonClicked() {
+                                            openSettingsForPermissionWithoutSmackBar(activity)
+                                        }
+
+                                        override fun onNegativeButtonClicked() {
+                                            permissionDialogListener?.onNegativeButtonClicked()
+                                        }
+                                    })
+                            }
+
+                        }
+                        else -> {
+                            showPermissionPopUpForNotification(permissionsLauncher, permissionsToRequest, permissionAlertDialog, isCall, permissionDialogListener)
+                        }
+                    }
+                }
+            }
+        }
+
+    }
 
     /**
      * Request the storage permission for accessing Gallery
@@ -126,11 +233,36 @@ object MediaPermissions {
         }
     }
 
+    private fun showPermissionPopUpForNotification(
+        permissionsLauncher: ActivityResultLauncher<Array<String>>,
+        permissionsToRequest: MutableList<String>,
+        permissionAlertDialog: PermissionAlertDialog,
+        isCall: Boolean,
+        permissionDialogListener: PermissionDialogListener?
+    ) {
+        if(isCall) {
+            SharedPreferenceManager.setBoolean(Constants.NOTIFICATION_PERMISSION_ASKED, true)
+            permissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        } else {
+            permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.NOTIFCATION_PERMISSION_DENIED,
+                object : PermissionDialogListener {
+                    override fun onPositiveButtonClicked() {
+                        SharedPreferenceManager.setBoolean(Constants.NOTIFICATION_PERMISSION_ASKED, true)
+                        permissionsLauncher.launch(permissionsToRequest.toTypedArray())
+                    }
+
+                    override fun onNegativeButtonClicked() {
+                        permissionDialogListener?.onNegativeButtonClicked()
+                    }
+                })
+        }
+
+    }
+
     private fun showPermissionPopUpForStorage(
         permissionsLauncher: ActivityResultLauncher<Array<String>>,
         permissionsToRequest: MutableList<String>,
-        permissionAlertDialog: PermissionAlertDialog
-    ) {
+        permissionAlertDialog: PermissionAlertDialog) {
         permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.CONTACT_AND_MEDIA_PERMISSION,
             object : PermissionDialogListener {
                 override fun onPositiveButtonClicked() {
@@ -147,8 +279,7 @@ object MediaPermissions {
     private fun showPermissionPopUpForContactMedia(
         permissionsLauncher: ActivityResultLauncher<Array<String>>,
         permissionsToRequest: MutableList<String>,
-        permissionAlertDialog: PermissionAlertDialog
-    ) {
+        permissionAlertDialog: PermissionAlertDialog) {
         permissionAlertDialog.showPermissionInstructionDialog(PermissionAlertDialog.MEDIA_PERMISSION,
             object : PermissionDialogListener {
                 override fun onPositiveButtonClicked() {
@@ -426,8 +557,7 @@ object MediaPermissions {
                     Snackbar.make(
                         activity.findViewById(android.R.id.content),
                         R.string.record_permission_label,
-                        Snackbar.LENGTH_INDEFINITE
-                    )
+                        Snackbar.LENGTH_INDEFINITE)
                         .setAction(R.string.ok_label) {
                             doRequestAudioCallPermissions(activityResultCaller)
                         }.show()
@@ -477,6 +607,12 @@ object MediaPermissions {
      */
     fun isPermissionAllowed(context: Context?, permission: String?): Boolean {
         return ContextCompat.checkSelfPermission(context!!, permission!!) == PackageManager.PERMISSION_GRANTED
+    }
+
+
+    fun isNotificationPermissionAllowed(context: Context?): Boolean {
+        val minSdk32 = SDK_INT < Build.VERSION_CODES.TIRAMISU
+        return isPermissionAllowed(context!!, Manifest.permission.POST_NOTIFICATIONS) || minSdk32
     }
 
     fun isReadFilePermissionAllowed(context: Context?): Boolean {

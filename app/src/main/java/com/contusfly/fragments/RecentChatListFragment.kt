@@ -386,7 +386,7 @@ class RecentChatListFragment : Fragment(), CoroutineScope, View.OnTouchListener 
             chatTagselectedposition = 0
             recentChatBinding.chatTagRecyclerview.visibility=View.GONE
         }
-        else{
+        else {
             recentChatBinding.chatTagRecyclerview.visibility=View.VISIBLE
         }
         chatTagAdapter.updatelist(chatTagList,chatTagselectedposition)

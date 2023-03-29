@@ -15,6 +15,7 @@ import com.contusfly.R.string.fly_error_forbidden_exception
 import com.contusfly.databinding.ActivityUserInfoBinding
 import com.contusfly.network.NetworkConnection
 import com.contusfly.utils.AppConstants
+import com.contusfly.utils.ChatUtils
 import com.contusfly.views.CommonAlertDialog
 import com.contusfly.views.CustomToast
 import com.contusfly.views.DoProgressDialog
@@ -156,7 +157,7 @@ class UserInfoActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedLis
 
     private fun setProfileImage(userProfileDetails: ProfileDetails) {
         binding.profileImage.setImageDrawable(null)
-        binding.profileImage.loadUserProfileImage(this, userProfileDetails)
+        binding.profileImage.loadUserInfoProfileImage(this, userProfileDetails)
     }
 
     private fun setMuteNotificationStatus(isMute: Boolean) {
@@ -227,25 +228,25 @@ class UserInfoActivity : BaseActivity(), CommonAlertDialog.CommonDialogClosedLis
     private fun getLastSeenData() {
         netConditionalCall({
             if (binding.subTitle.text.isEmpty()) {
-                ContactManager.getUserLastSeenTime(userProfileDetails.jid, object : ContactManager.LastSeenListener {
+                ContactManager.getRegisteredUserLastSeenTime(userProfileDetails.jid, object : ContactManager.LastSeenListener {
                     override fun onFailure(message: String) {
                         binding.subTitle.text = com.contusfly.utils.Constants.EMPTY_STRING
                     }
 
                     override fun onSuccess(lastSeenTime: String) {
-                        binding.subTitle.text = lastSeenTime
+                        binding.subTitle.text = ChatUtils.getLastSeenTime(this@UserInfoActivity,lastSeenTime)
                     }
 
                 })
             } else {
                 Handler(Looper.getMainLooper()).postDelayed({
-                    ContactManager.getUserLastSeenTime(userProfileDetails.jid, object : ContactManager.LastSeenListener {
+                    ContactManager.getRegisteredUserLastSeenTime(userProfileDetails.jid, object : ContactManager.LastSeenListener {
                         override fun onFailure(message: String) {
                             binding.subTitle.text = com.contusfly.utils.Constants.EMPTY_STRING
                         }
 
                         override fun onSuccess(lastSeenTime: String) {
-                            binding.subTitle.text = lastSeenTime
+                            binding.subTitle.text = ChatUtils.getLastSeenTime(this@UserInfoActivity,lastSeenTime)
                         }
 
                     })
