@@ -107,6 +107,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private var userJid:String = Constants.EMPTY_STRING
     private var userType:String = Constants.EMPTY_STRING
     private var handler: Handler? = null
+    private var callType:String=""
 
     private val downloadPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -119,6 +120,17 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private val audioCallPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         if(!permissions.containsValue(false)) {
+            launchAudioCall()
+        } else {
+            optionMenu?.let {
+                it.get(R.id.action_audio_call).isEnabled = true
+                it.get(R.id.action_video_call).isEnabled = true
+            }
+        }
+    }
+
+    private fun launchAudioCall(){
+        if(CallManager.isNotificationPermissionsGranted()){
             CallPermissionUtils(
                 this,
                 profileDetails.isBlocked,
@@ -128,16 +140,55 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 false
             ).audioCall()
         } else {
+            notificationPermissionChecking(true)
+        }
+    }
+
+    private fun notificationPermissionChecking(isCall:Boolean){
+        if(isCall){
+            MediaPermissions.requestNotificationPermission(
+                this,
+                permissionAlertDialog,
+                notificationPermissionLauncher,
+                false,
+                permissionDeniedListener)
+        } else {
+            MediaPermissions.requestNotificationPermission(
+                this,
+                permissionAlertDialog,
+                notificationMediaPermissionLauncher,
+                false,
+                permissionDeniedListener)
+        }
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(!permissions.containsValue(false)) {
+            if (callType == CallType.AUDIO_CALL) {
+                launchAudioCall()
+            } else {
+                launchVideoCall()
+            }
+        } else {
             optionMenu?.let {
                 it.get(R.id.action_audio_call).isEnabled = true
                 it.get(R.id.action_video_call).isEnabled = true
             }
         }
+
     }
 
-    private val videoCallPermissionLauncher = registerForActivityResult(
+    private val notificationMediaPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         if(!permissions.containsValue(false)) {
+            handleDownloadProcess()
+        }
+
+    }
+
+    private fun launchVideoCall(){
+        if(CallManager.isNotificationPermissionsGranted()){
             CallPermissionUtils(
                 this,
                 profileDetails.isBlocked,
@@ -146,6 +197,15 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 "",
                 false
             ).videoCall()
+        } else {
+            notificationPermissionChecking(true)
+        }
+    }
+
+    private val videoCallPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(!permissions.containsValue(false)) {
+            launchVideoCall()
         } else {
             optionMenu?.let {
                 it.get(R.id.action_audio_call).isEnabled = true
@@ -176,15 +236,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 && (localInstanceOfMessage != null && !localInstanceOfMessage.isMessageDeleted)) {
                 removeUnReadMsgSeparatorOnMessageReceiver()
                 parentViewModel.loadNextData()
-                canShowReceivedMessage = isViewingRecentMessage
-                Handler(Looper.getMainLooper()).postDelayed({
-                    showBottomMessage()
-                    if (chatMessageEditText.text.toString().trim().isEmpty() && !isReplyTagged && !attachmentDialog.isShowing)
-                        addMessagesforSmartReply() }, 100)
-
+                playForgroundNotificationSound(this)
             }
         }
     }
+
+
 
     private fun removeUnReadMsgSeparatorOnMessageReceiver() {
         try {
@@ -425,6 +482,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             val index = mainList.size
             mainList.addAll(messageList)
             chatAdapter.notifyItemRangeInserted(index, messageList.size)
+
+            canShowReceivedMessage = isViewingRecentMessage
+            Handler(Looper.getMainLooper()).postDelayed({
+                showBottomMessage()
+                if (chatMessageEditText.text.toString().trim().isEmpty() && !isReplyTagged && !attachmentDialog.isShowing)
+                    addMessagesforSmartReply() }, 100)
         }
 
         parentViewModel.loadSuggestion.observe(this) { canLoadSuggestion ->
@@ -607,6 +670,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     @SuppressLint("RestrictedApi")
     private fun updateMenuItemsClicks(menu: Menu) {
         for (menuItem in (menu as MenuBuilder).visibleItems) {
+            if(!menuItem.title!!.equals(Constants.CLEAR_CHAT))
             menuItem.isEnabled = !profileDetails.isAdminBlocked
         }
     }
@@ -688,17 +752,11 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     }
 
     private fun makeAudioVideoCalls(callType: String) {
+        this.callType=callType
         CallUtils.setIsCallStarted(callType)
         if (callType == CallType.AUDIO_CALL) {
             if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) {
-                CallPermissionUtils(
-                    this,
-                    profileDetails.isBlocked,
-                    profileDetails.isAdminBlocked,
-                    arrayListOf(profileDetails.jid),
-                    "",
-                    false
-                ).audioCall()
+                launchAudioCall()
             } else {
                 MediaPermissions.requestAudioCallPermissions(
                     (activity as Activity),
@@ -709,14 +767,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             }
         } else {
             if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) {
-                CallPermissionUtils(
-                    this,
-                    profileDetails.isBlocked,
-                    profileDetails.isAdminBlocked,
-                    arrayListOf(profileDetails.jid),
-                    "",
-                    false
-                ).videoCall()
+                launchVideoCall()
             } else {
                 MediaPermissions.requestVideoCallPermissions(
                     (activity as Activity),
@@ -964,14 +1015,29 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         val mid = messageId
         getMessageAndPosition(mid).let { messageAndPosition ->
             if (messageAndPosition.first != -1) {
-                refreshMessageAndUpdateAdapter(mid, Constants.NOTIFY_MESSAGE_STATUS_CHANGED)
-                invalidateActionMode()
-                if (messageAndPosition.second != null && messageAndPosition.second!!.isMessageRecalled()) {
-                    updateRecallMessageReplyView(messageAndPosition.second!!.messageId)
-                    handleUnreadMessageSeparator(true)
-                    addMessagesforSmartReply()
+                refreshMessageStatusUpdated(mid, messageAndPosition)
+            } else {
+                parentViewModel.getMessageAndPosition(mid).let { messageAndPosition2 ->
+                    if (messageAndPosition2.first != -1) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            refreshMessageStatusUpdated(mid, messageAndPosition2)
+                        }, 500)
+                    }
                 }
             }
+        }
+    }
+
+    private fun refreshMessageStatusUpdated(
+        mid: String,
+        messageAndPosition: Pair<Int, ChatMessage?>
+    ) {
+        refreshMessageAndUpdateAdapter(mid, Constants.NOTIFY_MESSAGE_STATUS_CHANGED)
+        invalidateActionMode()
+        if (messageAndPosition.second != null && messageAndPosition.second!!.isMessageRecalled()) {
+            updateRecallMessageReplyView(messageAndPosition.second!!.messageId)
+            handleUnreadMessageSeparator(true)
+            addMessagesforSmartReply()
         }
     }
 
@@ -1083,7 +1149,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         addMessagesforSmartReply()
         handleOnResume()
         removeUnReadMsgSeparator()
-        if (mainList.isNotEmpty())
+        if (mainList.isNotEmpty() && !parentViewModel.getFetchingIsInProgress())
             parentViewModel.loadNextData()
         if (SharedPreferenceManager.getBoolean(Constants.SHOW_LABEL))
             netConditionalCall(
@@ -1518,6 +1584,13 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     override fun onDownloadClicked(messageItem: ChatMessage) {
         msg = messageItem
         if (ChatUtils.checkWritePermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            dowoanloadMedia(messageItem)
+        } else
+            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
+    }
+
+    private fun dowoanloadMedia(messageItem: ChatMessage){
+        if (MediaPermissions.isNotificationPermissionAllowed(context)) {
             netConditionalCall({
                 val position = getMessagePosition(messageItem.messageId)
                 FlyMessenger.downloadMedia(messageItem.messageId)
@@ -1525,8 +1598,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 message?.let { mainList[position] = it }
                 chatAdapter.notifyItemChanged(position, messageItem)
             }, { showToast(getString(R.string.msg_no_internet)) })
-        } else
-            MediaPermissions.requestStorageAccess(this, permissionAlertDialog, downloadPermissionLauncher)
+
+        } else {
+
+            notificationPermissionChecking(false)
+        }
+
     }
 
     override fun onCancelUploadClicked(messageItem: ChatMessage) {
@@ -1621,7 +1698,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         ChatManager.deleteMessagesForMe(chat.toUser, clickedMessages, chat.getChatDeleteType(), isMediaDelete,
             object : ChatActionListener {
                 override fun onResponse(isSuccess: Boolean, message: String) {
-                    /*No Implementation Needed*/
+                    /*No Implement Needed*/
                 }
             })
     }
@@ -1630,11 +1707,12 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
         val isMediaDelete = SharedPreferenceManager.getBoolean(Constants.DELETE_MEDIA_FROM_PHONE)
         ChatManager.deleteMessagesForEveryone(chat.toUser, clickedMessages, chat.getChatDeleteType(), isMediaDelete,
             object : ChatActionListener {
-            override fun onResponse(isSuccess: Boolean, message: String) {
-                /*No Implementation Needed*/
-            }
-        })
-        updateRecalledMessage(clickedMessages)
+                override fun onResponse(isSuccess: Boolean, message: String) {
+                    /* No implementation needed */
+                }
+
+            })
+          updateRecalledMessage(clickedMessages)
     }
 
     private fun handleDownloadProcess() {
@@ -1645,7 +1723,7 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
                 isEmailChatClicked = false
                 FlyCore.exportChatConversationToEmail(chat.toUser, emptyList())
             }
-            LogMessage.d(TAG, "Storage Permission Code")
+            LogMessage.d(TAG, "Storage Permission")
         }
     }
 
@@ -1870,17 +1948,17 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
     private fun getChatTypingUserName(userName: String): String{
         val userNameArray = userName.split(" ")
         when {
-            (userNameArray.size == 1) -> return if(userNameArray[0].length > 10) userNameArray[0].substring(0,12) + "..." else userNameArray[0]
+            (userNameArray.size == 1) -> return if(userNameArray[0].length > 10) userNameArray[0].substring(0,11) + "..." else userNameArray[0]
             (userNameArray.size == 2) -> {
                 return when {
-                    userNameArray[0].length > 10 -> userNameArray[0].substring(0,12) + "..."
+                    userNameArray[0].length > 10 -> userNameArray[0].substring(0,11) + "..."
                     userNameArray[1].length > 10 -> userNameArray[0]
                     else -> userName
                 }
             }
             else -> {
                 return if(userNameArray[0].length > 10)
-                    userNameArray[0].substring(0,12) + "..."
+                    userNameArray[0].substring(0,11) + "..."
                 else if(userNameArray[1].length > 10)
                     userNameArray[0]
                 else if(userNameArray[2].length > 7)
@@ -2292,4 +2370,5 @@ class ChatActivity : ChatParent(), ActionMode.Callback, View.OnTouchListener, Em
             setUpGroupChatEditText()
         }
     }
+
 }

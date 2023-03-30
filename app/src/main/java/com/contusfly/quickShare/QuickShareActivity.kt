@@ -687,9 +687,8 @@ class QuickShareActivity : BaseActivity(),
      * @return if permission not granted return FALSE, else TRUE
      */
     private fun checkPermission(): Boolean {
-        if (!(isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE)
-                    && MediaPermissions.isWriteFilePermissionAllowed(this))
-        ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && !(isPermissionAllowed(context, Manifest.permission.READ_EXTERNAL_STORAGE)
+                    && MediaPermissions.isWriteFilePermissionAllowed(this))) {
             permissionDenied = true
             MediaPermissions.requestStorageAccess(this, permissionAlertDialog, galleryPermissionLauncher)
             return false

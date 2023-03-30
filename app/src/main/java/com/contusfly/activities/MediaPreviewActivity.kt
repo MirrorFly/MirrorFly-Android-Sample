@@ -1,5 +1,6 @@
 package com.contusfly.activities
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -15,6 +16,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.ContentFrameLayout
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModelProviders
@@ -38,6 +40,7 @@ import com.contusfly.viewmodels.MediaPreviewViewModel
 import com.contusfly.views.CustomAlertDialog
 import com.contusfly.views.DoProgressDialog
 import com.contusfly.views.KeyboardHeightProvider
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.models.ChatMessage
@@ -193,6 +196,9 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
      */
     @Inject
     lateinit var shareMessagesController: ShareMessagesController
+
+    private val permissionAlertDialog : PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
@@ -746,17 +752,58 @@ class MediaPreviewActivity : BaseActivity(), MediaPreviewAdapter.OnItemClickList
                     break
             }
             if (isPermissionAvailable) {
-                startCopyingFilesToMirrorFlyDirectoryAndSend()
+                quickShareMediafileUpload()
             } else {
                 CustomAlertDialog().showFeatureRestrictionAlert(this)
                 progressDialog!!.dismiss()
                 mediaPreviewBinding.sendMedia.isEnabled = true
             }
         } else {
-            selectedImageList[viewPagerPosition].caption = emojiEditText!!.text.toString().trim { it <= ' ' }
-            if (toUser != null) {
-                handleCaptionImage(toUser!!)
+            mediaUpload()
+        }
+    }
+
+    private fun mediaUpload(){
+        if(MediaPermissions.runtimeNotificationPermissionEnabledStatus(this)){
+            mediafileUpload()
+        } else {
+            notificationPermissionChecking()
+        }
+    }
+
+    private fun notificationPermissionChecking(){
+        mediaPreviewBinding.sendMedia.isEnabled = true
+        MediaPermissions.requestNotificationPermission(
+            this,
+            permissionAlertDialog,
+            notificationPermissionLauncher)
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(ChatUtils.checkNotificationPermission(this, Manifest.permission.POST_NOTIFICATIONS)){
+            if(isFromQuickShare){
+                progressDialog!!.showProgress()
+                startCopyingFilesToMirrorFlyDirectoryAndSend()
+            } else {
+                mediafileUpload()
             }
+        }
+    }
+
+    private fun quickShareMediafileUpload(){
+        if(MediaPermissions.runtimeNotificationPermissionEnabledStatus(this)){
+            startCopyingFilesToMirrorFlyDirectoryAndSend()
+        } else {
+            progressDialog!!.dismiss()
+            notificationPermissionChecking()
+        }
+    }
+
+    private fun mediafileUpload(){
+        selectedImageList[viewPagerPosition].caption = emojiEditText!!.text.toString().trim { it <= ' ' }
+        if (toUser != null) {
+            handleCaptionImage(toUser!!)
         }
     }
 

@@ -8,7 +8,7 @@ import android.content.Intent
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.net.Uri
+import android.media.MediaPlayer
 import android.os.Build
 import android.text.TextUtils
 import android.util.Log
@@ -17,8 +17,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.IconCompat
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.contus.flycommons.LogMessage
 import com.contus.flycommons.PendingIntentHelper
 import com.contus.webrtc.api.CallLogManager
@@ -33,13 +31,15 @@ import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
-import com.contusflysdk.media.MediaUploadHelper
+import java.io.File
+import java.util.*
+
 
 object NotificationBuilder {
 
     val chatNotifications = hashMapOf<Int, NotificationModel>()
     private var securedNotificationChannelId = 0
-
+    var file: File?=null
     /**
      * Create notification when new chat message received
      * @param context Context of the application
@@ -51,7 +51,7 @@ object NotificationBuilder {
         val lastMessageContent = StringBuilder()
         val notificationId = chatJid.hashCode().toLong().toInt()
         val profileDetails = ProfileDetailsUtils.getProfileDetails(chatJid)
-
+        LogMessage.e("NOT_ID",notificationId.toString())
         if (profileDetails?.isMuted == true)
             return
 
@@ -71,13 +71,23 @@ object NotificationBuilder {
                 notificationModel.messages.clear()
                 oldMessages.forEach { chatMessage ->
                     notificationModel.messages.add(if (chatMessage.messageId == message.messageId) message else chatMessage)
-                    appendChatMessageInMessageStyle(context, lastMessageContent, messagingStyle, if (chatMessage.messageId == message.messageId) message else chatMessage)
+                    appendChatMessageInMessageStyle(
+                        context,
+                        lastMessageContent,
+                        messagingStyle,
+                        if (chatMessage.messageId == message.messageId) message else chatMessage
+                    )
                 }
                 notificationModel.messagingStyle = messagingStyle
             } else {
                 messagingStyle = notificationModel.messagingStyle
                 notificationModel.messages.add(message)
-                appendChatMessageInMessageStyle(context, lastMessageContent, messagingStyle, message)
+                appendChatMessageInMessageStyle(
+                    context,
+                    lastMessageContent,
+                    messagingStyle,
+                    message
+                )
             }
             setConversationTitleMessagingStyle(
                 context,
@@ -98,7 +108,7 @@ object NotificationBuilder {
             lastMessageContent.toString(),
             lastMessageTime
         )
-        displaySummaryNotification(context, lastMessageContent)
+       displaySummaryNotification(context, lastMessageContent)
     }
 
     /**
@@ -196,9 +206,8 @@ object NotificationBuilder {
             PendingIntentHelper.getActivity(context, requestID, notificationIntent)
         val notificationCompatBuilder = NotificationCompat.Builder(
             context,
-            buildNotificationChannelAndGetChannelId(context, notificationId.toString())
+            buildNotificationChannelAndGetChannelId(context, notificationId.toString(), null,false)
         )
-
         chatNotifications[notificationId]!!.unReadMessageCount++
         val unReadMessageCount  = if (chatNotifications.size == 1) getTotalUnReadMessageCount(notificationId) else chatNotifications[notificationId]?.unReadMessageCount ?:1
         LogMessage.i(TAG,"unReadMessageCount $unReadMessageCount")
@@ -218,6 +227,7 @@ object NotificationBuilder {
             priority = NotificationCompat.PRIORITY_HIGH
             setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             setLargeIcon(getUserProfileImage(context, profileDetails))
+
 
             if (lastMessageTime > 0)
                 setWhen(lastMessageTime)
@@ -251,9 +261,8 @@ object NotificationBuilder {
         val inboxStyle = NotificationCompat.InboxStyle().setBigContentTitle(appTitle)
         inboxStyle.setSummaryText(summaryText)
         for (notificationInlineMessage in 0 until chatNotifications.size) inboxStyle.addLine("notificationInlineMessage")
-
         val summaryBuilder =
-            NotificationCompat.Builder(context, buildNotificationChannelAndGetChannelId(context, null)).apply {
+            NotificationCompat.Builder(context, buildNotificationChannelAndGetChannelId(context, Constants.EMPTY_STRING,SUMMARY_CHANNEL_NAME,true)).apply {
                 setContentTitle(appTitle)
                 setContentText(lastMessageContent)
                 setSmallIcon(R.drawable.ic_notification_blue)
@@ -281,11 +290,11 @@ object NotificationBuilder {
      * @param notificationId Unique notification id of the conversation
      * @return String notificationId
      */
-    private fun buildNotificationChannelAndGetChannelId(context: Context, notificationId: String?): String {
+    private fun buildNotificationChannelAndGetChannelId(context: Context, notificationId: String?, notificationName: String?, isSummaryNotification: Boolean): String {
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotifyRefererUtils.buildNotificationChannel(context, notificationManager)
+            NotifyRefererUtils.buildNotificationChannel(context, notificationManager,notificationId, notificationName, isSummaryNotification)
         } else
             notificationId ?: NotifyRefererUtils.getNotificationId()
     }
@@ -323,10 +332,7 @@ object NotificationBuilder {
         var imgUrl = profileDetails?.image ?: ""
         try {
             if (imgUrl.isNotEmpty()) {
-                imgUrl = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT).buildUpon()
-                    .appendPath(Uri.parse(imgUrl).lastPathSegment).build().toString()
-                val file = Glide.with(context).asFile().load(imgUrl).diskCacheStrategy(DiskCacheStrategy.ALL).submit().get()
-                bitmapUserProfile = getCircularBitmap(BitmapFactory.decodeFile(file.absolutePath))
+                bitmapUserProfile = getCircularBitmap(BitmapFactory.decodeFile(file?.absolutePath))
             } else {
                 // Load Default icon based on name
                 bitmapUserProfile = if (profileDetails != null && profileDetails.isGroupProfile) {
@@ -442,7 +448,7 @@ object NotificationBuilder {
         val mainPendingIntent = PendingIntentHelper.getActivity(context, requestID, notificationIntent)
         val notificationCompatBuilder = NotificationCompat.Builder(
             context,
-            buildNotificationChannelAndGetChannelId(context, securedNotificationChannelId.toString())
+            buildNotificationChannelAndGetChannelId(context, securedNotificationChannelId.toString(), null,false)
         )
 
         notificationCompatBuilder.apply {
@@ -492,4 +498,6 @@ object NotificationBuilder {
     // A unique identifier string for creating the group notification.
     private const val GROUP_KEY_MESSAGE: String = BuildConfig.APPLICATION_ID + ".MESSAGE"
     private const val SUMMARY_ID = 0
+    const val SUMMARY_CHANNEL_ID = "message_summary_id"
+    const val SUMMARY_CHANNEL_NAME = "Chat Summary"
 }

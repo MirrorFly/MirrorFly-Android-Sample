@@ -8,6 +8,7 @@ import android.os.Build
 import android.text.Html
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.format.DateUtils
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.contus.call.CallConstants
@@ -31,6 +32,7 @@ import java.io.*
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.nio.channels.FileChannel
+import java.util.*
 
 object ChatUtils {
 
@@ -95,6 +97,10 @@ object ChatUtils {
                 LogMessage.e(e)
             }
         }
+    }
+
+    fun checkNotificationPermission(context: Context, permission: String): Boolean {
+        return MediaPermissions.isPermissionAllowed(context, permission)
     }
 
     fun checkMediaPermission(context: Context, permission: String): Boolean {
@@ -247,5 +253,18 @@ object ChatUtils {
     private fun getHtmlChatMessageText(context: Context, message: String): String {
         val text = context.getString(R.string.chat_text)
         return message + text
+    }
+
+    fun getLastSeenTime(context: Context,time:String): String {
+        return if (time==null || time.isEmpty()) Constants.EMPTY_STRING else if (time.equals(Constants.ONLINE_STATUS)) Constants.ONLINE else {
+            var lastSeen=time.toLong()
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis=lastSeen
+            var status = DateUtils.getRelativeTimeSpanString(context, lastSeen, true)
+                .toString()
+            val todayDate = Calendar.getInstance()
+            if (todayDate[Calendar.DATE] - calendar[Calendar.DATE] == 1) status = "on Yesterday" // date are not equal to current date it's taken an yesterday
+            String.format(context.getString(R.string.fly_info_status_last_seen), status)
+        }
     }
 }

@@ -125,19 +125,19 @@ class ProfileDialogFragment : DialogFragment() {
                         profileDialogBinding.userProfileImageViewer.setImageBitmap(image)
                         val drawable: Drawable = BitmapDrawable(resources, image)
                         profileDialogBinding.userProfileImageViewer.setImageDrawable(drawable)
-                        MediaUtils.loadImage(requireContext(), profileDetails.image, profileDialogBinding.userProfileImageViewer, drawable)
+                        profileThumbLoad(drawable)
                     } catch (e: IOException) {
                         LogMessage.e("ProfileDialogFragment", e)
                     }
                 } else {
-                    profileDialogBinding.userProfileImageViewer.loadUserProfileImage(
+                    profileDialogBinding.userProfileImageViewer.loadUserInfoProfileImage(
                         requireContext(),
                         it
                     )
                 }
             }
             else {
-                profileDialogBinding.userProfileImageViewer.loadUserProfileImage(
+                profileDialogBinding.userProfileImageViewer.loadUserInfoProfileImage(
                     requireContext(),
                     it
                 )
@@ -147,6 +147,26 @@ class ProfileDialogFragment : DialogFragment() {
             profileDetails.isAdminBlocked, arrayListOf(profileDetails.jid),"",false) }!!
 
         hideCallIcons()
+    }
+
+    private fun profileThumbLoad(drawable: Drawable) {
+        if (!profileDetails.thumbImage.isNullOrEmpty()) {
+            MediaUtils.loadThumbImage(
+                requireContext(),
+                profileDetails.image,
+                profileDetails.thumbImage,
+                profileDialogBinding.userProfileImageViewer,
+                drawable
+            )
+
+        } else {
+            MediaUtils.loadImage(
+                requireContext(),
+                profileDetails.image,
+                profileDialogBinding.userProfileImageViewer,
+                drawable
+            )
+        }
     }
 
     private fun hideCallIcons() {

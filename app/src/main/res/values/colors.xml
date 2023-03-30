@@ -152,4 +152,5 @@
     <color name="search_box_color">#EBEBEB</color>
     <color name="button_disable_color">#767676</color>
     <color name="color_chat_tag_header">#C1C1C1</color>
+    <color name="blue_color_notification_button">#EFF4FD</color>
 </resources>

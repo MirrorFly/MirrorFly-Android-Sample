@@ -68,15 +68,20 @@ object CallNotificationUtils {
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                         .build()
                     if(notificationSoundUri != null) {
-                        mChannel.setSound(notificationSoundUri, audioAttributes)
+                        NotifyRefererUtils.setNotificationChannelSound(notificationSoundUri,audioAttributes,
+                            mChannel,context)
                         if (isVibrate) {
                             mChannel.vibrationPattern =
                                 NotifyRefererUtils.defaultVibrationPattern
                         } else {
                             mChannel.vibrationPattern = longArrayOf(0L, 0L, 0L, 0L, 0L)
                         }
-                    }else{
-                        mChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), audioAttributes)
+                    } else {
+                        notificationSoundUri?.let {
+                            NotifyRefererUtils.setNotificationChannelSound(
+                                it,audioAttributes,
+                                mChannel,context)
+                        }
                     }
                     createdChannel = mChannel
                 }

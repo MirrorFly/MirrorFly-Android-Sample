@@ -5,7 +5,9 @@ import androidx.appcompat.app.AlertDialog
 import com.contusfly.R
 import android.view.LayoutInflater
 import android.view.WindowManager
+import androidx.viewbinding.ViewBinding
 import com.contusfly.chat.AndroidUtils
+import com.contusfly.databinding.NotificationPermissionDialogBinding
 import com.contusfly.databinding.PermissionInstructionDialogBinding
 import com.contusfly.interfaces.PermissionDialogListener
 
@@ -21,26 +23,51 @@ class PermissionAlertDialog(private var activity: Activity) {
         permissionType: String,
         permissionDialogListener: PermissionDialogListener
     ) {
-        val dialogBuilder = AlertDialog.Builder(activity, R.style.CustomAlertDialog)
-        val inflater: LayoutInflater = activity.layoutInflater
-        val dialogBinding = PermissionInstructionDialogBinding.inflate(inflater)
-        dialogBinding.dialogIcon.setImageResource(getDialogIcon(permissionType))
-        dialogBinding.dialogDescription.text = getDialogDescription(permissionType)
-        dialogBuilder.apply {
-            setCancelable(false)
-            setView(dialogBinding.root)
-            setPositiveButton(activity.getString(R.string.continue_label)) { dialog, _ ->
-                dialog.dismiss()
+        var dialogBinding : ViewBinding?=null
+        var dialogBuilder:AlertDialog.Builder
+        if(permissionType == NOTIFCATION_PERMISSION_DENIED){
+            dialogBuilder = AlertDialog.Builder(activity,R.style.TrasparentAlertDialog)
+            val inflater: LayoutInflater = activity.layoutInflater
+            dialogBinding = NotificationPermissionDialogBinding.inflate(inflater)
+            dialogBuilder.apply {
+                setCancelable(false)
+                setView((dialogBinding)!!.root)
+
+            }
+            val alertDialog = dialogBuilder.create()
+            alertDialog.show()
+            adjustAlertDialogWidth(activity, alertDialog)
+            dialogBinding.turnOnTv.setOnClickListener{
+                alertDialog.dismiss()
                 permissionDialogListener.onPositiveButtonClicked()
             }
-            setNegativeButton(activity.getString(R.string.not_now_label)) { dialog, _ ->
-                dialog.dismiss()
+            dialogBinding.closeIcon.setOnClickListener{
                 permissionDialogListener.onNegativeButtonClicked()
+                alertDialog.dismiss()
             }
+        } else {
+            dialogBuilder = AlertDialog.Builder(activity, R.style.CustomAlertDialog)
+            val inflater: LayoutInflater = activity.layoutInflater
+            dialogBinding = PermissionInstructionDialogBinding.inflate(inflater)
+            dialogBinding.dialogIcon.setImageResource(getDialogIcon(permissionType))
+            dialogBinding.dialogDescription.text = getDialogDescription(permissionType)
+            dialogBuilder.apply {
+                setCancelable(false)
+                setView(dialogBinding.root)
+                setPositiveButton(activity.getString(R.string.continue_label)) { dialog, _ ->
+                    dialog.dismiss()
+                    permissionDialogListener.onPositiveButtonClicked()
+                }
+                setNegativeButton(activity.getString(R.string.not_now_label)) { dialog, _ ->
+                    dialog.dismiss()
+                    permissionDialogListener.onNegativeButtonClicked()
+                }
+            }
+            val alertDialog = dialogBuilder.create()
+            alertDialog.show()
+            adjustAlertDialogWidth(activity, alertDialog)
         }
-        val alertDialog = dialogBuilder.create()
-        alertDialog.show()
-        adjustAlertDialogWidth(activity, alertDialog)
+
     }
 
     private fun getDialogDescription(permissionType: String): CharSequence {
@@ -60,6 +87,7 @@ class PermissionAlertDialog(private var activity: Activity) {
             AUDIO_CALL_PERMISSION_DENIED -> activity.getString(R.string.audio_call_permission_denied_alert_label)
             VIDEO_CALL_PERMISSION -> activity.getString(R.string.video_call_permission_alert_label)
             VIDEO_CALL_PERMISSION_DENIED -> activity.getString(R.string.video_call_permission_denied_alert_label)
+            NOTIFCATION_PERMISSION_DENIED -> activity.getString(R.string.notification_permission_denied_alert_label)
             else -> activity.getString(R.string.contact_and_media_permission_alert_label)
         }
     }
@@ -74,6 +102,7 @@ class PermissionAlertDialog(private var activity: Activity) {
             MIC_PERMISSION, MIC_PERMISSION_DENIED -> R.drawable.ic_mic_alert
             AUDIO_CALL_PERMISSION, AUDIO_CALL_PERMISSION_DENIED -> R.drawable.ic_mic_alert
             VIDEO_CALL_PERMISSION, VIDEO_CALL_PERMISSION_DENIED -> R.drawable.ic_video_call_alert
+            NOTIFCATION_PERMISSION_DENIED -> R.drawable.ic_notification_alert
             else -> R.drawable.ic_contact_media_alert
         }
     }
@@ -81,7 +110,7 @@ class PermissionAlertDialog(private var activity: Activity) {
     private fun adjustAlertDialogWidth(activity: Activity, alertDialog: AlertDialog) {
         val layoutParams = WindowManager.LayoutParams()
         layoutParams.copyFrom(alertDialog.window!!.attributes)
-        layoutParams.width = (AndroidUtils.getScreenWidth(activity) * 0.78).toInt()
+        layoutParams.width = (AndroidUtils.getScreenWidth(activity) * 0.80).toInt()
         alertDialog.window!!.attributes = layoutParams
     }
 
@@ -101,5 +130,6 @@ class PermissionAlertDialog(private var activity: Activity) {
         const val AUDIO_CALL_PERMISSION_DENIED = "audio_call_permission_denied"
         const val VIDEO_CALL_PERMISSION = "video_call_permission"
         const val VIDEO_CALL_PERMISSION_DENIED = "video_call_permission_denied"
+        const val NOTIFCATION_PERMISSION_DENIED = "notification_permission_denied"
     }
 }

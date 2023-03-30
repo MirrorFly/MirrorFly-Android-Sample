@@ -91,7 +91,7 @@ constructor() : ViewModel() {
     val fetchingError = MutableLiveData<Boolean>()
     val onTypingStatusGoneUpdate = MutableLiveData<String>()
     val availableFeatureLiveData=MutableLiveData<Features>()
-
+    val clearallCallLog = MutableLiveData<Boolean>()
 
     //Define the Recent Chat List Builder class
     private lateinit var recentChatListParams : RecentChatListParams
@@ -223,8 +223,6 @@ constructor() : ViewModel() {
     fun refreshFetchedRecentChat() {
         LogMessage.d(TAG, "refreshFetchedRecentChat() called to update the UI")
         var prefetchedRecentChats = recentChatAdapter.size - 2 // calculate recent chat has prefetched data by skipping header and footer
-        if (prefetchedRecentChats <= 0)
-            return
         if (prefetchedRecentChats < 50)
             prefetchedRecentChats = 50
         getInitialChatList(prefetchedRecentChats)
@@ -826,5 +824,9 @@ constructor() : ViewModel() {
 
     fun updateFeatureRestriction(feature:Features){
         availableFeatureLiveData.postValue(feature)
+    }
+
+    fun updateClearAllCallLogMenu() {
+        clearallCallLog.postValue(true)
     }
 }

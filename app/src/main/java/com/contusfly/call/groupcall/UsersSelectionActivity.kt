@@ -411,7 +411,7 @@ class UsersSelectionActivity : BaseActivity(), View.OnClickListener, CommonAlert
         if (callType == CallType.AUDIO_CALL) {
             callPermissionUtils = CallPermissionUtils(this, false, false, selectedList, groupJid, true)
             if (CallManager.isAudioCallPermissionsGranted(skipBlueToothPermission = false)) {
-                callPermissionUtils.audioCall()
+                launchAudioCall()
             } else {
                 MediaPermissions.requestAudioCallPermissions(
                     this,
@@ -423,7 +423,7 @@ class UsersSelectionActivity : BaseActivity(), View.OnClickListener, CommonAlert
         } else {
             callPermissionUtils = CallPermissionUtils(this, false, false, selectedList, groupJid, true)
             if (CallManager.isVideoCallPermissionsGranted(skipBlueToothPermission = false)) {
-                callPermissionUtils.videoCall()
+                launchVideoCall()
             } else {
                 MediaPermissions.requestVideoCallPermissions(
                     this,
@@ -434,6 +434,47 @@ class UsersSelectionActivity : BaseActivity(), View.OnClickListener, CommonAlert
             }
         }
     }
+
+    private fun launchAudioCall(){
+        if(CallManager.isNotificationPermissionsGranted()){
+            callPermissionUtils.audioCall()
+        } else {
+            notificationPermissionChecking()
+        }
+    }
+
+    private fun launchVideoCall(){
+        if(CallManager.isNotificationPermissionsGranted()){
+            callPermissionUtils.videoCall()
+        } else {
+            notificationPermissionChecking()
+        }
+    }
+
+    private fun notificationPermissionChecking(){
+        MediaPermissions.requestNotificationPermission(
+            this,
+            permissionAlertDialog,
+            notificationPermissionLauncher,
+            false,
+            permissionDeniedListener)
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            if (!permissions.containsValue(false)) {
+                if (callType == CallType.AUDIO_CALL) {
+                    launchAudioCall()
+                } else {
+                    launchVideoCall()
+                }
+            } else {
+                callNowLayout.isEnabled = true
+            }
+
+    }
+
+
 
     override fun onResume() {
         super.onResume()

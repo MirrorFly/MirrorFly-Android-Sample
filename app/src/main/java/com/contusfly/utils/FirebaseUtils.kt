@@ -2,19 +2,23 @@ package com.contusfly.utils
 
 import android.app.NotificationManager
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
+import com.bumptech.glide.Glide
 import com.contusfly.constants.MobileApplication
 import com.contusfly.notification.AppNotificationManager
 import com.contusfly.notification.NotificationBuilder
 import com.contusfly.notification.NotificationBuilderBelow24
 import com.contusflysdk.api.ChatActionListener
+import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
 import com.contusflysdk.api.notification.NotificationEventListener
 import com.contusflysdk.api.notification.PushNotificationManager
+import com.contusflysdk.media.MediaUploadHelper
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.installations.FirebaseInstallations
 import kotlinx.coroutines.*
@@ -52,6 +56,14 @@ class FirebaseUtils : CoroutineScope {
         })
     }
 
+    fun callImage(profileDetails: ProfileDetails?, context: Context) {
+        var imgUrl = profileDetails?.image ?: ""
+        imgUrl = Uri.parse(MediaUploadHelper.UPLOAD_ENDPOINT).buildUpon()
+            .appendPath(Uri.parse(imgUrl).lastPathSegment).build().toString()
+        NotificationBuilder.file = Glide.with(context).asFile().load(imgUrl).submit().get()
+    }
+
+
     /**
      * Process the notification received via FCM.
      * @param context          Context of the service
@@ -63,6 +75,10 @@ class FirebaseUtils : CoroutineScope {
             if (it.containsKey("push_from") && it["push_from"].equals("MirrorFly")) {
                 PushNotificationManager.handleReceivedMessage(it, object : NotificationEventListener {
                     override fun onMessageReceived(chatMessage : ChatMessage) {
+                        val userProfile: ProfileDetails? =
+                            ProfileDetailsUtils.getProfileDetails(chatMessage.getSenderUserJid())
+                        if (!userProfile?.image.isNullOrEmpty())
+                            callImage(userProfile, context)
                         val messageType = Utils.returnEmptyStringIfNull(it[com.contus.flycommons.Constants.TYPE])
                         if ((it.containsKey("user_jid") && !ProfileDetailsUtils.getProfileDetails(it["user_jid"].toString())?.isMuted!!) ||
                             (messageType == com.contus.flycommons.Constants.RECALL)) {

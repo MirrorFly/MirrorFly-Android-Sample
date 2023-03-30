@@ -309,6 +309,9 @@ class ChatAdapter(
                     isSentMessage = item.isMessageSentByMe() && !item.isMessageSent()
                     setStatus(item, imgSenderStatus)
                     replyViewUtils.showSenderReplyWindow(this, item, context)
+                    if(item.isMessageAcknowledged() || item.isMessageDelivered() || item.isMessageSeen())
+                        imgForwardLocation?.show()
+                    imgForwardLocation?.setOnClickListener { listener?.onSenderMediaForward(item, layoutPosition) }
                 }
             }
         }

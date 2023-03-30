@@ -31,6 +31,10 @@ import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.contacts.ContactManager
 import com.contusflysdk.api.contacts.ProfileDetails
 import com.contusflysdk.api.models.ChatMessage
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  *
@@ -39,6 +43,9 @@ import com.contusflysdk.api.models.ChatMessage
  */
 open class BaseActivity : FlyBaseActivity() {
 
+    private val exceptionHandler = CoroutineExceptionHandler { context, exception ->
+        LogMessage.e(exception)
+    }
     /**
      * The broadcast receiver. To handle the actions from the service/activity
      */
@@ -51,6 +58,9 @@ open class BaseActivity : FlyBaseActivity() {
     private var adminBlockStatus = false
 
     private var adminBlockedOtherUserStatus = false
+
+    @Inject
+    lateinit var firebaseUtils: FirebaseUtils
 
     private val adminBlockRunnable = Runnable {
         LogMessage.d(TAG, "#onAdminBlockedStatus adminBlockRunnable == $adminBlockStatus")
@@ -196,11 +206,20 @@ open class BaseActivity : FlyBaseActivity() {
         if (FlyMessenger.getUnreadMessagesCount() <= 0 || !SharedPreferenceManager.getBoolean(Constants.IS_PROFILE_LOGGED) || chatMessage == null) {
             AppNotificationManager.cancelNotifications(applicationContext)
         } else {
-            if (ProfileDetailsUtils.getProfileDetails(jid)?.isMuted != true)
-                AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)
+            if (ProfileDetailsUtils.getProfileDetails(jid)?.isMuted != true){
+                GlobalScope.launch(exceptionHandler) {
+                    val userProfile: ProfileDetails? =
+                        ProfileDetailsUtils.getProfileDetails(jid)
+                    if (!userProfile?.image.isNullOrEmpty())
+                        firebaseUtils.callImage(userProfile, this@BaseActivity)
+
+                    AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)
+                }
+
+            }
+
         }
     }
-
     override fun updateGroupReplyNotificationForArchivedSettingsEnabled(chatMessage: ChatMessage) {
         super.updateGroupReplyNotificationForArchivedSettingsEnabled(chatMessage)
         AppNotificationManager.createNotification(MobileApplication.getContext(), chatMessage)

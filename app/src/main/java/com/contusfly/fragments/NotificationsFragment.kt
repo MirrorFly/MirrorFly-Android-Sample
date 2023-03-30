@@ -1,9 +1,12 @@
 package com.contusfly.fragments
 
 import android.app.Activity
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.LayoutInflater
@@ -16,6 +19,7 @@ import com.contusfly.R
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.activities.SettingsActivity
 import com.contusfly.databinding.FragmentNotificationsBinding
+import com.contusfly.utils.NotifyRefererUtils
 import com.contusflysdk.AppUtils
 import com.contusflysdk.api.ChatManager.isActivityStartedForResult
 import com.contusflysdk.views.CustomToast
@@ -65,7 +69,6 @@ class NotificationsFragment : Fragment() {
 
         binding.layoutNotificationTone.setOnClickListener {
             showCustomTones()
-            SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.KEY_CHANGE_FLAG, true)
         }
 
         binding.layoutNotificationPermission.setOnClickListener {
@@ -101,24 +104,63 @@ class NotificationsFragment : Fragment() {
         /* setting isActivityStartedForResult to false for xmpp disconnection */
         isActivityStartedForResult = false
         try {
-            if (resultCode == Activity.RESULT_OK && requestCode == Constants.ACTIVITY_REQ_CODE &&
-                data?.getParcelableExtra<Parcelable?>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) != null) {
-                SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, data.getParcelableExtra<Parcelable>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI).toString())
-                binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
+            if (resultCode == Activity.RESULT_OK && requestCode == Constants.ACTIVITY_REQ_CODE){
+                setSelectedNotificationTone(data)
             }
 
             if (data == null) {
                 SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI))
                 binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
             }
-            else if (data?.getParcelableExtra<Parcelable?>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) == null) {
-                SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, "None")
-                binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
-            }
+
         } catch (exception: Exception) {
             LogMessage.e(exception)
         }
 
+    }
+
+   private fun setSelectedNotificationTone(data: Intent?) {
+       try {
+           if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
+               if(data?.getParcelableExtra<Parcelable?>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI,Parcelable::class.java) != null){
+                   var notificationUri=data.getParcelableExtra<Parcelable>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI,Parcelable::class.java).toString()
+                   if(notificationUri != SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)){
+                       val notificationManager =
+                           context!!.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                       NotifyRefererUtils.deleteNotificationChannels(notificationManager)
+                       setNotificationToneChangedStatus()
+                   }
+                   SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, data.getParcelableExtra<Parcelable>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI,Parcelable::class.java).toString())
+                   binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
+
+               } else {
+                   SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, "None")
+                   binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
+                   setNotificationToneChangedStatus()
+               }
+           } else {
+               if(data?.getParcelableExtra<Parcelable?>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) != null){
+                   var notificationUri=data.getParcelableExtra<Parcelable>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI).toString()
+                   if(notificationUri != SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)){
+                       val notificationManager =
+                           context!!.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                       NotifyRefererUtils.deleteNotificationChannels(notificationManager)
+                       setNotificationToneChangedStatus()
+                   }
+                   SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, data.getParcelableExtra<Parcelable>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI).toString())
+                   binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
+               } else {
+                   SharedPreferenceManager.setString(com.contusfly.utils.Constants.NOTIFICATION_URI, "None")
+                   binding.notificationToneLabel.setText(getRingtoneName(SharedPreferenceManager.getString(com.contusfly.utils.Constants.NOTIFICATION_URI)))
+               }
+           }
+       } catch(e:Exception) {
+           LogMessage.e(e)
+       }
+   }
+
+    private fun setNotificationToneChangedStatus(){
+        SharedPreferenceManager.setBoolean(com.contusfly.utils.Constants.KEY_CHANGE_FLAG, true)
     }
 
     /**

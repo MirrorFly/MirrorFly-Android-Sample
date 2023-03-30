@@ -52,7 +52,9 @@ class MediaSlideActivity : BaseActivity() {
         messageId = intent.getStringExtra(Constants.MESSAGE_ID)
         var feature=ChatManager.getAvailableFeatures()
         if(feature.isViewAllMediaEnabled){
-            messageData = (rosterId?.let { getMediaMessages(it).reversed() } as ArrayList<ChatMessage>?)!!
+            var list=rosterId?.let { getMediaMessages(it).reversed() }
+            messageData=ArrayList()
+            list?.let { messageData.addAll(it) }
         } else {
             var chatmessage=messageId?.let { FlyMessenger.getMessageOfId(it) }
             messageData=ArrayList()

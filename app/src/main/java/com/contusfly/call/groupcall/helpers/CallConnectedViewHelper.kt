@@ -197,6 +197,7 @@ class CallConnectedViewHelper(
             if (CallUtils.getPinnedUserJid() != CallManager.getCurrentUserId() && !callUsersListAdapter.callUserList.contains(CallManager.getCurrentUserId()))
                 callUsersListAdapter.addUser(CallManager.getCurrentUserId())
             binding.viewVideoLocal.gone()
+            baseViewOnClickListener.onCallOptionsVisible()
         }
     }
 

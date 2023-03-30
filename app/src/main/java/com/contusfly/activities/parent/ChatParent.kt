@@ -13,7 +13,12 @@ import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.location.LocationManager
+import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaMetadataRetriever
+import android.media.MediaPlayer
+import android.media.MediaPlayer.OnCompletionListener
+import android.net.Uri
 import android.os.*
 import android.provider.MediaStore
 import android.provider.Settings
@@ -103,7 +108,6 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-import kotlin.collections.ArrayList
 import kotlin.concurrent.schedule
 import kotlin.coroutines.CoroutineContext
 
@@ -306,7 +310,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
 
     protected val messagesQueue = ArrayList<MessageObject>()
 
-    protected val clickedMessages = ArrayList<String>()
+    protected var clickedMessages = ArrayList<String>()
 
     private val filteredPosition = ArrayList<Int>()
 
@@ -406,6 +410,8 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
         if(readPermissionGranted) {
             selectImagesFromGallery()
+        } else if(ChatUtils.checkMediaPermission(this, Manifest.permission.READ_MEDIA_IMAGES) && ChatUtils.checkMediaPermission(this, Manifest.permission.READ_MEDIA_VIDEO)){
+            selectImagesFromGallery()
         }
     }
 
@@ -414,6 +420,8 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
         if(readPermissionGranted) {
             PickFileUtils.pickFile(this)
+        } else if(ChatUtils.checkMediaPermission(this, Manifest.permission.POST_NOTIFICATIONS)){
+            PickFileUtils.pickFile(this)
         }
     }
 
@@ -421,8 +429,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         val readPermissionGranted = permissions[Manifest.permission.READ_EXTERNAL_STORAGE] ?: ChatUtils.checkMediaPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
         if(readPermissionGranted) {
-            isEmailChatClicked = false
-            FlyCore.exportChatConversationToEmail(chat.toUser, emptyList())
+            exportChatEmail()
         }
     }
 
@@ -437,7 +444,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             val options: Options? = Options.init()
                 .setRequestCode(100)
                 .setCount(Constants.MAX_MEDIA_SELECTION_RESTRICTION)
-                .setOutputPath(Constants.LOCAL_PATH.toUpperCase(Locale.getDefault()))
+                .setOutputPath(Constants.LOCAL_PATH.uppercase(Locale.getDefault()))
                 .setFrontfacing(false)
                 .setPreSelectedUrls(returnValue)
                 .setExcludeVideos(false)
@@ -985,7 +992,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             }
             netConditionalCall({
                 launch(exceptionHandler) {
-                    ContactManager.getUserLastSeenTime(
+                    ContactManager.getRegisteredUserLastSeenTime(
                         chat.toUser,
                         object : ContactManager.LastSeenListener {
                             override fun onFailure(message: String) {
@@ -993,7 +1000,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                             }
 
                             override fun onSuccess(lastSeenTime: String) {
-                                setUserPresenceStatus(lastSeenTime)
+                                setUserPresenceStatus(ChatUtils.getLastSeenTime(this@ChatParent,lastSeenTime))
                             }
                         })
                 }
@@ -1065,7 +1072,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
      * @param unsentMessage Unsent message
      */
     protected fun showUnsentMessage(unsentMessage: String) {
-        if (unsentMessage.isNotEmpty()) {
+        if (unsentMessage.isNotEmpty() && unsentMessage != null) {
             enableEdt = false
             binding.viewChatFooter.editChatMsg.setText(unsentMessage)
             imgSend.setImageResource(R.drawable.ic_send_active)
@@ -1106,7 +1113,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 return
             }
             launch(exceptionHandler) {
-                ContactManager.getUserLastSeenTime(
+                ContactManager.getRegisteredUserLastSeenTime(
                     chat.toUser,
                     object : ContactManager.LastSeenListener {
                         override fun onFailure(message: String) {
@@ -1117,14 +1124,14 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                         }
 
                         override fun onSuccess(lastSeenTime: String) {
-                            setUserPresenceStatus(lastSeenTime)
+                            setUserPresenceStatus(ChatUtils.getLastSeenTime(this@ChatParent,lastSeenTime))
                         }
                     })
             }
         } else {
             Handler(Looper.getMainLooper()).postDelayed({
                 launch(exceptionHandler) {
-                    ContactManager.getUserLastSeenTime(
+                    ContactManager.getRegisteredUserLastSeenTime(
                         chat.toUser,
                         object : ContactManager.LastSeenListener {
                             override fun onFailure(message: String) {
@@ -1135,7 +1142,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                             }
 
                             override fun onSuccess(lastSeenTime: String) {
-                                setUserPresenceStatus(lastSeenTime)
+                                setUserPresenceStatus(ChatUtils.getLastSeenTime(this@ChatParent,lastSeenTime))
                             }
                         })
                 }
@@ -1594,7 +1601,8 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             messageId = Constants.EMPTY_STRING
             parentViewModel.loadInitialData(messageId)
         } else {
-            parentViewModel.loadNextData()
+            if (!parentViewModel.getFetchingIsInProgress())
+                parentViewModel.loadNextData()
         }
         handleUnreadMessageSeparator(true)
         Handler(Looper.getMainLooper()).postDelayed({
@@ -1672,7 +1680,15 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 )
             closeControls()
         } else {
-            PickFileUtils.pickFile(this)
+            if (ChatUtils.checkMediaPermission(this, Manifest.permission.POST_NOTIFICATIONS)) {
+                PickFileUtils.pickFile(this)
+            } else {
+                MediaPermissions.requestNotificationPermission(
+                    this,
+                    permissionAlertDialog,
+                    filePermissionLauncher)
+                closeControls()
+            }
         }
     }
 
@@ -1722,7 +1738,7 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
 
     private fun selectAudioFileFromStorage() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI)
-        val audioListIntent = Intent(Intent.ACTION_PICK)
+        val audioListIntent = Intent(Intent.ACTION_GET_CONTENT)
         audioListIntent.type = "audio/*"
         val audioPickerApps: List<ResolveInfo> = packageManager.queryIntentActivities(audioListIntent, 0)
         when {
@@ -1732,9 +1748,9 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 ChatManager.isActivityStartedForResult = true
             }
             audioPickerApps.isNotEmpty() -> {
-                val audioIntent = Intent(Intent.ACTION_PICK)
+                val audioIntent = Intent(Intent.ACTION_GET_CONTENT)
                 audioIntent.setDataAndType(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     "audio/*"
                 )
                 startActivityForResult(audioIntent, RequestCode.FROM_GALLERY)
@@ -1758,9 +1774,20 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
                 )
             closeControls()
         } else {
-            selectImagesFromGallery()
+            if (ChatUtils.checkMediaPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                && ChatUtils.checkWritePermission(this, Manifest.permission.READ_MEDIA_VIDEO)) {
+                selectImagesFromGallery()
+            } else {
+                MediaPermissions.requestMediaFiles(
+                    this,
+                    permissionAlertDialog,
+                    galleryPermissionLauncher)
+                closeControls()
+            }
         }
     }
+
+
 
     private fun locationSelection() {
         checkInternetAndExecute {
@@ -2212,12 +2239,21 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
             showToast(getString(R.string.empty_conversation))
         else {
             isEmailChatClicked = true
-            if (MediaPermissions.isReadFilePermissionAllowed(this) &&
-                MediaPermissions.isWriteFilePermissionAllowed(this)) {
-                isEmailChatClicked = false
-                FlyCore.exportChatConversationToEmail(chat.toUser, emptyList())
-            } else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, emailPermissionLauncher)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                if (MediaPermissions.isReadFilePermissionAllowed(this) &&
+                    MediaPermissions.isWriteFilePermissionAllowed(this)) {
+                    exportChatEmail()
+                } else MediaPermissions.requestStorageAccess(this, permissionAlertDialog, emailPermissionLauncher)
+            } else {
+                exportChatEmail()
+            }
+
         }
+    }
+
+    private fun exportChatEmail(){
+        isEmailChatClicked = false
+        FlyCore.exportChatConversationToEmail(chat.toUser, emptyList())
     }
 
     /**
@@ -2690,6 +2726,27 @@ open class ChatParent : BaseActivity(), CoroutineScope, MessageListener,
         else {
             vibrateWithToast(getString(R.string.warning_audio_restriction_message))
             false
+        }
+    }
+
+    fun playForgroundNotificationSound(context:Context) {
+        try {
+            val audioManager = context.getSystemService(AUDIO_SERVICE) as AudioManager
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
+                .setLegacyStreamType(AudioManager.STREAM_RING)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build()
+            val sessionId: Int = audioManager.generateAudioSessionId()
+            val notificationSoundUri = Uri.parse(SharedPreferenceManager.getString(Constants.NOTIFICATION_URI))
+            if(notificationSoundUri != null && !(notificationSoundUri.toString().equals("None") || notificationSoundUri.toString().equals("\"None\""))){
+                var mediaPlayer = MediaPlayer.create(context, R.raw.forground_notification,audioAttributes,sessionId)
+                mediaPlayer?.setOnCompletionListener(OnCompletionListener {
+                    mediaPlayer?.release()
+                })
+                mediaPlayer?.start()
+            }
+        } catch(e:Exception) {
+            LogMessage.e(TAG, e.message)
         }
     }
 

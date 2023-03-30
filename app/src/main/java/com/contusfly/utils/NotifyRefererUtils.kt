@@ -3,19 +3,26 @@ package com.contusfly.utils
 import android.annotation.TargetApi
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Color
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
 import com.contus.flycommons.ChatTypeEnum
+import com.contusfly.AppLifecycleListener
 import com.contusfly.R
 import com.contusfly.TAG
+import com.contusfly.notification.NotificationBuilder
+import com.contusfly.notification.NotificationModel
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.models.ChatMessage
 import java.util.*
+
 
 /**
  * This Class contains all the common operations for creating and showing notification
@@ -24,6 +31,7 @@ import java.util.*
  * @version 2.0
  */
 object NotifyRefererUtils {
+
     /**
      * To generate tone and vibration while receiving the message. The tone will played if user has
      * been selected ringtone for message where the option is available to select tone, vibration
@@ -110,19 +118,14 @@ object NotifyRefererUtils {
      * @return
      */
     @TargetApi(Build.VERSION_CODES.O)
-    fun buildNotificationChannel(packageContext: Context, notificationManager: NotificationManager?, chatChannelId: String? = null): String {
-        if (SharedPreferenceManager.getBoolean(Constants.KEY_CHANGE_FLAG)) {
-            SharedPreferenceManager.setBoolean(Constants.KEY_CHANGE_FLAG, false)
-            deleteNotificationChannels(notificationManager)
-        }
+    fun buildNotificationChannel(packageContext: Context, notificationManager: NotificationManager?, chatChannelId: String? = null, chatChannelName: String? = null, isSummaryNotification: Boolean): String {
         val createdChannel: NotificationChannel
         val notificationSoundUri = Uri.parse(SharedPreferenceManager.getString(Constants.NOTIFICATION_URI))
         val isVibrate = SharedPreferenceManager.getBoolean(Constants.VIBRATION)
         val isRing = SharedPreferenceManager.getBoolean(Constants.NOTIFICATION_SOUND)
-        val randomNumberGenerator = Random(System.currentTimeMillis())
-        val channelName: CharSequence = packageContext.resources
+        val channelName: CharSequence = chatChannelName?:packageContext.resources
                 .getString(R.string.channel_name)
-        val channelId = chatChannelId ?: randomNumberGenerator.nextInt().toString()
+        val channelId = getNotificationChannelId(notificationManager,isSummaryNotification,chatChannelId)
         val cImportance = if (isVibrate) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
         val channelDescription = packageContext.resources.getString(R.string.channel_description)
         val channelImportance = if (isRing && !isLastMessageRecalled) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_LOW
@@ -133,7 +136,12 @@ object NotifyRefererUtils {
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                 .build()
             if (notificationSoundUri != null) {
-                highPriorityChannel.setSound(notificationSoundUri, audioAttributes)
+                setNotificationChannelSound(
+                    notificationSoundUri,
+                    audioAttributes,
+                    highPriorityChannel,
+                    packageContext)
+
                 highPriorityChannel.description = channelDescription
                 highPriorityChannel.enableLights(true)
                 highPriorityChannel.lightColor = Color.GREEN
@@ -143,7 +151,7 @@ object NotifyRefererUtils {
                     highPriorityChannel.vibrationPattern = longArrayOf(0L, 0L, 0L, 0L, 0L)
                 }
             } else {
-                highPriorityChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), audioAttributes)
+                notificationSoundUri?.let { setNotificationChannelSound(it,audioAttributes,highPriorityChannel,packageContext) }
             }
             createdChannel = highPriorityChannel
         } else if (isVibrate) {
@@ -169,6 +177,56 @@ object NotifyRefererUtils {
         return createdChannel.id
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun setNotificationChannelSound(
+        notificationSoundUri: Uri,
+        audioAttributes: AudioAttributes,
+        highPriorityChannel: NotificationChannel,
+        packageContext: Context
+    ) {
+        if (notificationSoundUri != null) {
+             if(notificationSoundUri.toString().equals("None") || notificationSoundUri.toString().equals("\"None\"")){
+                 highPriorityChannel.setSound(null, null)
+                 return
+             }
+            if(AppLifecycleListener.isForeground) {
+                 val forgroundsoundUri =
+                     Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + packageContext.packageName + "/" + R.raw.forground_notification)
+                     highPriorityChannel.setSound(forgroundsoundUri, audioAttributes)
+             } else {
+                 highPriorityChannel.setSound(notificationSoundUri, audioAttributes)
+             }
+        } else {
+            highPriorityChannel.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), audioAttributes)
+        }
+    }
+
+    private fun getNotificationChannelId(
+        notificationManager: NotificationManager?,
+        isSummaryNotification: Boolean,
+        chatChannelId: String?): String {
+        var channelId:String=""
+        val randomNumberGenerator = Random(System.currentTimeMillis())
+        if(isSummaryNotification){
+            var summaryChannelId=SharedPreferenceManager.getString(Constants.KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID)
+            if(summaryChannelId == Constants.EMPTY_STRING){
+                summaryChannelId= NotificationBuilder.SUMMARY_CHANNEL_ID
+            }
+            if (SharedPreferenceManager.getBoolean(Constants.KEY_CHANGE_FLAG)) {
+                SharedPreferenceManager.setBoolean(Constants.KEY_CHANGE_FLAG, false)
+                summaryChannelId=randomNumberGenerator.nextInt().toString()
+            } else if(summaryChannelId.contains(Constants.KEY_FORGROUND) || summaryChannelId.contains(Constants.KEY_BACKGROUND)){
+                deleteNotificationSummaryChannels(notificationManager)
+                summaryChannelId=randomNumberGenerator.nextInt().toString()
+            }
+            SharedPreferenceManager.setString(Constants.KEY_NOTIIFCATION_SUMMARY_CHANNEL_ID, summaryChannelId)
+            channelId=summaryChannelId
+        } else {
+            channelId= chatChannelId?: randomNumberGenerator.nextInt().toString()
+        }
+        return channelId
+    }
+
     /**
      * Generates a list of notification channels associated with a notification manager
      *
@@ -181,13 +239,34 @@ object NotifyRefererUtils {
             val notificationChannelList: List<NotificationChannel>
             if (mNotificationManager != null) {
                 notificationChannelList = mNotificationManager.notificationChannels
-                for (notificationChannel in notificationChannelList)
+                for (notificationChannel in notificationChannelList){
                     if(!notificationChannel.name.equals("Download media")
                         && !notificationChannel.name.equals("Email Contacts operations")
                         && !notificationChannel.name.equals("Contact operations")
                         && !notificationChannel.id.equals("calling")
-                        && !notificationChannel.id.equals("Mark read"))
+                        && !notificationChannel.id.equals("Mark read")){
+                         mNotificationManager.deleteNotificationChannel(notificationChannel.id)
+                     }
+                }
+            }
+        } catch (e: Exception) {
+            LogMessage.e(TAG, "Error")
+        }
+    }
+
+
+    @TargetApi(Build.VERSION_CODES.O)
+    fun deleteNotificationSummaryChannels(mNotificationManager: NotificationManager?) {
+        try {
+            val notificationChannelList: List<NotificationChannel>
+            if (mNotificationManager != null) {
+                notificationChannelList = mNotificationManager.notificationChannels
+                for (notificationChannel in notificationChannelList){
+                    if(notificationChannel.name.equals(NotificationBuilder.SUMMARY_CHANNEL_NAME)){
                         mNotificationManager.deleteNotificationChannel(notificationChannel.id)
+                    }
+                }
+
             }
         } catch (e: Exception) {
             LogMessage.e(TAG, e.message)

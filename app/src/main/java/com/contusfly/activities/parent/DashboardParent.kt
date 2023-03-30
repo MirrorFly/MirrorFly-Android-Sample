@@ -3,6 +3,7 @@ package com.contusfly.activities.parent
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.os.Bundle
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
@@ -75,6 +76,8 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     lateinit var recentChatFragment: RecentChatListFragment
     lateinit var callHistoryFragment: CallHistoryFragment
 
+    private var ismarkRead:Boolean=false
+
     @Inject
     open lateinit var dashboardViewModelFactory: AppViewModelFactory
     open val viewModel by lazy {
@@ -84,6 +87,12 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     val callLogviewModel: CallLogViewModel by viewModels { dashboardViewModelFactory }
 
     private val permissionAlertDialog : PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        notificationPermissionChecking(false)
+    }
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -106,7 +115,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
 
     fun closeOption(menu: Menu): Boolean {
         with(menu) {
-            hideMenu(get(R.id.action_settings), get(R.id.action_new), get(R.id.action_group_chat), get(R.id.action_web_settings))
+            hideMenu(get(R.id.action_settings), get(R.id.action_new), get(R.id.action_group_chat), get(R.id.action_web_settings), get(R.id.clear_call_log))
         }
         super.onPrepareOptionsMenu(menu)
         return true
@@ -433,7 +442,7 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
                 return true
             }
             R.id.action_mark_as_read -> {
-                netConditionalCall({ viewModel.markAsReadRecentChats(this) }, { showErrorMessage() })
+                markasRead()
                 actionMode?.finish()
                 return true
             }
@@ -449,6 +458,14 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
                 return true
             }
             else -> return false
+        }
+    }
+
+    private fun markasRead(){
+        if(MediaPermissions.isNotificationPermissionAllowed(this)){
+            netConditionalCall({ viewModel.markAsReadRecentChats(this) }, { showErrorMessage() })
+        } else {
+            notificationPermissionChecking(true)
         }
     }
 
@@ -579,5 +596,21 @@ open class DashboardParent : BaseActivity(), CoroutineScope {
     fun checkLogin() {
         if (WebLoginDataManager.getWebLoginDetails().isNotEmpty())
             SharedPreferenceManager.setBoolean(Constants.IS_WEBCHAT_LOGGED_IN, true)
+    }
+
+    private fun notificationPermissionChecking(isMarkRead:Boolean){
+        ismarkRead=isMarkRead
+        MediaPermissions.requestNotificationPermission(
+            this,
+            permissionAlertDialog,
+            notificationPermissionLauncher)
+
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if(ChatUtils.checkNotificationPermission(this, Manifest.permission.POST_NOTIFICATIONS) && ismarkRead){
+            markasRead()
+        }
     }
 }

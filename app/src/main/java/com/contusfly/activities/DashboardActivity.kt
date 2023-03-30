@@ -1,7 +1,9 @@
 package com.contusfly.activities
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -10,6 +12,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -27,6 +30,7 @@ import com.contusfly.fragments.RecentChatListFragment
 import com.contusfly.interfaces.RecentChatEvent
 import com.contusfly.utils.*
 import com.contusfly.views.CommonAlertDialog
+import com.contusfly.views.PermissionAlertDialog
 import com.contusflysdk.api.ChatManager
 import com.contusflysdk.api.FlyMessenger
 import com.contusflysdk.api.GroupManager
@@ -56,6 +60,7 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
     private var userJid:String = Constants.EMPTY_STRING
     private var handler: Handler? = null
     private var menuReference: Menu? = null
+    protected val permissionAlertDialog: PermissionAlertDialog by lazy { PermissionAlertDialog(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AndroidInjection.inject(this)
@@ -236,8 +241,8 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         val menuItem = menu?.findItem(R.id.action_search)
         menuReference = menu
         updateMenuIcons(ChatManager.getAvailableFeatures())
+        callLogMenuShowHide()
         mSearchView = menu?.findItem(R.id.action_search)?.actionView as SearchView
-
         /* Check if user searched in recent or contact. */
         if (!mSearchView.isIconified)
             dashboardBinding.toolbar.collapseActionView()
@@ -274,6 +279,7 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
                 tabLayout.show()
                 mRecentChatListType = if (searchKey.isEmpty()) RecentChatListType.RECENT else RecentChatListType.SEARCH
                 openOption(menu)
+                callLogMenuShowHide()
                 return true
             }
         })
@@ -293,6 +299,10 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
             R.id.action_web_settings -> {
                 SharedPreferenceManager.setBoolean(Constants.IS_WEBCHAT_LOGGED_IN, false)
                 webConnect()
+                true
+            }
+            R.id.clear_call_log -> {
+                 callLogviewModel.setClearAllCallLog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -379,6 +389,7 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         }
         callLogviewModel.uploadUnSyncedCallLogs()
         ChatManager.setOnGoingChatUser("")
+        callLogMenuShowHide()
     }
 
     fun recentClick(recentList: List<RecentChat>, startActionMode: Boolean) {
@@ -541,6 +552,11 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         viewModel.unreadChatCountLiveData.observe(this, {
             validateUnreadChatUsers(it)
         })
+
+        viewModel.clearallCallLog.observe(this, {
+            callLogMenuShowHide()
+        })
+
     }
 
     /**
@@ -668,6 +684,10 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
         }
     }
 
+    private fun callLogMenuShowHide(){
+        menuReference?.let { hideMenu(it.get(R.id.clear_call_log))}
+    }
+
     private fun updateActionMenuIcons(features: Features, recentList: List<RecentChat>) {
         try {
             actionModeMenu?.let {
@@ -679,5 +699,4 @@ class DashboardActivity : DashboardParent(), View.OnClickListener, ActionMode.Ca
             LogMessage.e(TAG,e.toString())
         }
     }
-
 }

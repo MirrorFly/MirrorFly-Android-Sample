@@ -55,6 +55,7 @@ import com.contusfly.utils.ChatUtils.setSelectedChatItem
 import com.contusfly.utils.Constants
 import com.contusfly.utils.ImageUtils.loadMapWithGlide
 import com.contusfly.utils.LogMessage
+import com.contusfly.utils.MediaUtils.loadImage
 import com.contusfly.utils.MediaUtils.loadImageWithGlideSecure
 import com.contusfly.utils.SharedPreferenceManager
 import com.contusfly.views.SetDrawable
@@ -911,12 +912,14 @@ class StarredMessagesAdapter() : RecyclerView.Adapter<RecyclerView.ViewHolder>()
 
     private fun loadUserProfileImage(context: Context, profileDetails: ProfileDetails, imgView: ImageView, errorImg: Drawable) {
         var errorImg: Drawable? = errorImg
-        var imageUrl = profileDetails.image
+        var imageUrl = if (!profileDetails.thumbImage.isNullOrEmpty()) {
+            profileDetails.thumbImage
+        } else profileDetails.image
         if (profileDetails.isAdminBlocked || profileDetails.isBlockedMe || profileDetails.isDeletedContact()) {
             imageUrl = Constants.EMPTY_STRING
             errorImg = ProfilePicUtil.getDefaultDrawable(context, ChatType.TYPE_CHAT)
         }
-        loadImageWithGlideSecure(context, imageUrl, imgView, errorImg)
+        loadImage(context, imageUrl, imgView, errorImg)
     }
 
     /**

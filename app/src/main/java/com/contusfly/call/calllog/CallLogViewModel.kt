@@ -39,11 +39,15 @@ constructor(private val repository: CallLogRepository, private val apiCalls: Api
     val removeLoader = MutableLiveData<Boolean>()
     val callList = MutableLiveData<List<CallLog>>()
     val fetchingError = MutableLiveData<Boolean>()
+    val clearAllCallLog = MutableLiveData<Boolean>()
 
     // = = = = = = = = CallLogs Data = = = = = = = =
-    private var callLogList: MutableList<CallLog> = ArrayList<CallLog>()
     val callLogAdapterList: ArrayList<CallLog> by lazy { ArrayList() }
     val selectedCallLogs: ArrayList<String> by lazy { ArrayList() }
+
+    fun setClearAllCallLog() {
+        clearAllCallLog.postValue(true)
+    }
 
     val callLog = MutableLiveData<CallLog>()
     fun getCallLog(roomId: String) {
@@ -53,6 +57,7 @@ constructor(private val repository: CallLogRepository, private val apiCalls: Api
     }
 
     private fun resetPagination() {
+        callLogAdapterList.clear()
         isFetching = false
         currentPage = 0
         totalPages = 1
@@ -73,7 +78,6 @@ constructor(private val repository: CallLogRepository, private val apiCalls: Api
                     totalPages = data.getParams("total_pages") as Int
                     removeLoader.postValue(true)
                     callList.postValue(callLogDBList)
-                    callLogList.addAll(callLogDBList)
                     LogMessage.d(TAG, "$CALL_UI getCallLogs pageNumber: $currentPage, $totalPages")
                     updateLoaderStatus()
                 } else {
