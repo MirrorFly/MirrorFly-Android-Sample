@@ -4,20 +4,18 @@
 
 # **MirrorFly Android SDK For Video Chat & Calls**
 
-MirrorFly provides the chat and call API & SDK for your Android apps, allowing you to add real-time messaging and calling capabilities to your platform. The development kit comes with 1000+ custom CPaaS features along with 500+ AI-powered features to automate the conversational flow across your app. 
+This repository demonstrates how to integrate MirrorFly's Android SDK into your native mobile application. Implement robust messaging and calling features with minimal development overhead using our fully customizable white-label solution. This documentation details all required libraries, Gradle dependencies, optional features, and installation steps for quick integration.
 
-Every component in the kit is customizable letting developers build custom communication workflow with the freedom to host the solution on any server. Along with this, the security features can also be customized to add additional layers of data encryption. The entire platform can be white-labeled, without mention of the provider, enabling a fully branded experience to users. 
-
-# **🤹 Key Product Offerings** 
+# **🤹 Key Product Offerings**
 
 MirrorFly helps build omni-channel communication apps for any kind of business
 
 **💬 [In-app Messaging](https://www.mirrorfly.com/chat-api-solution.php)** \- Connect users individually or as groups via instant messaging features.  
-**🎯 [HD Video Calling](https://www.mirrorfly.com/video-call-solution.php)**\- Engage users over face-to-face conversations anytime, and from anywhere.   
-**🦾 [HQ Voice Calling](https://www.mirrorfly.com/voice-call-solution.php)** \- Deliver crystal clear audio calling experiences with latency as low as 3ms.   
-🤖 [**AI Voice Agent**](https://www.mirrorfly.com/conversational-ai/voice-agent/) \- Build custom  AI voicebots that can understand, act and respond to user questions.   
+**🎯 [HD Video Calling](https://www.mirrorfly.com/video-call-solution.php)**\- Engage users over face-to-face conversations anytime, and from anywhere.  
+**🦾 [HQ Voice Calling](https://www.mirrorfly.com/voice-call-solution.php)** \- Deliver crystal clear audio calling experiences with latency as low as 3ms.  
+🤖 [**AI Voice Agent**](https://www.mirrorfly.com/conversational-ai/voice-agent/) \- Build custom AI voicebots that can understand, act and respond to user questions.  
 **🤖 [AI Chatbot](https://www.mirrorfly.com/conversational-ai/chatbot/)** \- Deploy white-label AI chatbots that drive autonomous conversations across any web or mobile app.  
-**🦾 [Live Streaming](https://www.mirrorfly.com/live-streaming-sdk.php)** \- Broadcast video content to millions of viewers around the world, within your own enterprise app. 
+**🦾 [Live Streaming](https://www.mirrorfly.com/live-streaming-sdk.php)** \- Broadcast video content to millions of viewers around the world, within your own enterprise app.
 
 ### [**Chat SDKs for Android**](https://www.mirrorfly.com/docs/chat/android/v3/quick-start#chat-sdks-for-android)
 
@@ -31,13 +29,13 @@ Note : If you're looking for the fastest way to build your app’s UI with Mirro
 
 The requirements for chat SDK for Android are:
 
-* Android Lollipop 5.0 (API Level 21) or above  
-* Java 7 or higher  
-* Gradle 8.6.0 or higher  
-* Kotlin 2.0.20 or higher  
-* targetSdkVersion, compileSdk 35
+- Android Lollipop 5.0 (API Level 21) or above
+- Java 7 or higher
+- Gradle 8.6.0 or higher
+- Kotlin 2.0.20 or higher
+- targetSdkVersion, compileSdk 35
 
-Note : If you're utilizing Chat SDK version 7.13.27 or higher, it's must to set the target SDK version to 35. This is due to the migration of Chat SDK to Android 15.
+Note : If you are using Chat SDK version 7.13.27 or higher, you must set the target SDK version to 35, as the SDK has migrated to Android 15.
 
 ### [**Getting Started**](https://www.mirrorfly.com/docs/chat/android/v3/quick-start#things-to-be-noted-before-you-get-started)
 
@@ -49,8 +47,7 @@ To integrate MirrorFly Chat SDK into your app, you will need a SDK License Key. 
 
 Step 1: Register [here](https://www.mirrorfly.com/contact-sales.php) to get a MirrorFly User account.  
 Step 2: [Login](https://console.mirrorfly.com/) to your Account  
-Step 3: Get the License key from the application Info’ section  
-
+Step 3: Get the License key from the application Info’ section
 
 <img  src="https://www.mirrorfly.com/docs/assets/images/license-key-a1173e922ebff14b6ae1a2428f822eec.png" data-canonical-src="https://www.mirrorfly.com/docs/assets/images/license-key-a1173e922ebff14b6ae1a2428f822eec.png" width="100%"  alt=""/>
 
@@ -58,11 +55,11 @@ Step 3: Get the License key from the application Info’ section
 
 ### [**Integrate Chat SDK for Android App**](https://www.mirrorfly.com/docs/chat/android/v3/quick-start#integrate-chat-sdk-for-android-app)
 
-**Step 1:** Create a new project or open an existing project in Android Studio.  
+**Step 1:** Create a new project or open an existing project in Android Studio.
 **Step 2:**
 
-* If you are using Gradle 6.8 or higher, add the following code to your `settings.gradle` file.  
-* If you are using Gradle 6.7 or lower, add the code to your root `build.gradle` file.
+- For Gradle 6.8 or higher, add the following code to your settings.gradle file.
+- For Gradle 6.7 or lower, add the code to your root build.gradle file.
 
 ```gradle
 dependencyResolutionManagement {
@@ -101,7 +98,7 @@ android.enableJetifier=true
 
 ## [**Initialize Chat SDK**](https://www.mirrorfly.com/docs/chat/android/v3/quick-start#initialize-chat-sdk)
 
-Before you start using the SDK, ensure you meet some basic requirements. In your `Application` class, within the `onCreate()` method, use the following `ChatManager` method to provide the necessary initialization data:
+Before initializing the SDK, ensure all prerequisites are met. In your Application class, call the following ChatManager method within the onCreate() function to provide the required initialization data:
 
 ![configscyAar][image4]
 
@@ -162,11 +159,11 @@ FlyCore.registerUser(USER_IDENTIFIER, (isSuccess, throwable, data) -> {
 
 ## [**Connect to the Chat Server**](https://www.mirrorfly.com/docs/chat/android/v3/quick-start#connect-to-the-chat-server)
 
-Once registration is successful, the Chat SDK automatically attempts to connect to the chat server. It also monitors application lifecycle changes and connects or disconnects from the chat server accordingly.
+After successful registration, the Chat SDK automatically attempts to connect to the chat server. It also tracks application lifecycle changes and manages the server connection, connecting or disconnecting as needed.
 
 ## [**Observe Connection Events**](https://www.mirrorfly.com/docs/chat/android/v3/quick-start#observe-connection-events)
 
-Once the `ChatConnectionListener` is set, you can receive connection status updates through the callback method shown below.
+After setting the `ChatConnectionListener`, connection status updates are delivered through the callback method shown below.
 
 ```java
 ChatManager.setConnectionListener(new ChatConnectionListener() {
@@ -246,11 +243,12 @@ public void onMessageReceived(@NonNull ChatMessage message) {
 
 ## [**Make a call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#make-a-call)
 
-The call feature is essential for modern communication. The Call SDK enables users to make one-to-one audio or video calls with other SDK users.
+The Call feature provides core real-time communication functionality. The Call SDK allows users to initiate one-to-one audio or video calls with other SDK users.
 
 ### [**Required runtime permissions**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#required-runtime-permissions)
 
 For audio call, we need a below permissions:
+You can use the below method to check audio call permissions:
 
 ```java
 Manifest.permission.RECORD_AUDIO
@@ -289,11 +287,11 @@ CallManager.isNotificationPermissionsGranted();
 
 ### [**Call Metadata**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#call-metadata)
 
-To send custom data when making a call, use the optional `metaData` parameter in all `makeCall` methods. This parameter accepts an array of type `CallMetadata`.
+To include custom data when initiating a call, use the optional `metaData` parameter in all `makeCall` methods. This parameter accepts an array of type `CallMetadata`.
 
 ### [**Make a voice call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#make-a-voice-call)
 
-The voice call feature allows users to make a one-to-one audio call with another SDK user, including optional call metadata. Use the following method to initiate a voice call:
+The Voice Call feature enables users to initiate a one-to-one audio call with another SDK user, supporting optional call metadata. Use the following method to start a voice call:
 
 ```java
 CallManager.makeVoiceCall("TO_JID", CALL_METADATA, (isSuccess, flyException) -> {
@@ -313,7 +311,7 @@ CallManager.makeVoiceCall("TO_JID", CALL_METADATA, (isSuccess, flyException) -> 
 
 ### [**Make a video call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#make-a-video-call)
 
-The video call feature allows users to make a one-to-one video call with another SDK user, including optional call metadata. Use the following method to initiate a video call:
+The Video Call feature enables users to initiate a one-to-one video call with another SDK user, supporting optional call metadata. Use the following method to start a video call
 
 ```java
 CallManager.makeVideoCall("TO_JID", CALL_METADATA, (isSuccess, flyException) -> {
@@ -333,7 +331,7 @@ CallManager.makeVideoCall("TO_JID", CALL_METADATA, (isSuccess, flyException) -> 
 
 ### [**Make a group voice call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#make-a-group-voice-call)
 
-The group voice call feature allows users to make a voice call with multiple SDK users, including optional call metadata. Use the following method to initiate a group voice call:
+The Group Voice Call feature enables users to initiate a voice call with multiple SDK users, supporting optional call metadata. Use the following method to start a group voice call:
 
 ```java
 CallManager.makeGroupVoiceCall(JID_LIST, GROUP_ID, CALL_METADATA, new CallActionListener() {
@@ -356,7 +354,7 @@ CallManager.makeGroupVoiceCall(JID_LIST, GROUP_ID, CALL_METADATA, new CallAction
 
 ### [**Make a group video call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#make-a-group-video-call)
 
-The group video call feature allows users to make a video call with multiple SDK users, including optional call metadata. Use the following method to initiate a group video call:
+The Group Video Call feature enables users to initiate a video call with multiple SDK users, supporting optional call metadata. Use the following method to start a group video call:
 
 ```java
 CallManager.makeGroupVideoCall(JID_LIST, GROUP_ID, CALL_METADATA, new CallActionListener() {
@@ -379,7 +377,7 @@ CallManager.makeGroupVideoCall(JID_LIST, GROUP_ID, CALL_METADATA, new CallAction
 
 ### [**Add participants to the call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#add-participants-to-the-call)
 
-After a call is connected, you can add users to the ongoing call. The SDK provides methods to invite users, and once they accept the incoming call, they will join the active call.
+Once a call is connected, you can add participants to the ongoing session. The SDK provides methods to invite users, and they join the active call upon accepting the incoming invitation.
 
 ```java
 CallManager.inviteUsersToOngoingCall(JID_LIST, new CallActionListener() {
@@ -392,11 +390,11 @@ CallManager.inviteUsersToOngoingCall(JID_LIST, new CallActionListener() {
 
 ### [**Receiving a incoming audio/video call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#receiving-a-incoming-audiovideo-call)
 
-When you receive an audio or video call from another SDK user, the Call SDK will display a notification if the device is running Android 10 (API level 29) or higher. For lower Android versions, the activity set via `CallManager.setCallActivityClass()` during SDK initialization will launch with the call details. A sample call UI is also provided for quick integration.
+When an audio or video call is received from another SDK user, the Call SDK displays a notification on devices running Android 10 (API level 29) or higher. On lower Android versions, the activity specified via CallManager.setCallActivityClass() during SDK initialization launches with the call details. A sample call UI is also provided for rapid integration.
 
 ### [**Answer the incoming call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#answer-the-incoming-call)
 
-When you receive an audio or video call from another SDK user, your activity may be launched depending on the Android version. When the user presses the accept button in your call UI, call the following SDK method to answer the call and notify the caller.
+When an audio or video call is received from another SDK user, your activity may be launched based on the Android version. When the user taps the accept button in your call UI, invoke the following SDK method to answer the call and notify the caller.
 
 ```java
 CallManager.answerCall((isSuccess, flyException) -> {
@@ -414,7 +412,7 @@ CallManager.answerCall((isSuccess, flyException) -> {
 
 ### [**Decline the incoming call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#decline-the-incoming-call)
 
-When you receive an audio or video call from another SDK user, your activity may be launched depending on the Android version. When the user presses the decline button in your call UI, call the following SDK method to decline the call and notify the caller.
+When an audio or video call is received from another SDK user, your activity may be launched depending on the Android version. When the user taps the decline button in your call UI, invoke the following SDK method to reject the call and notify the caller.
 
 ```java
 CallManager.declineCall();
@@ -422,7 +420,7 @@ CallManager.declineCall();
 
 ### [**Disconnect the ongoing call**](https://www.mirrorfly.com/docs/audio-video/android/v2/feature-make-a-call/#disconnect-the-ongoing-call)
 
-Whenever you make an audio or video call to another SDK user and want to disconnect either before the call connects or after the conversation ends, call the following SDK method when the user presses the disconnect button in your call UI. This will end the call and notify the other participant.
+When making an audio or video call to another SDK user, you can disconnect either before the call connects or after the conversation ends. Invoke the following SDK method when the user presses the disconnect button in your call UI to terminate the call and notify the other participant.
 
 ```java
 CallManager.disconnectCall();
@@ -433,24 +431,25 @@ CallManager.disconnectCall();
 MirrorFly offers full freedom with the hosting options:  
 **Self-hosted:** Deploy your client on your own data centers, private cloud or third-party servers.  
 [Check out our multi-tenant cloud hosting](https://www.mirrorfly.com/self-hosted-chat-solution.php)  
-**Cloud:** Host your client on MirrorFly’s multi-tenant cloud servers.   
+**Cloud:** Host your client on MirrorFly’s multi-tenant cloud servers.  
 [Check out our multi-tenant cloud hosting](https://www.mirrorfly.com/multi-tenant-chat-for-saas.php)
 
 ## Mobile Client
 
 MirrorFly offers a fully-built client SafeTalk that is available in:
+
 - iOS
 - Android
 
 # **📚 Learn More**
 
-* [Developer Documentation](https://www.mirrorfly.com/docs/)  
-* [Product Tutorials](https://www.mirrorfly.com/tutorials/)  
-* [Dart Documentation](https://pub.dev/packages/mirrorfly_plugin)  
-* [Pubdev Documentation](https://pub.dev/packages/mirrorfly_plugin)  
-* [Npmjs Documentation](https://www.npmjs.com/~contus)  
-* [On-premise Deployment](https://www.mirrorfly.com/on-premises-chat-server.php)   
-* [See who's using MirrorFly](https://www.mirrorfly.com/chat-use-cases.php)
+- [Developer Documentation](https://www.mirrorfly.com/docs/)
+- [Product Tutorials](https://www.mirrorfly.com/tutorials/)
+- [Dart Documentation](https://pub.dev/packages/mirrorfly_plugin)
+- [Pubdev Documentation](https://pub.dev/packages/mirrorfly_plugin)
+- [Npmjs Documentation](https://www.npmjs.com/~contus)
+- [On-premise Deployment](https://www.mirrorfly.com/on-premises-chat-server.php)
+- [See who's using MirrorFly](https://www.mirrorfly.com/chat-use-cases.php)
 
 # **🧑‍💻 Hire Experts**
 
@@ -458,7 +457,7 @@ Need a tech team to build your enterprise app? [Hire a full team of experts](htt
 
 # **⏱️ Round-the-clock Support**
 
-If you’d like to take help when working with our solution, feel free to [contact our experts](https://www.mirrorfly.com/contact-sales.php) who will be available to help you anytime of the day or night. 
+If you’d like to take help when working with our solution, feel free to [contact our experts](https://www.mirrorfly.com/contact-sales.php) who will be available to help you anytime of the day or night.
 
 ## **💼 Become a Part of our amazing team**
 
@@ -466,10 +465,9 @@ We're always on the lookout for talented developers, support specialists, and pr
 
 ## **🗞️ Get the Latest Updates**
 
-* [Blog](https://www.mirrorfly.com/blog/)  
-* [Facebook](https://www.facebook.com/MirrorFlyofficial/)  
-* [Twitter](https://twitter.com/mirrorflyteam)  
-* [LinkedIn](https://www.linkedin.com/showcase/mirrorfly-official/)  
-* [Youtube](https://www.youtube.com/@mirrorflyofficial)  
-* [Instagram](https://www.instagram.com/mirrorflyofficial/)
-
+- [Blog](https://www.mirrorfly.com/blog/)
+- [Facebook](https://www.facebook.com/MirrorFlyofficial/)
+- [Twitter](https://twitter.com/mirrorflyteam)
+- [LinkedIn](https://www.linkedin.com/showcase/mirrorfly-official/)
+- [Youtube](https://www.youtube.com/@mirrorflyofficial)
+- [Instagram](https://www.instagram.com/mirrorflyofficial/)
